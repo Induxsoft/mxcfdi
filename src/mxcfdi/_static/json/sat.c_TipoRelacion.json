@@ -1,0 +1,44 @@
+[
+  {
+    "clave": "01",
+    "valor": "Nota de crédito de los documentos relacionados",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "02",
+    "valor": "Nota de débito de los documentos relacionados",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "03",
+    "valor": "Devolución de mercancía sobre facturas o traslados previos",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "04",
+    "valor": "Sustitución de los CFDI previos",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "05",
+    "valor": "Traslados de mercancías facturados previamente",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "06",
+    "valor": "Factura generada por los traslados previos",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  },
+  {
+    "clave": "07",
+    "valor": "CFDI por aplicación de anticipo",
+    "fechainicio": "2022-01-01",
+    "fechafin": ""
+  }
+]

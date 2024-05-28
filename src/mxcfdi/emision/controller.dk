@@ -1,0 +1,15 @@
+#include "dkli.dkh"
+#!
+module "EmisionController"
+{
+    switch @@(@http_context,"$request/get/_view")
+    {
+        case "factura"
+        {
+            @form_view = "form.factura.dk"
+
+            point @read to emision.read
+            break
+        }
+    }
+}

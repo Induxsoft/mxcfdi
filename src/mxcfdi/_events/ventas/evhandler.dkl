@@ -1,0 +1,38 @@
+#include "dkli.dkh"
+#!
+program "Controlador de eventos"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+
+    do @context.begin(@event_context)
+
+    ref db = @("&database")
+    ref data = @("&eventdata/output")
+    ref @http_context = @("&eventdata/http")
+
+    // do file.wtext("___event_context.json", to.json(@event_context))
+    // do rise_error(0,"stop!")
+
+    switch trim(@("$event"))
+    {
+        case "pre_VD13"
+        {
+            // code...
+            break
+        }
+        case "pos_VD13"
+        {
+            // code...
+            break
+        }
+        case "ext_VD13"
+        {
+            if @@(data,"#documento") == 4 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/ventas/factura/?doc="+@@(data,"$sys_pk") }
+            break
+        }
+    }
+
+    do @context.end()
+}

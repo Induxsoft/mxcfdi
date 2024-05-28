@@ -1,0 +1,78 @@
+#include "dkli.dkh"
+#!
+module "list.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+
+    do @context.begin(@crud_context)
+
+    ref @_GET = ifnull(@("&parameters"),record.create())
+    ref data = ifnull(@("&./data"),list.create())
+    ref itemactions = ifnull(@("&./itemactions"),list.create())
+    ref itemreports = ifnull(@("&./itemreports"),list.create())
+
+    // do rise_error(0,to.json(@("&.")))
+
+	@_entities_type = @("$parameters/_entities_type")
+	table_id = "tbl_"+@_entities_type
+
+    new table_definition
+    {
+        @"datatable*": data
+        member @"columns"
+        {
+            member @"nic" { @"caption": "NIC" }
+            member @"cti" { @"caption": "CTI" }
+			member @"pwd" { @"caption": "Contraseña" }
+            member @"predet" { @"caption": "Predeterminado" }
+        }
+        @"table_footer": "Mostrando los primeros # registros"
+    }
+
+    new nav_config
+    {
+        @"title": "Administración de emisores de CFDI"
+        @"buttons*": @null
+        @"urlexit": "/"
+        @"main": "GX91,GX92,GX93"
+        @"actions*": itemactions
+        @"reports*": itemreports
+        @"jscurrentcontext": "getCurrentContext"
+    }
+
+    #$ div(class="container-fluid p-0")
+    {
+        #! do uie.printV12FormBar(nav_config)
+
+        #$ div(id="work_area" class="container-section mt-1 p-2 pt-0")
+        {
+            form(action="./" method="GET" id="form_filter" class="no-print my-1 d-flex py-1")
+            {
+                "filter-text"(
+                    "id"="fil_text"
+                    "text-field"="fil_text"
+                    "placeholder"="Buscar ..."
+                    "form"="#form_filter"
+                    "value"="#<@('$parameters/fil_text')>"
+                    "auto-submit"="true"
+                    "class"="w-100"
+                ){$""}
+            }
+            #! do uie.dbeditable(table_definition,table_id)
+        }
+
+		#$
+		script(type="text/javascript")
+		{$'
+			function getCurrentContext()
+			{
+				const table = document.getElementById("#<table_id>");
+				const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
+    			return { item_id:id, context: {} }
+			}
+		'}
+    }
+}

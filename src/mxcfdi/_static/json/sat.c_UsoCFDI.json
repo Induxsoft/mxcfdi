@@ -1,0 +1,194 @@
+﻿[
+  {
+    "clave": "G01",
+    "valor": "Adquisición de mercancías.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625,626"
+  },
+  {
+    "clave": "G02",
+    "valor": "Devoluciones, descuentos o bonificaciones.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625,626"
+  },
+  {
+    "clave": "G03",
+    "valor": "Gastos en general.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I01",
+    "valor": "Construcciones.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I02",
+    "valor": "Mobiliario y equipo de oficina por inversiones.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I03",
+    "valor": "Equipo de transporte.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I04",
+    "valor": "Equipo de computo y accesorios.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I05",
+    "valor": "Dados, troqueles, moldes, matrices y herramental.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I06",
+    "valor": "Comunicaciones telefónicas.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I07",
+    "valor": "Comunicaciones satelitales.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "I08",
+    "valor": "Otra maquinaria y equipo.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 606, 612, 620, 621, 622, 623, 624, 625, 626"
+  },
+  {
+    "clave": "D01",
+    "valor": "Honorarios médicos, dentales y gastos hospitalarios.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D02",
+    "valor": "Gastos médicos por incapacidad o discapacidad.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D03",
+    "valor": "Gastos funerales.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D04",
+    "valor": "Donativos.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D05",
+    "valor": "Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación).",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D06",
+    "valor": "Aportaciones voluntarias al SAR.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D07",
+    "valor": "Primas por seguros de gastos médicos.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D08",
+    "valor": "Gastos de transportación escolar obligatoria.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D09",
+    "valor": "Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones.",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "D10",
+    "valor": "Pagos por servicios educativos (colegiaturas).",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": "605, 606, 608, 611, 612, 614, 607, 615, 625"
+  },
+  {
+    "clave": "S01",
+    "valor": "Sin efectos fiscales.",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 605, 606, 608, 610, 611, 612, 614, 616, 620, 621, 622, 623, 624, 607, 615, 625, 626"
+  },
+  {
+    "clave": "CP01",
+    "valor": "Pagos",
+    "pfisica": "Sí",
+    "pmoral": "Sí",
+    "fechainicio": "01/01/2022",
+    "regimen": "601, 603, 605, 606, 608, 610, 611, 612, 614, 616, 620, 621, 622, 623, 624, 607, 615, 625, 626"
+  },
+  {
+    "clave": "CN01",
+    "valor": "Nómina",
+    "pfisica": "Sí",
+    "pmoral": "No",
+    "fechainicio": "01/01/2022",
+    "regimen": 605
+  }
+]

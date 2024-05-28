@@ -1,0 +1,85 @@
+#include "dkli.dkh"
+#!
+module "form.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+    #include "../_lib/lib.dk"
+	#include "../_lib/icons.dk"
+
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+	is_new = (@_entity_id == "_new")
+
+    header_act::
+    { 
+        #$
+        button(type="submit" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"){$"#<@ICON_SAVE>"}
+        #!
+    }
+    point general_act to header_act
+
+    new nav_config
+    {
+        @"title": ifstr(is_new,"Nueva","Editar") + " configuración de emisor"
+        @"buttons*": general_act
+        @"urlexit": "../"
+        member @"hidden" { @"print": @true }
+    }
+
+    #$ div(class="container")
+    {
+        form(method="POST" action="./" id="form")
+        {
+            #! do uie.printV12FormBar(nav_config)
+
+            #$ div(id="work_area" class="container-section")
+            {
+                div(class="#<ifstr(@('error/message')!='','alert alert-danger','')>"){$"#<@('error/message')>"}
+
+                input(type="hidden" name="sys_pk" value="#<@@(entity, '#sys_pk')>")
+                input(type="hidden" name="sys_recver" value="#<@@(entity, '#sys_recver')>")
+
+                div(class="row")
+                {
+                    div(class="col-lg-4 col-md-4 col-sm-4")
+                    {
+                        label(class="form-label fw-bold" "for"="txt_nic"){$"NIC:"}
+                        input(class="form-control rounded-0" type="text" name="nic" value="#<lib.form('nic','tx',entity)>" id="txt_nic" minlength="6" maxlength="12" size="12" required="")
+                    }
+
+                    div(class="col-lg-4 col-md-4 col-sm-4")
+                    {
+                        label(class="form-label fw-bold" "for"="txt_cti"){$"CTI:"}
+                        input(class="form-control rounded-0" type="text" name="cti" value="#<lib.form('cti','tx',entity)>" id="txt_cti" maxlength="32" size="32" required="")
+                    }
+
+                    div(class="col-lg-4 col-md-4 col-sm-4")
+                    {
+                        label(class="form-label fw-bold" "for"="txt_pwd"){$"Contraseña:"}
+                        input(class="form-control rounded-0" type="password" name="pwd" value="#<lib.form('pwd','tx',entity)>" id="txt_pwd" maxlength="100" required="")
+                    }
+
+                    div(class="col-12")
+                    {
+                        div(class="form-check mt-2")
+                        {
+                            #!
+                            checked = lib.form("predet","ch",entity)
+                            #$
+                            input(class="form-check-input" type="checkbox" name="predet" id="chk_predet" "#<checked>"="")
+                            label(class="form-check-label" "for"="chk_predet"){$"Predeterminado"}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

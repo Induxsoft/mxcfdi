@@ -1,0 +1,4 @@
+﻿id,title,shorttitle,icon16x16,href,_blank,appid,itemtype,req_context_item_id,act_type
+GX91,Agregar configuración de emisor,Agregar,,/!/mxcfdi/config/_new/,0,mxcfdi.config,DET083,0,action
+GX92,Editar configuración de emisor,Editar,,/!/mxcfdi/config/@_src_context_item_id/,0,mxcfdi.config,DET083,1,action
+GX93,Eliminar configuración de emisor,Eliminar,,javascript:InduxsoftCrudlModel.Delete(@_src_context_item_id);,0,mxcfdi.config,DET083,1,action

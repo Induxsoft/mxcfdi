@@ -1,0 +1,35 @@
+#include "ddm.dkh"
+model ""
+{
+    /**
+    * [mxcfdi] Emisión de CFDI
+    * =======================================================================
+    * Emisión de CFDI (Facturación Electrónica México)
+    */
+    #include "induxsoft.abstracts.ddm"
+
+    //* ======================================== [ DEPENDENCIAS (FK) ]
+    entity "cliente"
+    {
+        @"cfdi_emisor" ref:"mxcfdi_emisor"
+    }
+    entity "cconsumo"
+    {
+        @"cfdi_emisor" ref:"mxcfdi_emisor"
+    }
+    //* ======================================== [ ENTIDADES PRINCIPALES ]
+    // Administración de emisores de CFDI
+    entity "mxcfdi_emisor" : "TableModel"
+    {
+        @"nic" string(12) required
+        @"cti" string(32) required
+        @"pwd" string(100) required
+        @"predet" bool
+
+        index "mxcfdi_emisor_idx1" unique
+        {
+            field "nic"
+            field "cti"
+        }
+    }
+}

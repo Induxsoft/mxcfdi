@@ -1,0 +1,44 @@
+#include "dkli.dkh"
+#!
+module "Emisión de comprobantes fiscales por tipo de operación. :emision"
+{
+    @table_name = "mxcfdi_emisor"
+
+    getJsonData::name
+    {
+        file_path = path.concat(@json_path,str(name))
+        if file.exists(file_path){ return from.json(file.rtext(file_path)) }
+        return @null
+    }
+
+    prepareView::&db,&params,&data
+    {
+        namespace "emision"
+
+        using data
+        {
+            @"list_forma_pago*": getJsonData(@sat_forma_pago)
+            @"list_uso_cfdi*": getJsonData(@sat_uso_cfdi)
+            @"list_reg_fiscal*": getJsonData(@sat_regimen_fiscal)
+            @"list_exportacion*": getJsonData(@sat_exportacion)
+            @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
+        }
+    }
+
+    list::&db,&params
+    {
+        return list.create()
+    }
+
+    read::&db,&params
+    {
+        new data {}
+        do emision.prepareView(db,params,data)
+        return data
+    }
+
+    blank::&db,&params
+    {
+        return record.create()
+    }
+}

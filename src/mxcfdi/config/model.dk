@@ -1,0 +1,196 @@
+#include "dkli.dkh"
+#!
+module "Configuración de emisores y cuentas de timbrado. :config"
+{
+    @table_name = "mxcfdi_emisor"
+    @keyfield = "sys_pk"
+    @sys_fields = "sys_pk,sys_guid,sys_dtcreated,sys_timestamp,sys_info,sys_user,sys_lastuser,sys_exported,sys_dtexported,sys_recver,sys_deleted,sys_lock"
+
+    @create_fields = @sys_fields + ",nic,cti,pwd,predet"
+    @update_fields = @sys_fields + ",nic,cti,pwd,predet"
+    
+    @create_exclude_fields = "sys_lastuser"
+    @update_exclude_fields = "sys_pk,sys_guid,sys_dtcreated,sys_user"
+    
+    @create_alias_fields = ""
+    @update_alias_fields = ""
+
+    @list_query = "
+    SELECT
+        cfg.sys_pk,
+        cfg.nic,
+        cfg.cti,
+        cfg.pwd,
+        IF(cfg.predet,'Si','No') AS predet
+    FROM #<@table_name> AS cfg
+    WHERE NOT IFNULL(cfg.sys_deleted,0)
+        #<conditions>
+    LIMIT #<@default_max_rows>
+    "
+
+    @read_query = "
+    SELECT
+        cfg.sys_pk,
+        cfg.sys_recver,
+        cfg.nic,
+        cfg.cti,
+        cfg.pwd,
+        IFNULL(cfg.predet,0) AS predet
+    FROM #<@table_name> AS cfg
+    WHERE cfg.#<@keyfield> = @_entity_id
+        #<conditions>
+    "
+
+    evaluateFilters::&params
+    {
+        conditions = ""
+
+        if trim(@@(params,"$fil_text")) != "" {
+            conditions = conditions + "
+            AND (cfg.nic LIKE CONCAT('%',@fil_text,'%')
+                OR cfg.cti LIKE CONCAT('%',@fil_text,'%')
+            )"
+        }
+
+        @list_query = ftext(@list_query)
+    }
+
+    list::&db,&params
+    {
+        do dbr.apps.action.grant("GX90")
+
+        do config.evaluateFilters(params)
+        new data
+        {
+            @"data*": entity.list(db,params)
+            @"itemactions*": dbr.apps.itemactions(db,"DET083","action","",0)
+            @"itemreports*": dbr.apps.itemactions(db,"DET083","report","",0)
+        }
+        return data
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+            do dbr.apps.action.log()
+            do rise_error(code,error)
+        }
+    }
+
+    read::&db,&params
+    {
+        do dbr.apps.action.grant("GX90")
+
+        return entity.read(db,params)
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+            do dbr.apps.action.log()
+            do rise_error(code,error)
+        }
+    }
+
+    blank::&db,&params
+    {
+        do dbr.apps.action.grant("GX90")
+
+        return record.create()
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+            do dbr.apps.action.log()
+            do rise_error(code,error)
+        }
+    }
+
+    create::&db,&params,&data
+    {
+        @use_transaction = @false
+
+        do dbr.apps.action.pre("GX91")
+        do dbr.begin(db)
+
+        data<"predet"> : parse.bool(@@(data,"$predet"))
+        if @@(data,"#predet") { do dbr.execute(db,ftext("UPDATE #<@table_name> SET predet = 0"),@null) }
+        
+        ref entity = entity.create(db,params,data)
+
+        do dbr.apps.action.pos(entity)
+        do dbr.commit(db)
+        do dbr.apps.action.ext(entity)
+
+        return entity
+
+        exception{ do config.catch(db,params,data) }
+    }
+
+    update::&db,&params,&data
+    {
+        @use_transaction = @false
+
+        do dbr.apps.action.pre("GX92")
+        do dbr.begin(db)
+
+        data<"predet"> : parse.bool(@@(data,"$predet"))
+        if @@(data,"#predet") { do dbr.execute(db,ftext("UPDATE #<@table_name> SET predet = 0"),@null) }
+        
+        ref entity = entity.update(db,params,data)
+
+        do dbr.apps.action.pos(entity)
+        do dbr.commit(db)
+        do dbr.apps.action.ext(entity)
+
+        return entity
+
+        exception{ do config.catch(db,params,data) }
+    }
+
+    delete::&db,&params
+    {
+        @use_transaction = @false
+
+        do dbr.apps.action.pre("GX93")
+        do dbr.begin(db)
+        
+        do entity.delete(db,params)
+
+        do dbr.apps.action.pos(@null)
+        do dbr.commit(db)
+        do dbr.apps.action.ext(@null)
+
+        exception{ do config.catch(db,params,@null) }
+    }
+
+    catch::&db,&params,&data
+    {
+        do errordet(@error_det)
+        if isnull(data){ ref data:record.create() }
+        if dbr.in_transaction(db){ do dbr.rollback(db) }
+
+        ref FormData = record.copy(data,"*")
+        code = last_error_code()
+        error = last_error()
+
+        do record.clear(data)
+        data<"form*"> : FormData
+
+        if isset("@@_action_context"){ do dbr.apps.action.log() }
+        // do config.prepareView(db,params,data)
+        do rise_error(code,error)
+    }
+
+    point @list to config.list
+    point @read to config.read
+    point @blank to config.blank
+
+    point @create to config.create
+    point @update to config.update
+    point @delete to config.delete
+}

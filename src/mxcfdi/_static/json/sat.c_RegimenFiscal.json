@@ -1,0 +1,135 @@
+[{
+        "clave": "601",
+        "valor": "General de Ley Personas Morales",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "603",
+        "valor": "Personas Morales con Fines no Lucrativos",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "605",
+        "valor": "Sueldos y Salarios e Ingresos Asimilados a Salarios",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "606",
+        "valor": "Arrendamiento",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "607",
+        "valor": "Régimen de Enajenación o Adquisición de Bienes",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "608",
+        "valor": "Demás ingresos",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "610",
+        "valor": "Residentes en el Extranjero sin Establecimiento Permanente en México",
+        "fisica": "Sí",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "611",
+        "valor": "Ingresos por Dividendos (socios y accionistas)",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "612",
+        "valor": "Personas Físicas con Actividades Empresariales y Profesionales",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "614",
+        "valor": "Ingresos por intereses",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "615",
+        "valor": "Régimen de los ingresos por obtención de premios",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "616",
+        "valor": "Sin obligaciones fiscales",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "620",
+        "valor": "Sociedades Cooperativas de Producción que optan por diferir sus ingresos",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "621",
+        "valor": "Incorporación Fiscal",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "622",
+        "valor": "Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "623",
+        "valor": "Opcional para Grupos de Sociedades",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "624",
+        "valor": "Coordinados",
+        "fisica": "No",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "625",
+        "valor": "Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas",
+        "fisica": "Sí",
+        "moral": "No",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }, {
+        "clave": "626",
+        "valor": "Régimen Simplificado de Confianza",
+        "fisica": "Sí",
+        "moral": "Sí",
+        "fechainicio": "01/01/2022",
+        "fechafin": ""
+    }
+]

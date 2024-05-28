@@ -1,0 +1,28 @@
+#include "dkli.dkh"
+#!
+module
+{
+	if not(isset("@http_context")) && isset("@crud_context") { ref @http_context = @@(@crud_context,"&http") }
+	
+	@curr_ndt = ndatetime.now()
+    @curr_year = ndatetime.year(@curr_ndt)
+    @curr_month = ndatetime.month(@curr_ndt)
+    @curr_day = ndatetime.day(@curr_ndt)
+
+	@default_max_rows = 250 // limite de registros para las vistas de lista
+	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
+	@json_path = "mxcfdi/_static/json"
+	
+	@sat_exportacion = "sat.c_Exportacion.json"
+	@sat_forma_pago = "sat.c_FormaPago.json"
+	@sat_regimen_fiscal = "sat.c_RegimenFiscal.json"
+	@sat_tipo_relacion = "sat.c_TipoRelacion.json"
+	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
+
+	//* ======================================== [ _STATIC RESOURCES ]
+	@CSS_MAIN = "/$/mxcfdi/js/main.css"
+	@JS_MAIN = "/$/mxcfdi/js/main.js"
+	@JS_FACTURA = "/$/mxcfdi/js/factura.js"
+
+	//* ======================================== [ _PACKAGE ]
+}

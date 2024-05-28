@@ -1,0 +1,20 @@
+[
+    {
+        "id": "mxcfdi",
+        "caption": "Emisión de CFDI",
+        "help": "Variables del paquete: mxcfdi",
+        "vars": [
+            {
+                "varname": "mxcfdi_config",
+                "vardefault": "",
+                "varvalue": "/!/mxcfdi/config/",
+                "varcaption": "Configuración de emisores",
+                "varhelp": "Ir a administración de emisores de CFDI.",
+                "vartype": "string",
+                "varinput": {
+                    "control": "button"
+                }
+            }
+        ]
+    }
+]

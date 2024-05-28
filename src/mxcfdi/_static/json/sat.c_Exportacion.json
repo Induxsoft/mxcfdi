@@ -1,0 +1,20 @@
+[
+  {
+    "clave": "01",
+    "valor": "No aplica",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "02",
+    "valor": "Definitiva",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "03",
+    "valor": "Temporal",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  }
+]
