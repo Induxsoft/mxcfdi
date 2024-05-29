@@ -11,15 +11,85 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return @null
     }
 
+    getInfoCliente::&db,&params,&data
+    {
+        tname = ""
+        
+        if @@(params,"$_entity_id") == "ventas" { tname = "venta" }
+        else if @@(params,"$_entity_id") == "cxc" { tname = "dcxc" }
+
+        ref p = dbr.rec(db,ftext("SELECT icliente FROM #<tname> WHERE sys_pk = @doc"),params)
+        
+        sql_cliente = "
+        SELECT
+            cte.nombre,
+            UPPER(TRIM(IFNULL(cte.rfc,''))) AS rfc,
+            TRIM(IFNULL(cte.regfiscal,'')) AS regfiscal,
+            IFNULL(dom1.codpos,'') AS codpos
+        FROM cliente AS cte
+            LEFT JOIN domicilio AS dom1 ON cte.domicilio1 = dom1.sys_pk
+        WHERE cte.sys_pk = @icliente
+        "
+        return dbr.rec(db,sql_cliente,p)
+    }
+
+    getFilUsoCfdi::&db,&params,&data
+    {
+        ref uso_cfdi = emision.getJsonData(@sat_uso_cfdi)
+        ref cliente = emision.getInfoCliente(db,params,data)
+        ref filtered = list.create()
+
+        pMoral = (length(@@(cliente,"$rfc")) == 12)
+        pFisica = (length(@@(cliente,"$rfc")) == 13)
+
+        for i = 0; i < list.count(uso_cfdi); i+1
+        {
+            ref uso = list.obj(uso_cfdi,i)
+            add = @false
+
+            if pMoral && parse.bool(@@(uso,"$pmoral")) { add = @true }
+            if pFisica && parse.bool(@@(uso,"$pfisica")) { add = @true }
+
+            if add { do list.add(filtered,uso) }
+        }
+
+        return filtered
+    }
+
+    getFilRegFiscal::&db,&params,&data
+    {
+        ref reg_fiscal = emision.getJsonData(@sat_regimen_fiscal)
+        ref cliente = emision.getInfoCliente(db,params,data)
+        ref filtered = list.create()
+
+        pMoral = (length(@@(cliente,"$rfc")) == 12)
+        pFisica = (length(@@(cliente,"$rfc")) == 13)
+
+        for i = 0; i < list.count(reg_fiscal); i+1
+        {
+            ref reg = list.obj(reg_fiscal,i)
+            add = @false
+
+            if pMoral && parse.bool(@@(reg,"$moral")) { add = @true }
+            if pFisica && parse.bool(@@(reg,"$fisica")) { add = @true }
+
+            if add { do list.add(filtered,reg) }
+        }
+
+        return filtered
+    }
+
     prepareView::&db,&params,&data
     {
         namespace "emision"
 
         using data
         {
+            @"dtcliente*": getInfoCliente(db,params,data)
             @"list_forma_pago*": getJsonData(@sat_forma_pago)
-            @"list_uso_cfdi*": getJsonData(@sat_uso_cfdi)
-            @"list_reg_fiscal*": getJsonData(@sat_regimen_fiscal)
+            @"list_metodo_pago*": getJsonData(@sat_metodo_pago)
+            @"list_uso_cfdi*": getFilUsoCfdi(db,params,data)
+            @"list_reg_fiscal*": getFilRegFiscal(db,params,data)
             @"list_exportacion*": getJsonData(@sat_exportacion)
             @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
         }

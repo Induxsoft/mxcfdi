@@ -6,7 +6,35 @@ module "EmisionController"
     {
         case "factura"
         {
-            @form_view = "form.factura.dk"
+            @form_view = "venta.factura.dk"
+
+            point @read to emision.read
+            break
+        }
+        case "devolucion"
+        {
+            @form_view = "venta.devolucion.dk"
+
+            point @read to emision.read
+            break
+        }
+        case "cobro"
+        {
+            @form_view = "cxc.cobro.dk"
+
+            point @read to emision.read
+            break
+        }
+        case "bonificacion"
+        {
+            @form_view = "cxc.bonificacion.dk"
+
+            point @read to emision.read
+            break
+        }
+        case "nota-cargo"
+        {
+            @form_view = "cxc.notacargo.dk"
 
             point @read to emision.read
             break

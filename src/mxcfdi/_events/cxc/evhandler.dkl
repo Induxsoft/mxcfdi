@@ -1,0 +1,44 @@
+#include "dkli.dkh"
+#!
+program "Controlador de eventos"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+
+    do @context.begin(@event_context)
+
+    ref db = @("&database")
+    ref params = @("&eventdata/parameters")
+    ref data = @("&eventdata/output")
+    ref @http_context = @("&eventdata/http")
+
+    // do file.wtext("___event_context.json", to.json(@event_context))
+    // do rise_error(0,"stop!")
+
+    switch trim(@("$event"))
+    {
+        case "ext_GB11"
+        {
+            if @@(data,"#documento") == 17 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/nota-cargo/?doc="+@@(data,"$sys_pk") }
+            break
+        }
+        case "ext_GB13"
+        {
+            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/cobro/?doc="+@@(data,"$sys_pk")
+            break
+        }
+        case "ext_GB14"
+        {
+            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/bonificacion/?doc="+@@(data,"$sys_pk")
+            break
+        }
+        case "ext_GB15"
+        {
+            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/nota-cargo/?doc="+@@(data,"$sys_pk")
+            break
+        }
+    }
+
+    do @context.end()
+}

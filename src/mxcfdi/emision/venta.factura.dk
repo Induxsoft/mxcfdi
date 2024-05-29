@@ -12,6 +12,7 @@ module "form.factura.dk"
     do @context.begin(@crud_context)
 
     ref @_GET = ifnull(@("&parameters"),record.create())
+    ref dtcliente = ifnull(@("&./dtcliente"),record.create())
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -41,6 +42,23 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("forma_pago","tx",@null)
     }
+    if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "99" }
+
+    new sel_metodo_pago
+    {
+        @"datatable*": ifnull(@("&./list_metodo_pago"),list.create())
+        @"id": "sel_metodo_pago"
+        new member "attributes"
+        {
+            @"class": "form-select rounded-0"
+            @"name": "metodo_pago"
+            @"required": ""
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": lib.form("metodo_pago","tx",@null)
+    }
+    if @@(sel_metodo_pago,"$selected") == "" { sel_metodo_pago<"selected"> : "PPD" }
 
     new sel_uso_cfdi
     {
@@ -56,6 +74,7 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("uso_cfdi","tx",@null)
     }
+    if @@(sel_uso_cfdi,"$selected") == "" { sel_uso_cfdi<"selected"> : "G03" }
 
     new sel_reg_fiscal
     {
@@ -71,6 +90,7 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("reg_fiscal","tx",@null)
     }
+    if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
     new sel_exportacion
     {
@@ -78,7 +98,7 @@ module "form.factura.dk"
         @"id": "sel_exportacion"
         new member "attributes"
         {
-            @"class": "form-select form-select-sm rounded-0"
+            @"class": "form-select rounded-0"
             @"name": "exportacion"
             @"required": ""
         }
@@ -86,6 +106,7 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("exportacion","tx",@null)
     }
+    if @@(sel_exportacion,"$selected") == "" { sel_exportacion<"selected"> : "01" }
 
     new sel_tipo_relacion
     {
@@ -101,20 +122,21 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("tipo_relacion","tx",@null)
     }
+    if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "02" }
 
     fn_print_buttons::
     {
         act_btn_cls = "btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"
         
         #$
-        button(class="#<act_btn_cls>" type="button" id="btn_aceptar" "data-stt-adm"="#<@stt_adm_abierto>" title="Crear CFDI"){$"Aceptar"}
+        button(class="#<act_btn_cls>" type="button" id="btn_submit" title="Crear CFDI"){$"Aceptar"}
         #!
     }
     point print_buttons to fn_print_buttons
 
     new nav_config
     {
-        @"title": "Atributos Adicionales"
+        @"title": "Factura de Venta"
         @"buttons*": print_buttons
         @"urlexit": "../"
         member @"hidden" { @"print": @true }
@@ -134,50 +156,69 @@ module "form.factura.dk"
 
             form(method="POST" action="./" id="frm_factura")
             {
+                small(class="float-end"){$"CFDI 4.0 Ingreso"}
+
                 nav(class="")
                 {
                     div(class="nav nav-tabs mb-2" id="nav-tab" role="tablist")
                     {
                         button(class="nav-link py-1 active" type="button" role="tab" id="nav-general-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-general" "aria-controls"="nav-general" "aria-selected"="true"){$"General"}
                         button(class="nav-link py-1" type="button" role="tab" id="nav-relacionar-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-relacionar" "aria-controls"="nav-relacionar" "aria-selected"="false"){$"Relacionar UUID"}
-                        button(class="nav-link py-1" type="button" role="tab" id="nav-complemento-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-complemento" "aria-controls"="nav-complemento" "aria-selected"="false"){$"Complemento"}
                     }
                 }
                 div(class="tab-content")
                 {
                     div(class="tab-pane fade show active" id="nav-general" role="tabpanel" "aria-labelledby"="nav-general-tab")
                     {
-                        div(class="row gx-2")
+                        div(class="d-flex gap-2 #<ifstr(is_new,'d-none','')>")
                         {
-                            div(class="col-12")
+                            label{b{$""} $"#<@@(dtcliente,'$nombre')>"}
+                            label{b{$"RFC: "} $"#<@@(dtcliente,'$rfc')>"}
+                        }
+
+                        div(class="row")
+                        {
+                            div(class="col-8")
                             {
-                                label(class="form-label fw-bold" "for"="sel_forma_pago"){$"Forma de Pago:"}
-                                ##
-                                do uie.dbSelect(sel_forma_pago)
-                                ##
-                            }
-                            div(class="col-12")
-                            {
-                                label(class="form-label fw-bold" "for"="txt_cond_pago"){$"Condiciones de pago:"}
-                                input(class="form-control rounded-0" type="text" name="cond_pago" value="#<lib.form('cond_pago','tx',@null)>" id="txt_cond_pago" required="")
-                            }
-                            div(class="col-12")
-                            {
-                                label(class="form-label fw-bold" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
-                                ##
-                                do uie.dbSelect(sel_uso_cfdi)
-                                ##
-                            }
-                            div(class="col-12")
-                            {
-                                label(class="form-label fw-bold" "for"="sel_reg_fiscal"){$"Régimen fiscal:"}
+                                label(class="form-label" "for"="sel_reg_fiscal"){$"Régimen fiscal:"}
                                 ##
                                 do uie.dbSelect(sel_reg_fiscal)
                                 ##
                             }
+                            div(class="col-4")
+                            {
+                                label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
+                                input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(dtcliente,'$codpos')>" id="txt_codpos")
+                            }
+                            div(class="col-6")
+                            {
+                                label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
+                                ##
+                                do uie.dbSelect(sel_forma_pago)
+                                ##
+                            }
+                            div(class="col-6")
+                            {
+                                label(class="form-label" "for"="sel_metodo_pago"){$"Método de Pago:"}
+                                ##
+                                do uie.dbSelect(sel_metodo_pago)
+                                ##
+                            }
                             div(class="col-12")
                             {
-                                label(class="form-label fw-bold" "for"="sel_exportacion"){$"Exportación:"}
+                                label(class="form-label" "for"="txt_cond_pago"){$"Condiciones de pago:"}
+                                input(class="form-control rounded-0" type="text" name="cond_pago" value="NO APLICA" id="txt_cond_pago" required="")
+                            }
+                            div(class="col-8")
+                            {
+                                label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
+                                ##
+                                do uie.dbSelect(sel_uso_cfdi)
+                                ##
+                            }
+                            div(class="col-4")
+                            {
+                                label(class="form-label" "for"="sel_exportacion"){$"Exportación:"}
                                 ##
                                 do uie.dbSelect(sel_exportacion)
                                 ##
@@ -187,23 +228,43 @@ module "form.factura.dk"
 
                     div(class="tab-pane fade" id="nav-relacionar" role="tabpanel" "aria-labelledby"="nav-relacionar-tab")
                     {
-                        span(class="text-muted"){$"Pendiente por implementar"}
-                    }
-                    
-                    div(class="tab-pane fade" id="nav-complemento" role="tabpanel" "aria-labelledby"="nav-complemento-tab")
-                    {
-                        span(class="text-muted"){$"Pendiente por implementar"}
+                        div(class="row")
+                        {
+                            div(class="col-12")
+                            {
+                                label(class="form-label" "for"="txt_uuid"){$"Ingrese el UUID que va a relacionar:"}
+                                div(class="input-group")
+                                {
+                                    input(class="form-control rounded-0" type="text" name="" value="" id="txt_uuid")
+                                    button(class="btn btn-secondary rounded-0" type="button" id="btn_add_uuid"){$"Agregar"}
+                                }
+                            }
+                            div(class="col-12")
+                            {
+                                label(class="form-label" "for"="sel_uuid"){$"UUID Factura:"}
+                                select(class="form-select" name="" id="sel_uuid" size="5" multiple=""){$""}
+                                button(class="btn btn-secondary rounded-0 float-end mt-1" type="button" id="btn_del_uuid"){$"Quitar"}
+                            }
+                            div(class="col-12")
+                            {
+                                label(class="form-label" "for"="sel_tipo_relacion"){$"Tipo de relación:"}
+                                ##
+                                do uie.dbSelect(sel_tipo_relacion)
+                                ##
+                            }
+                        }
                     }
                 }
             }
         }
 
         script(src="#<@JS_MAIN>"){$""}
-        script(src="#<@JS_FACTURA>"){$""}
+        script(src="#<@JS_EMISION>"){$""}
         script(type="text/javascript")
         {$'
             document.addEventListener("DOMContentLoaded", () => {
-                // code...
+                emision.formId = "frm_factura";
+                emision.init();
             });
         '}
     }

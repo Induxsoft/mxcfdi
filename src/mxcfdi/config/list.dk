@@ -26,7 +26,6 @@ module "list.dk"
         {
             member @"nic" { @"caption": "NIC" }
             member @"cti" { @"caption": "CTI" }
-			member @"pwd" { @"caption": "Contraseña" }
             member @"predet" { @"caption": "Predeterminado" }
         }
         @"table_footer": "Mostrando los primeros # registros"

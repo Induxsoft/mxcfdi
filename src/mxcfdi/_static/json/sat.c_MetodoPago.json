@@ -1,0 +1,14 @@
+[
+  {
+    "clave": "PUE",
+    "valor": "Pago en una sola exhibición",
+    "fechainicio": "01/01/2022",
+    "fechafin": ""
+  },
+  {
+    "clave": "PPD",
+    "valor": "Pago en parcialidades o diferido",
+    "fechainicio": "01/01/2022",
+    "fechafin": ""
+  }
+]

@@ -9,6 +9,7 @@ program "Controlador de eventos"
     do @context.begin(@event_context)
 
     ref db = @("&database")
+    ref params = @("&eventdata/parameters")
     ref data = @("&eventdata/output")
     ref @http_context = @("&eventdata/http")
 
@@ -17,14 +18,9 @@ program "Controlador de eventos"
 
     switch trim(@("$event"))
     {
-        case "pre_VD13"
+        case "ext_VD11"
         {
-            // code...
-            break
-        }
-        case "pos_VD13"
-        {
-            // code...
+            if @@(data,"#documento") == 5 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/ventas/devolucion/?doc="+@@(data,"$sys_pk") }
             break
         }
         case "ext_VD13"

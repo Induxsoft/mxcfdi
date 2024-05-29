@@ -15,6 +15,7 @@ module
 	
 	@sat_exportacion = "sat.c_Exportacion.json"
 	@sat_forma_pago = "sat.c_FormaPago.json"
+	@sat_metodo_pago = "sat.c_MetodoPago.json"
 	@sat_regimen_fiscal = "sat.c_RegimenFiscal.json"
 	@sat_tipo_relacion = "sat.c_TipoRelacion.json"
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
@@ -22,7 +23,7 @@ module
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/js/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"
-	@JS_FACTURA = "/$/mxcfdi/js/factura.js"
+	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 
 	//* ======================================== [ _PACKAGE ]
 }
