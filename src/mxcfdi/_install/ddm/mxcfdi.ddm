@@ -9,15 +9,61 @@ model ""
     #include "induxsoft.abstracts.ddm"
 
     //* ======================================== [ DEPENDENCIAS (FK) ]
-    entity "cliente"
+    entity "aplcxc" : "TableModel" {}
+    entity "dcxc" : "TableModel" {}
+    entity "venta" : "TableModel" {}
+    entity "cliente" : "TableModel"
     {
         @"cfdi_emisor" ref:"mxcfdi_emisor"
     }
-    entity "cconsumo"
+    entity "cconsumo" : "TableModel"
     {
         @"cfdi_emisor" ref:"mxcfdi_emisor"
     }
     //* ======================================== [ ENTIDADES PRINCIPALES ]
+    entity "ut_cfdinfo" : "TableModel"
+    {
+        @"uf_nocertificado" string(20) unique required
+        @"uf_certificado" string(4096)
+        @"uf_llaveprivada" string(4096) required
+        @"uf_clave" string(4096) required
+        @"uf_pfx" string(4096)
+    }
+    entity "ut_cfdfolio" : "TableModel"
+    {
+        @"uf_serie" string(10)
+        @"uf_folioinicial" int required
+        @"uf_foliofinal" int required
+        @"uf_noaprobacion" int required
+        @"uf_anoaprobacion" int required
+        @"uf_cfdfolioanterior" int
+        @"uf_cfdinfo" ref:"ut_cfdinfo" required
+    }
+    entity "ut_cfd" : "TableModel"
+    {
+        @"uf_xml" memo required
+        @"uf_cadenaoriginal" memo required
+        @"uf_sellodigital" memo required
+        @"uf_presentacion" memo
+        @"uf_iventa" ref:"venta"
+        @"uf_cfdfolio" ref:"ut_cfdfolio"
+        @"uf_extpresentacion" int
+        @"uf_idcxc" ref:"dcxc"
+        @"uf_fechahora" datetime
+        @"uf_tipo" int
+        @"uf_cfdi_info" ref:"ut_cfdinfo"
+        @"uf_canceladosat" int
+        @"uf_cadenaoriginalsat" memo
+        @"uf_sellodigitalsat" memo
+        @"uf_foliosat" string(50)
+        @"uf_nocertificadosat" string(20)
+        @"uf_fechahoracersat" datetime
+        @"uf_xmlcfdi" memo
+        @"uf_cbb" longblob
+        @"uf_ackcancelacion_sat" memo
+        @"uf_aplcxc" ref:"aplcxc"
+        @"uf_rfc_emisor" string(50)
+    }
     // Administración de emisores de CFDI
     entity "mxcfdi_emisor" : "TableModel"
     {

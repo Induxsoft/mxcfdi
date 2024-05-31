@@ -2,7 +2,7 @@
 #!
 module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 {
-    @table_name = "mxcfdi_emisor"
+    @table_name = "ut_cfd"
 
     getJsonData::name
     {
@@ -20,17 +20,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         ref p = dbr.rec(db,ftext("SELECT icliente FROM #<tname> WHERE sys_pk = @doc"),params)
         
-        sql_cliente = "
-        SELECT
-            cte.nombre,
-            UPPER(TRIM(IFNULL(cte.rfc,''))) AS rfc,
-            TRIM(IFNULL(cte.regfiscal,'')) AS regfiscal,
-            IFNULL(dom1.codpos,'') AS codpos
-        FROM cliente AS cte
-            LEFT JOIN domicilio AS dom1 ON cte.domicilio1 = dom1.sys_pk
-        WHERE cte.sys_pk = @icliente
-        "
-        return dbr.rec(db,sql_cliente,p)
+        return dbr.rec(db,@qry_get_receptor,p)
     }
 
     getFilUsoCfdi::&db,&params,&data
@@ -95,9 +85,169 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
     }
 
+    evaluateFilters::&params
+    {
+        tname = ""
+        show_tab = "ingresos"
+        if trim(@@(params,"$_show")) == "egresos" { show_tab = "egresos" }
+        if trim(@@(params,"$_show")) == "pagos" { show_tab = "pagos" }
+
+        if show_tab == "ingresos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 1 }
+        if show_tab == "egresos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 11 }
+        if show_tab == "pagos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 21 }
+        if not(field.exist(params,"fil_timbrados")){ params<"fil_timbrados"> : @true }
+
+        selects = ""
+        joins = ""
+        conditions = ""
+
+        switch @@(params,"#fil_doctype")
+        {
+            case 1 //Factura
+            {
+                @list_query = @qry_list_venta
+                tname = "vnt"
+
+                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
+
+                conditions = " AND vnt.documento = #<@cFactura>"
+                break
+            }
+            case 2 //Cargos
+            {
+                @list_query = @qry_list_dcxc
+                tname = "cxc"
+
+                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
+
+                conditions = " AND IFNULL(cxc.debe,0) > 0"
+                break
+            }
+            case 11 //Devoluciones
+            {
+                @list_query = @qry_list_venta
+                tname = "vnt"
+
+                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
+
+                conditions = " AND vnt.documento = #<@cNotaCredito>"
+                break
+            }
+            case 12 //Bonificaciones
+            {
+                @list_query = @qry_list_dcxc
+                tname = "cxc"
+
+                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
+
+                conditions = " AND IFNULL(cxc.haber,0) > 0 AND cxc.aplicable"
+                break
+            }
+            case 21 //Cobros
+            {
+                @list_query = @qry_list_dcxc
+                tname = "cxc"
+
+                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
+
+                conditions = "AND IFNULL(cxc.haber,0) > 0 AND IFNULL(cxc.imovcuenta,0) > 0"
+                break
+            }
+        }
+
+        // filter-date-range [start]
+        new vnt_date_fields
+        {
+            @"1": "vnt.fecha" // Emisión
+            @"2": "vnt.vencimiento" // Vencimiento
+        }
+        new cxc_date_fields
+        {
+            @"1": "cxc.fecha" // Emisión
+            @"2": "cxc.aplicacion" // Vencimiento
+        }
+        fdr_field = ""
+        if tname == "vnt" { fdr_field = @@(vnt_date_fields,str(@@(params,"#fil_fdr_field"))) }
+        if tname == "cxc" { fdr_field = @@(cxc_date_fields,str(@@(params,"#fil_fdr_field"))) }
+
+        switch @@(params,"$fdr_mode")
+        {
+            case "month"
+            {
+                curr_ndt = ndatetime.now()
+                curr_year = ndatetime.year(curr_ndt)
+                curr_month = ndatetime.month(curr_ndt)
+                curr_day = ndatetime.day(curr_ndt)
+
+                if not(field.exist(params,"fdr_year")) { params<"fdr_year"> : curr_year }
+                if not(field.exist(params,"fdr_month")) { params<"fdr_month"> : curr_month }
+
+                conditions = conditions + " AND YEAR(#<fdr_field>) = @fdr_year AND MONTH(#<fdr_field>) = @fdr_month"
+                break
+            }
+            case "lastdays"
+            {
+                if not(field.exist(params,"fdr_range")) { params<"fdr_range"> : 30 } // Últimos 30 días
+
+                conditions = conditions + " AND DATE(#<fdr_field>) BETWEEN ADDDATE(DATE(NOW()), INTERVAL -@fdr_range DAY) AND DATE(NOW())"
+                break
+            }
+            case "range"
+            {
+                if not(field.exist(params,"fdr_from"))
+                {
+                    curr_ndt = ndatetime.now()
+                    subt_ndt = ndatetime.add(curr_ndt, -30, "d")
+                    ult_30_days = ndatetime.tostr(subt_ndt, "yyyy-MM-dd")
+
+                    params<"fdr_from"> : ult_30_days
+                }
+                if not(field.exist(params,"fdr_to")) { params<"fdr_to"> : hoy("yyyy-MM-dd") }
+
+                if trim(@@(params,"$fdr_from")) != "" && trim(@@(params,"$fdr_to")) != ""
+                {
+                    conditions = conditions + " AND DATE(#<fdr_field>) BETWEEN @fdr_from AND @fdr_to"
+                }
+                else if trim(@@(params,"$fdr_from")) != "" && trim(@@(params,"$fdr_to")) == ""
+                {
+                    conditions = conditions + " AND DATE(#<fdr_field>) >= @fdr_from"
+                }
+                else if trim(@@(params,"$fdr_from")) == "" && trim(@@(params,"$fdr_to")) != ""
+                {
+                    conditions = conditions + " AND DATE(#<fdr_field>) <= @fdr_to"
+                }
+
+                break
+            }
+        }
+        // filter-date-range [end]
+
+        if trim(@@(params,"$fil_text")) != ""
+        {
+            conditions = "
+            AND (
+                #<tname>.referencia LIKE CONCAT('%',@fil_text,'%')
+                OR cte.nombre LIKE CONCAT('%',@fil_text,'%')
+            )
+            "
+        }
+
+        conditions = ftext(conditions)
+        @list_query = ftext(@list_query)
+    }
+
     list::&db,&params
     {
-        return list.create()
+        do emision.evaluateFilters(params)
+
+        new data
+        {
+            @"data*": entity.list(db,params)
+            @"itemactions*": dbr.apps.itemactions(db,"DET084","action","",0)
+            @"itemreports*": dbr.apps.itemactions(db,"DET084","report","",0)
+        }
+
+        return data
     }
 
     read::&db,&params
@@ -105,10 +255,5 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         new data {}
         do emision.prepareView(db,params,data)
         return data
-    }
-
-    blank::&db,&params
-    {
-        return record.create()
     }
 }

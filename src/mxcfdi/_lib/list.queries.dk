@@ -1,0 +1,86 @@
+#include "dkli.dkh"
+#!
+module "Lista de consultas MySQL"
+{
+    @qry_list_venta = "
+    SELECT
+        vnt.sys_pk,
+        doc.const AS cdocumento,
+        vnt.referencia,
+        cte.nombre AS cliente,
+        DATE_FORMAT(vnt.fecha,'%Y-%m-%d') AS fecha,
+        IFNULL(DATE_FORMAT(vnt.vencimiento,'%Y-%m-%d'),'') AS vencimiento,
+        dvs.codigo AS cdivisa,
+        vnt.tipocambio,
+        IFNULL(vnt.subtotal,0) AS subtotal,
+        ((((((IFNULL(vnt.subtotal,0)
+            - IFNULL(vnt.descuento1,0))
+            - IFNULL(vnt.descuento2,0))
+            + IFNULL(vnt.impuesto1,0))
+            + IFNULL(vnt.impuesto2,0))
+            + IFNULL(vnt.impuesto3,0))
+            + IFNULL(vnt.impuesto4,0)
+        ) AS total
+        #<selects>
+    FROM venta AS vnt
+        INNER JOIN cdocumentos AS doc ON vnt.documento = doc.id
+        INNER JOIN cliente AS cte ON vnt.icliente = cte.sys_pk
+        INNER JOIN divisa AS dvs ON vnt.idivisa = dvs.sys_pk
+        #<joins>
+    WHERE NOT IFNULL(vnt.sys_deleted,0)
+        #<conditions>
+    ORDER BY vnt.sys_pk ASC
+    LIMIT #<@default_max_rows>
+    "
+
+    @qry_list_dcxc = "
+    SELECT
+        cxc.sys_pk,
+        doc.const AS cdocumento,
+        cxc.referencia,
+        cte.nombre AS cliente,
+        DATE_FORMAT(cxc.fecha,'%Y-%m-%d') AS fecha,
+        IFNULL(DATE_FORMAT(cxc.aplicacion,'%Y-%m-%d'),'') AS vencimiento,
+        dvs.codigo AS cdivisa,
+        cxc.tipocambio,
+        IFNULL(cxc.debe,0) AS debe,
+        IFNULL(cxc.haber,0) AS haber
+        #<selects>
+    FROM dcxc AS cxc 
+        INNER JOIN cdocumentos AS doc ON doc.id = cxc.documento
+        INNER JOIN cliente AS cte ON cte.sys_pk = cxc.icliente
+        INNER JOIN divisa AS dvs ON dvs.sys_pk = cte.idivisa
+        #<joins>
+    WHERE NOT IFNULL(cxc.sys_deleted,0)
+        #<conditions>
+    ORDER BY cxc.sys_pk ASC
+    LIMIT #<@default_max_rows>
+    "
+
+    @qry_get_receptor = "
+    SELECT
+        cte.codigo,
+        cte.nombre,
+        UPPER(TRIM(IFNULL(cte.rfc,''))) AS rfc,
+        TRIM(IFNULL(cte.regfiscal,'')) AS regfiscal,
+        COALESCE(
+            IF(TRIM(cte.contactof_email) = '', NULL, TRIM(cte.contactof_email)),
+            IF(TRIM(cte.replegal_email) = '', NULL, TRIM(cte.replegal_email)),
+            IF(TRIM(cte.email) = '', NULL, TRIM(cte.email))
+        , '') AS correo,
+        COALESCE(
+            IF(TRIM(dom1.codpos) = '', NULL, TRIM(dom1.codpos)),
+            IF(TRIM(dom2.codpos) = '', NULL, TRIM(dom2.codpos)),
+            IF(TRIM(dom3.codpos) = '', NULL, TRIM(dom3.codpos))
+        , '') AS codpos,
+        IFNULL(cte.uf_addenda,0) AS uf_addenda,
+        IFNULL(cte.domicilio1,0) AS domicilio1,
+        IFNULL(cte.domicilio2,0) AS domicilio2,
+        IFNULL(cte.domicilio3,0) AS domicilio3
+    FROM cliente AS cte
+        LEFT JOIN domicilio AS dom1 ON cte.domicilio1 = dom1.sys_pk
+        LEFT JOIN domicilio AS dom2 ON cte.domicilio2 = dom2.sys_pk
+        LEFT JOIN domicilio AS dom3 ON cte.domicilio3 = dom3.sys_pk
+    WHERE cte.sys_pk = @icliente
+    "
+}

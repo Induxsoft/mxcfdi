@@ -59,7 +59,7 @@ module "Funciones de propósito general:lib"
         exception
         {
             // do rise_error(99,"Debe proporcionar una cadena de fecha con un formato válido.")
-            do clear_exceptions()
+            do pop_exception()
             return ""
         }
     }

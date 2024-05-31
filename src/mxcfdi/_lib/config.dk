@@ -9,6 +9,9 @@ module
     @curr_month = ndatetime.month(@curr_ndt)
     @curr_day = ndatetime.day(@curr_ndt)
 
+	@cFactura = 4
+    @cNotaCredito = 5
+
 	@default_max_rows = 250 // limite de registros para las vistas de lista
 	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
 	@json_path = "mxcfdi/_static/json"
@@ -21,7 +24,7 @@ module
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
 
 	//* ======================================== [ _STATIC RESOURCES ]
-	@CSS_MAIN = "/$/mxcfdi/js/main.css"
+	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 
