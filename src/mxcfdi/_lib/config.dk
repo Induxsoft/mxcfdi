@@ -29,4 +29,5 @@ module
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 
 	//* ======================================== [ _PACKAGE ]
+	@CFD_EMISION = "/!/mxcfdi/emision/"
 }

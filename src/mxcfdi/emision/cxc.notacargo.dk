@@ -138,7 +138,7 @@ module "form.factura.dk"
     {
         @"title": "Nota de Cargo Fiscal"
         @"buttons*": print_buttons
-        @"urlexit": "../"
+        // @"urlexit": "../"
         member @"hidden" { @"print": @true }
     }
 
@@ -157,6 +157,9 @@ module "form.factura.dk"
             form(method="POST" action="./" id="frm_notacargo")
             {
                 small(class="float-end"){$"CFDI 4.0 Ingreso"}
+                ##
+                do uie.print_from_url_field()
+                ##
 
                 nav(class="")
                 {

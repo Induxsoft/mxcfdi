@@ -10,6 +10,7 @@ module "Controller configs"
 	#include "dbr.security.dkl"
 	#include "crudl/crudl.dk"
 	#include "mxcfdi/_lib/config.dk"
+	#include "mxcfdi/_lib/lib.dk"
 	#include "mxcfdi/_lib/list.queries.dk"
 
 	@base_path = "mxcfdi"

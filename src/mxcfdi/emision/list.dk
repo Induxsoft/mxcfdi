@@ -16,10 +16,7 @@ module "list.dk"
 
 	@_entities_type = @("$parameters/_entities_type")
 	
-    show_tab = "ingresos"
-    if trim(@("$parameters/_show")) == "egresos" { show_tab="egresos" }
-    if trim(@("$parameters/_show")) == "pagos" { show_tab="pagos" }
-
+    show_tab = trim(@("$parameters/_show"))
     table_id = "tbl_"+show_tab
 
     ref list_years = lib.list_years(10,5)
@@ -44,6 +41,7 @@ module "list.dk"
     {
         @"ingresos*": from.json('[{"id":1,"const":"Facturas"},{"id":2,"const":"Cargos"}]')
         @"egresos*": from.json('[{"id":11,"const":"Devoluciones"},{"id":12,"const":"Bonificaciones"}]')
+        @"pagos*": from.json('[{"id":21,"const":"Cobros"}]')
     }
 
     new fil_fdr_field
@@ -58,7 +56,7 @@ module "list.dk"
             @"name": "fil_fdr_field"
             @"class": "induxsoft-form-select"
             @"title": "Elegir método de filtro para el rango de fechas"
-            @"onchange": "document.querySelector('#form_filter').submit();"
+            @"onchange": "filter(this)"
         }
         @"value_field": "id"
         @"text_field": "const"
@@ -73,7 +71,7 @@ module "list.dk"
         {
             @"name": "fil_doctype"
             @"class": "induxsoft-form-select"
-            @"onchange": "document.querySelector('#form_filter').submit();"
+            @"onchange": "filter(this)"
         }
         @"value_field": "id"
         @"text_field": "const"
@@ -91,7 +89,7 @@ module "list.dk"
         {
             @"name": "fil_timbrados"
             @"class": "induxsoft-form-select"
-            @"onchange": "document.querySelector('#form_filter').submit();"
+            @"onchange": "filter(this)"
         }
         @"value_field": "id"
         @"text_field": "const"
@@ -160,9 +158,42 @@ module "list.dk"
     fn_print_buttons::
     {
         act_btn_cls = "btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"
+
+        _doct = @("#parameters/fil_doctype")
+        action_id = ""
+        url_emitir_cfdi = ""
+
+        if _doct == 1 {
+            action_id = "GX21"
+            url_emitir_cfdi = "/!/mxcfdi/emision/ventas/factura/?doc=@_src_context_item_id"
+        }
+        if _doct == 2 {
+            action_id = "GX31"
+            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/nota-cargo/?doc=@_src_context_item_id"
+        }
+        if _doct == 11 {
+            action_id = "GX22"
+            url_emitir_cfdi = "/!/mxcfdi/emision/ventas/devolucion/?doc=@_src_context_item_id"
+        }
+        if _doct == 12 {
+            action_id = "GX33"
+            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/bonificacion/?doc=@_src_context_item_id"
+        }
+        if _doct == 21 {
+            action_id = "GX32"
+            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/cobro/?doc=@_src_context_item_id"
+        }
         
-        if parse.bool(@("$parameters/fil_timbrados")) {#$ button(class="#<act_btn_cls>" type="button" id="btn_cancelar" title=""){$"Cancelar CFDI"} #!}
-        else {#$ button(class="#<act_btn_cls>" type="button" id="btn_emitir" title=""){$"Crear CFDI"} #!}
+        if parse.bool(@("$parameters/fil_timbrados"))
+        {
+            #$
+            button(class="#<act_btn_cls>" type="button" id="btn_download"){$"Descargar"}
+            button(class="#<act_btn_cls>" type="button" id="btn_send_mail"){$"Enviar"}
+            button(class="#<act_btn_cls>" type="button" id="btn_preview"){$"Vista Previa"}
+            button(class="#<act_btn_cls>" type="button" id="btn_cancel"){$"Cancelar CFDI"}
+            #!
+        }
+        else {#$ button(class="#<act_btn_cls>" type="button" id="btn_emitir" "data-href"="#<url_emitir_cfdi>"){$"Crear CFDI"} #!}
     }
     point print_buttons to fn_print_buttons
 
@@ -170,7 +201,7 @@ module "list.dk"
     {
         @"title": "Emisión de CFDI"
         @"buttons*": print_buttons
-        @"urlexit": "javascript:window.history.back();"
+        @"urlexit": "/" //"javascript:window.history.back();"
         @"actions*": itemactions
         @"reports*": itemreports
         @"jscurrentcontext": "getCurrentContext"
@@ -186,11 +217,6 @@ module "list.dk"
         {
             form(action="./" method="GET" id="form_filter" class="no-print mb-1")
             {
-                input(type="hidden" name="_show" value="#<show_tab>")
-                // ##
-                // do uie.print_from_url_field()
-                // ##
-
                 div(class="d-flex align-items-center")
                 {
                     div{#! do uie.dbSelect(fil_fdr_field)} #$
@@ -242,9 +268,24 @@ module "list.dk"
                         ){$""}
                     }
                 }
+
+                div(class="d-flex align-items-center border-bottom")
+                {
+                    div(class="btn-group" role="group" "aria-label"="Basic radio toggle button group")
+                    {
+                        input(class="btn-check" type="radio" name="_show" value="ingresos" id="rdb_ingresos" onchange="filter(this)" "#<ifstr(show_tab=='ingresos','checked','')>"="")
+                        label(class="btn btn-outline-primary border-0 rounded-0" "for"="rdb_ingresos"){$"Ingresos"}
+
+                        input(class="btn-check" type="radio" name="_show" value="egresos" id="rdb_egresos" onchange="filter(this)" "#<ifstr(show_tab=='egresos','checked','')>"="")
+                        label(class="btn btn-outline-primary border-0 rounded-0" "for"="rdb_egresos"){$"Egresos"}
+
+                        input(class="btn-check" type="radio" name="_show" value="pagos" id="rdb_pagos" onchange="filter(this)" "#<ifstr(show_tab=='pagos','checked','')>"="")
+                        label(class="btn btn-outline-primary border-0 rounded-0" "for"="rdb_pagos"){$"Pagos"}
+                    }
+                }
             }
 
-            nav
+            /* nav
             {
                 div(class="nav nav-tabs mb-2" id="nav-tab" role="tablist")
                 {
@@ -258,7 +299,7 @@ module "list.dk"
                 div(class="tab-pane fade #<ifstr(show_tab=='ingresos','show active','')>" id="nav-ingresos" role="tabpanel" "aria-labelledby"="nav-ingresos-tab"){$""}
                 div(class="tab-pane fade #<ifstr(show_tab=='egresos','show active','')>" id="nav-egresos" role="tabpanel" "aria-labelledby"="nav-egresos-tab"){$""}
                 div(class="tab-pane fade #<ifstr(show_tab=='pagos','show active','')>" id="nav-pagos" role="tabpanel" "aria-labelledby"="nav-pagos-tab"){$""}
-            }
+            } */
 
             #! do uie.dbeditable(table_definition,table_id)
         }
@@ -266,12 +307,31 @@ module "list.dk"
 		#$
 		script(type="text/javascript")
 		{$'
+            function filter(rf) { rf.form.submit(); }
+
 			function getCurrentContext()
 			{
 				const table = document.getElementById("#<table_id>");
 				const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
     			return { item_id:id, context: {} }
 			}
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const btn_emitir = document.getElementById("btn_emitir");
+
+                if (btn_emitir) btn_emitir.addEventListener("click", () => {
+                    let href = btn_emitir.getAttribute("data-href");
+                    let context = getCurrentContext();
+                    let item_id = (context.item_id || "");
+
+                    if ((typeof item_id === "string" && item_id.trim() === "") || (typeof item_id === "number" && item_id <= 0)) {
+                        alert("Se requiere seleccionar un elemento de la lista.");
+                        return;
+                    }
+
+                    window.location.href = href.replace("@_src_context_item_id",item_id);
+                });
+            });
 		'}
     }
 }

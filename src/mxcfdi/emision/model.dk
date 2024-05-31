@@ -11,7 +11,18 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return @null
     }
 
-    getInfoCliente::&db,&params,&data
+    cfdiSpecialChars::string
+    {
+        string = replace(string,"&","&amp;")
+        string = replace(string,"'","&apos;")
+        string = replace(string,'"',"&quot;")
+        string = replace(string,"<","&lt;")
+        string = replace(string,">","&gt;")
+
+        return string
+    }
+
+    getInfoCliente::&db,&params
     {
         tname = ""
         
@@ -26,7 +37,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     getFilUsoCfdi::&db,&params,&data
     {
         ref uso_cfdi = emision.getJsonData(@sat_uso_cfdi)
-        ref cliente = emision.getInfoCliente(db,params,data)
+        ref cliente = emision.getInfoCliente(db,params)
         ref filtered = list.create()
 
         pMoral = (length(@@(cliente,"$rfc")) == 12)
@@ -49,7 +60,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     getFilRegFiscal::&db,&params,&data
     {
         ref reg_fiscal = emision.getJsonData(@sat_regimen_fiscal)
-        ref cliente = emision.getInfoCliente(db,params,data)
+        ref cliente = emision.getInfoCliente(db,params)
         ref filtered = list.create()
 
         pMoral = (length(@@(cliente,"$rfc")) == 12)
@@ -75,7 +86,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         using data
         {
-            @"dtcliente*": getInfoCliente(db,params,data)
+            @"dtcliente*": getInfoCliente(db,params)
             @"list_forma_pago*": getJsonData(@sat_forma_pago)
             @"list_metodo_pago*": getJsonData(@sat_metodo_pago)
             @"list_uso_cfdi*": getFilUsoCfdi(db,params,data)
@@ -89,18 +100,34 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         tname = ""
         show_tab = "ingresos"
+        fil_doctype = @@(params,"#fil_doctype")
         if trim(@@(params,"$_show")) == "egresos" { show_tab = "egresos" }
         if trim(@@(params,"$_show")) == "pagos" { show_tab = "pagos" }
 
-        if show_tab == "ingresos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 1 }
-        if show_tab == "egresos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 11 }
-        if show_tab == "pagos" && not(field.exist(params,"fil_doctype")){ params<"fil_doctype"> : 21 }
+        //#region Set Default Filters
+        params<"_show"> : show_tab
+        if show_tab == "ingresos" && not(lib.between(fil_doctype,1,10)) { params<"fil_doctype"> : 1 }
+        if show_tab == "egresos" && not(lib.between(fil_doctype,11,20)) { params<"fil_doctype"> : 11 }
+        if show_tab == "pagos" && not(lib.between(fil_doctype,21,30)) { params<"fil_doctype"> : 21 }
         if not(field.exist(params,"fil_timbrados")){ params<"fil_timbrados"> : @true }
+        if not(field.exist(params,"fil_fdr_field")){ params<"fil_fdr_field"> : 1 }
+        // fdr_init
+        if not(field.exist(params,"fdr_mode")){ params<"fdr_mode"> : "month" }
+        // [month]
+        if not(field.exist(params,"fdr_year")){ params<"fdr_year"> : @curr_year }
+        if not(field.exist(params,"fdr_month")){ params<"fdr_month"> : @curr_month }
+        // [lastdays]
+        if not(field.exist(params,"fdr_range")){ params<"fdr_range"> : 30 }
+        // [range]
+        if not(field.exist(params,"fdr_from")){ params<"fdr_from"> : "" }
+        if not(field.exist(params,"fdr_to")){ params<"fdr_to"> : "" }
+        //#endregion
 
         selects = ""
         joins = ""
         conditions = ""
 
+        //#region Define Query
         switch @@(params,"#fil_doctype")
         {
             case 1 //Factura
@@ -120,7 +147,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
                 if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
 
-                conditions = " AND IFNULL(cxc.debe,0) > 0"
+                conditions = " AND IFNULL(cxc.debe,0) > 0 AND cxc.iventa IS NULL"
                 break
             }
             case 11 //Devoluciones
@@ -140,7 +167,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
                 if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
 
-                conditions = " AND IFNULL(cxc.haber,0) > 0 AND cxc.aplicable"
+                conditions = " AND IFNULL(cxc.haber,0) > 0 AND cxc.iventa IS NULL"
                 break
             }
             case 21 //Cobros
@@ -150,12 +177,13 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
                 if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc" }
 
-                conditions = "AND IFNULL(cxc.haber,0) > 0 AND IFNULL(cxc.imovcuenta,0) > 0"
+                conditions = " AND IFNULL(cxc.haber,0) > 0 AND (IFNULL(cxc.imovcuenta,0) > 0 OR IFNULL(cxc.imovcaja,0) > 0)"
                 break
             }
         }
+        //#endregion
 
-        // filter-date-range [start]
+        //#region filter-date-range
         new vnt_date_fields
         {
             @"1": "vnt.fecha" // Emisión
@@ -220,8 +248,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 break
             }
         }
-        // filter-date-range [end]
+        //#endregion
 
+        //#region Evaluate filters
         if trim(@@(params,"$fil_text")) != ""
         {
             conditions = "
@@ -231,6 +260,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             )
             "
         }
+        //#endregion
 
         conditions = ftext(conditions)
         @list_query = ftext(@list_query)
@@ -255,5 +285,42 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         new data {}
         do emision.prepareView(db,params,data)
         return data
+    }
+
+    genCfdi::&db,&params,&data
+    {
+        namespace "emision"
+
+        ref cliente = getInfoCliente(db,params)
+
+        new cfdi
+        {
+            new member @"receptor"
+            {
+                @"Nombre": cfdiSpecialChars(field.str(cliente,"nombre"))
+                // @"DomicilioFiscalReceptor":
+                // @"Rfc":
+                // @"UsoCFDI":
+                // @"RegimenFiscalReceptor":
+            }
+        }
+    }
+
+    catch::&db,&params,&data
+    {
+        do errordet(@error_det)
+        if isnull(data){ ref data:record.create() }
+        if dbr.in_transaction(db){ do dbr.rollback(db) }
+
+        code = last_error_code()
+        error = last_error()
+
+        ref FormData = record.copy(data,"*")
+        do record.clear(data)
+        data<"form*"> : FormData
+
+        if isset("@@_action_context"){ do dbr.apps.action.log() }
+        do emision.prepareView(db,params,data)
+        do rise_error(code,error)
     }
 }
