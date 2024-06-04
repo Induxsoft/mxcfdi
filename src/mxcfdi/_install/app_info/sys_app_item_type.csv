@@ -1,3 +1,8 @@
 "id","title"
 "DET083","Emisor de CFDI"
 "DET084","Comprobante Fiscal Digital por Internet (CFDI)"
+"DET085","Factura de venta"
+"DET086","Devolución de venta"
+"DET087","Cargo a cuenta de cliente"
+"DET088","Bonificación a cuenta de cliente"
+"DET089","Cobro a cliente"

@@ -295,13 +295,36 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         new cfdi
         {
+            @"Certificado": ""
+            @"NoCertificado": ""
+            @"Serie": ""
+            @"Folio": ""
+            @"Fecha": lib.hoy("yyyy-MM-ddTHH:mm:ss")
+            @"FormaPago": field.dstr(data,"forma_pago","99")
+            @"CondicionesDePago": field.dstr(data,"cond_pago","")
+            @"TipoDeComprobante": ""
+            @"Moneda": ""
+            @"LugarExpedicion": ""
+            @"Exportacion": field.dstr(data,"exportacion","01")
+            @"SubTotal": ""
+            @"Total": ""
+            @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
+            @"Sello": ""
+
+            new member @"emisor"
+            {
+                @"Nombre": ""
+                @"Rfc": ""
+                @"RegimenFiscal": ""
+            }
+
             new member @"receptor"
             {
-                @"Nombre": cfdiSpecialChars(field.str(cliente,"nombre"))
-                // @"DomicilioFiscalReceptor":
-                // @"Rfc":
-                // @"UsoCFDI":
-                // @"RegimenFiscalReceptor":
+                @"Nombre": cfdiSpecialChars(@@(cliente,"$nombre"))
+                @"DomicilioFiscalReceptor": @@(cliente,"$codpos")
+                @"Rfc": @@(cliente,"$rfc")
+                @"UsoCFDI": @@(data,"$uso_cfdi")
+                @"RegimenFiscalReceptor": @@(data,"$reg_fiscal")
             }
         }
     }
