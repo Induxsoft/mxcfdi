@@ -5,6 +5,7 @@ program "Controlador de eventos"
     #include "functions.dkh"
     #include "serialize.dkh"
     #include "dbr.dkh"
+    #include "mxcfdi/_lib/config.dk"
 
     do @context.begin(@event_context)
 
@@ -20,22 +21,22 @@ program "Controlador de eventos"
     {
         case "ext_GB11"
         {
-            if @@(data,"#documento") == 17 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/nota-cargo/?doc="+@@(data,"$sys_pk") }
+            if @@(data,"#documento") == cNotaCargo { @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk")) }
             break
         }
         case "ext_GB13"
         {
-            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/cobro/?doc="+@@(data,"$sys_pk")
+            @http_context<"response/headers/location"> : replace(@CFD_CXC_COBRO,"@doc",@@(data,"$sys_pk"))
             break
         }
         case "ext_GB14"
         {
-            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/bonificacion/?doc="+@@(data,"$sys_pk")
+            @http_context<"response/headers/location"> : replace(@CFD_CXC_BONIFICACION,"@doc",@@(data,"$sys_pk"))
             break
         }
         case "ext_GB15"
         {
-            @http_context<"response/headers/location"> : "/!/mxcfdi/emision/cxc/nota-cargo/?doc="+@@(data,"$sys_pk")
+            @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk"))
             break
         }
     }

@@ -22,3 +22,9 @@
     background-color: rgb(233, 236, 239);
     opacity: 1;
 }
+
+select[readonly] {
+    pointer-events: none;
+    background-color: #e9ecef;
+    opacity: 1;
+}

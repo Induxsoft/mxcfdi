@@ -12,7 +12,8 @@ module "form.factura.dk"
     do @context.begin(@crud_context)
 
     ref @_GET = ifnull(@("&parameters"),record.create())
-    ref dtcliente = ifnull(@("&./dtcliente"),record.create())
+    ref entity = ifnull(@("&./entity"),record.create())
+    ref cliente = ifnull(@("&./cliente"),record.create())
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -157,6 +158,8 @@ module "form.factura.dk"
             form(method="POST" action="./" id="frm_bonificacion")
             {
                 small(class="float-end"){$"CFDI 4.0 Egreso"}
+
+                input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
                 ##
                 do uie.print_from_url_field()
                 ##
@@ -175,8 +178,8 @@ module "form.factura.dk"
                     {
                         div(class="d-flex gap-2 #<ifstr(is_new,'d-none','')>")
                         {
-                            label{b{$""} $"#<@@(dtcliente,'$nombre')>"}
-                            label{b{$"RFC: "} $"#<@@(dtcliente,'$rfc')>"}
+                            label{b{$""} $"#<@@(cliente,'$nombre')>"}
+                            label{b{$"RFC: "} $"#<@@(cliente,'$rfc')>"}
                         }
 
                         div(class="row")
@@ -191,7 +194,7 @@ module "form.factura.dk"
                             div(class="col-4")
                             {
                                 label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
-                                input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(dtcliente,'$codpos')>" id="txt_codpos")
+                                input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
                             div(class="col-6")
                             {

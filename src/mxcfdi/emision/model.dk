@@ -3,6 +3,40 @@
 module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 {
     @table_name = "ut_cfd"
+    @keyfield = "sys_pk"
+
+    module ":cfdi"
+    {
+        prefix::&elemento
+        {
+            return list.str(split(@@(elemento,"name"),":"),0)
+        }
+
+        attr::&elemento,attrname
+        {
+            return @@(@@(elemento,"&attributes"),attrname)
+        }
+
+        nodes::&elemento
+        {
+            return @@(elemento,"&nodes")
+        }
+
+        getElementByTagName::&elemento,tagname
+        {
+            ref nodes = @@(elemento,"&nodes")
+            if isnull(nodes) { return @null }
+
+            for i = 0; i < @count(nodes); i+1
+            {
+                ref el = @item(nodes,i)
+
+                if @@(el,"name") == tagname { return el }
+            }
+
+            return @null
+        }
+    }
 
     getJsonData::name
     {
@@ -22,7 +56,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return string
     }
 
-    getInfoCliente::&db,&params
+    getEntity::&db,&params
+    {
+        if @@(params,"$_entity_id") == "ventas" { return dbr.rec(db,ftext(@qry_read_venta),params) }
+        else if @@(params,"$_entity_id") == "cxc" { return dbr.rec(db,ftext(@qry_read_dcxc),params) }
+
+        return record.create()
+    }
+
+    getCliente::&db,&params
     {
         tname = ""
         
@@ -34,10 +76,47 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return dbr.rec(db,@qry_get_receptor,p)
     }
 
+    getEmisor::&db,&params,&cliente
+    {
+        ref emisor = @null
+
+        if @@(params,"$_entity_id") == "ventas" {
+            query = "
+            SELECT
+                cfg.nic,
+                cfg.cti,
+                cfg.pwd
+            FROM venta AS vnt
+                INNER JOIN cconsumo AS cc ON vnt.icconsumo = cc.sys_pk
+                INNER JOIN mxcfdi_emisor AS cfg ON cc.cfdi_emisor = cfg.sys_pk
+            WHERE vnt.sys_pk = @doc
+            "
+            ref emisor:dbr.rec(db,query,params)
+        }
+
+        if isnull(emisor) && @@(cliente,"#cfdi_emisor") > 0 {
+            ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE sys_pk = @cfdi_emisor",cliente)
+        }
+
+        if isnull(emisor) { ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null) }
+
+        if not(isnull(emisor))
+        {
+            using emisor
+            {
+                @"nombre": "ESCUELA WILSON ESQUIVEL"
+                @"rfc": "EWE1709045U0"
+                @"reg_fiscal": "601"
+            }
+        }
+
+        return emisor
+    }
+
     getFilUsoCfdi::&db,&params,&data
     {
         ref uso_cfdi = emision.getJsonData(@sat_uso_cfdi)
-        ref cliente = emision.getInfoCliente(db,params)
+        ref cliente = emision.getCliente(db,params)
         ref filtered = list.create()
 
         pMoral = (length(@@(cliente,"$rfc")) == 12)
@@ -60,7 +139,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     getFilRegFiscal::&db,&params,&data
     {
         ref reg_fiscal = emision.getJsonData(@sat_regimen_fiscal)
-        ref cliente = emision.getInfoCliente(db,params)
+        ref cliente = emision.getCliente(db,params)
         ref filtered = list.create()
 
         pMoral = (length(@@(cliente,"$rfc")) == 12)
@@ -86,7 +165,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         using data
         {
-            @"dtcliente*": getInfoCliente(db,params)
+            @"entity*": emision.getEntity(db,params)
+            @"cliente*": emision.getCliente(db,params)
             @"list_forma_pago*": getJsonData(@sat_forma_pago)
             @"list_metodo_pago*": getJsonData(@sat_metodo_pago)
             @"list_uso_cfdi*": getFilUsoCfdi(db,params,data)
@@ -130,14 +210,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         //#region Define Query
         switch @@(params,"#fil_doctype")
         {
-            case 1 //Factura
+            case 1 //Facturas
             {
                 @list_query = @qry_list_venta
                 tname = "vnt"
 
-                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
-
-                conditions = " AND vnt.documento = #<@cFactura>"
+                joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
+                // if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
+                conditions = " AND vnt.documento = #<@cFactura> AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))"
                 break
             }
             case 2 //Cargos
@@ -287,46 +367,433 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return data
     }
 
-    genCfdi::&db,&params,&data
+    save::&db,&params,&data
     {
         namespace "emision"
 
-        ref cliente = getInfoCliente(db,params)
+        if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
+
+        ref documento = getEntity(db,params)
+        ref cliente = getCliente(db,params)
+        ref emisor = getEmisor(db,params,cliente)
+
+        cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
+
+        using data
+        {
+            @"documento*": documento
+            @"emisor*": emisor
+            @"cliente*": cliente
+        }
+
+        comprobante = generarCFDI(db,params,data)
+        ref response = sellarYTimbrar(emisor,comprobante)
+        do saveResponse(db,response,comprobante,cfdi_id)
+        do aplicarFactura(db,params,response)
+        
+        // response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
+        return response
+
+        exception
+        {
+            do field.remove(data,"documento")
+            do field.remove(data,"emisor")
+            do field.remove(data,"cliente")
+            do catch(db,params,data)
+        }
+    }
+
+    delete::&db,&params
+    {
+        do rise_error(500,"Acción no implementada")
+    }
+
+    generarCFDI::&db,&params,&data
+    {
+        namespace "emision"
+
+        ref documento = field.obj(data,"documento")
+        ref emisor = field.obj(data,"emisor")
+        ref cliente = field.obj(data,"cliente")
 
         new cfdi
         {
-            @"Certificado": ""
-            @"NoCertificado": ""
-            @"Serie": ""
-            @"Folio": ""
+            @"Serie": field.dstr(documento,"serie","")
+            @"Folio": field.dstr(documento,"folio","")
             @"Fecha": lib.hoy("yyyy-MM-ddTHH:mm:ss")
+            @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
             @"FormaPago": field.dstr(data,"forma_pago","99")
             @"CondicionesDePago": field.dstr(data,"cond_pago","")
-            @"TipoDeComprobante": ""
-            @"Moneda": ""
-            @"LugarExpedicion": ""
+            @"TipoDeComprobante": getTipoComprobante(params)
+            @"Moneda": field.str(documento,"cdivisa")
+            @"TipoCambio": field.dnum(documento,"tipocambio",0)
+            @"LugarExpedicion": "29039"
             @"Exportacion": field.dstr(data,"exportacion","01")
-            @"SubTotal": ""
-            @"Total": ""
-            @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
-            @"Sello": ""
+            @"SubTotal": 0.00 //field.dnum(documento,"subtotal",0)
+            @"Descuento": 0.00 //field.dnum(documento,"descuentos",0)
+            @"Total": 0.00 //field.dnum(documento,"total",0)
 
-            new member @"emisor"
+            member @"CfdiRelacionados"
             {
-                @"Nombre": ""
-                @"Rfc": ""
-                @"RegimenFiscal": ""
+                @"TipoRelacion": field.str(data,"tipo_relacion")
+                @"Relacionados*": from.json(field.dstr(data,"rel_uuid","[]"))
             }
 
-            new member @"receptor"
+            member @"Emisor"
             {
-                @"Nombre": cfdiSpecialChars(@@(cliente,"$nombre"))
-                @"DomicilioFiscalReceptor": @@(cliente,"$codpos")
-                @"Rfc": @@(cliente,"$rfc")
-                @"UsoCFDI": @@(data,"$uso_cfdi")
-                @"RegimenFiscalReceptor": @@(data,"$reg_fiscal")
+                @"Nombre": cfdiSpecialChars(field.str(emisor,"nombre"))
+                @"Rfc": field.str(emisor,"rfc")
+                @"RegimenFiscal": field.str(emisor,"reg_fiscal")
+            }
+
+            member @"Receptor"
+            {
+                @"Nombre": cfdiSpecialChars(field.str(cliente,"nombre"))
+                @"DomicilioFiscalReceptor": field.str(cliente,"codpos")
+                @"Rfc": field.str(cliente,"rfc")
+                @"UsoCFDI": field.str(data,"uso_cfdi")
+                @"RegimenFiscalReceptor": field.str(data,"reg_fiscal")
             }
         }
+        do setConceptos(db,params,data,cfdi)
+        do setAddenda(db,cliente,cfdi)
+
+        comprobante = to.base64(replace(runscript("mxcfdi/emision/cfdi40.dkl","cfdi",cfdi)," = ","="))
+        return comprobante
+    }
+
+    getTipoComprobante::&params
+    {
+        _view = @@(params,"$_view")
+
+        switch @@(params,"$_entity_id")
+        {
+            case "ventas"
+            {
+                if _view == "factura" { return "I" }
+                if _view == "devolucion" { return "E" }
+                break
+            }
+            case "cxc"
+            {
+                if _view == "bonificacion" { return "E" }
+                if _view == "nota-cargo" { return "I" }
+                if _view == "cobro" { return "P" }
+                break
+            }
+        }
+
+        return ""
+    }
+
+    getClaveImpuesto::descripcion
+    {
+        new impuestos
+        {
+            @"ISR": "001"
+            @"IVA": "002"
+            @"IEPS": "003"
+        }
+        return field.dstr(impuestos,toupper(trim(str(descripcion))),"")
+    }
+
+    conceptosVenta::&db,&params,&cfdi
+    {
+        ref dventa = dbr.list(db,ftext(@qry_childs_venta),params)
+        ref conceptos = list.create()
+        ref _traslados = record.create()
+        ref _retenciones = record.create()
+
+        SubTotal = 0.00
+        Descuento = 0.00
+        Total = 0.00
+        TotalImpuestosTrasladados = 0.00
+        TotalImpuestosRetenidos = 0.00
+
+        go foreach.lobj(value:obj) with(dventa)
+        {
+            ref traslados = list.create()
+            for tipo = 1; tipo <= 4
+            {
+                /**
+                * tipo 1 = IEPS
+                * tipo 2 = ??
+                * tipo 3 = IVA
+                * tipo 4 = ??
+                */
+                imp_text = field.str(obj,ftext("i#<tipo>_text"))
+                imp_tasa = ftext("i#<tipo>_tasa")
+                imp_value = ftext("impuesto#<tipo>")
+
+                if imp_text != "" && field.str(obj,"objetoimp") == "02"
+                {
+                    new traslado
+                    {
+                        @"Impuesto": emision.getClaveImpuesto(imp_text)
+                        @"TipoFactor": ifstr(@@(obj,"#exento_iva"),"Exento","Tasa")
+                        @"TasaOCuota": field.dnum(obj,imp_tasa,0)
+                        @"Base": field.num(obj,"subtotal")
+                        @"Importe": field.num(obj,imp_value)
+                    }
+
+                    if tipo > 2 { traslado<"Base"> : RoundTo(@@(obj,"#subtotal") + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
+
+                    gp_tras = md5(@@(traslado,"$Impuesto")+@@(traslado,"$TipoFactor")+@@(traslado,"$TasaOCuota"))
+                    if not(field.exist(_traslados,gp_tras)) { _traslados<gp_tras+"*"> : record.copy(traslado,"*") }
+                    else
+                    {
+                        _traslados<gp_tras+"/Base"> : @@(_traslados,"#"+gp_tras+"/Base") + @@(traslado,"#Base")
+                        _traslados<gp_tras+"/Importe"> : @@(_traslados,"#"+gp_tras+"/Importe") + @@(traslado,"#Importe")
+                    }
+                    TotalImpuestosTrasladados = TotalImpuestosTrasladados + @@(traslado,"#Importe")
+
+                    do list.add(traslados,traslado)
+                }
+            }
+
+            new concepto
+            {
+                @"ClaveProdServ": field.str(obj,"uf_sat_proser")
+                @"ClaveUnidad": field.str(obj,"uf_sat_uniproser")
+                @"NoIdentificacion": field.str(obj,"codigo")
+                @"Descripcion": field.str(obj,"descripcion")
+                @"Unidad": field.str(obj,"unidad")
+                @"ValorUnitario": field.num(obj,"precio")
+                @"Cantidad": field.num(obj,"cantidad")
+                @"Descuento": field.num(obj,"descuentos")
+                @"Importe": field.num(obj,"subtotal")
+                @"ObjetoImp": field.str(obj,"objetoimp")
+
+                @"Traslados*": traslados
+            }
+
+            SubTotal = SubTotal + field.num(concepto,"Importe")
+            Descuento = Descuento + field.num(concepto,"Descuento")
+
+            do list.add(conceptos,concepto)
+        }
+
+        go foreach.fobj(value:tras) with(_traslados)
+        {
+            using tras
+            {
+                @"Base": RoundTo(@@(tras,"#Base"),2,@AwayFromZero)
+                @"Importe": RoundTo(@@(tras,"#Importe"),2,@AwayFromZero)
+            }
+        }
+
+        SubTotal = RoundTo(SubTotal,2,@AwayFromZero)
+        Descuento = RoundTo(Descuento,2,@AwayFromZero)
+        TotalImpuestosTrasladados = RoundTo(TotalImpuestosTrasladados,2,@AwayFromZero)
+        TotalImpuestosRetenidos = RoundTo(TotalImpuestosRetenidos,2,@AwayFromZero)
+        Total = RoundTo((((SubTotal - Descuento) + TotalImpuestosTrasladados) - TotalImpuestosRetenidos),2,@AwayFromZero)
+
+        using cfdi
+        {
+            @"SubTotal": SubTotal
+            @"Descuento": Descuento
+            @"Total": Total
+
+            @"Conceptos*": conceptos
+
+            member @"Impuestos"
+            {
+                @"TotalImpuestosTrasladados": TotalImpuestosTrasladados
+                @"TotalImpuestosRetenidos": TotalImpuestosRetenidos
+
+                @"Traslados*": lib.record.values(_traslados)
+                @"Retenciones*": lib.record.values(_retenciones)
+            }
+        }
+    }
+
+    conceptosCxC::&db,&data,&cfdi
+    {
+        // code...
+    }
+
+    setConceptos::&db,&params,&data,&cfdi
+    {
+        if @@(params,"$_entity_id") == "ventas" { do emision.conceptosVenta(db,params,cfdi) }
+        if @@(params,"$_entity_id") == "cxc" { do emision.conceptosCxC(db,data,cfdi) }
+    }
+
+    setAddenda::&db,&cliente,&cfdi
+    {
+        if not(@@(cliente,"#uf_addenda")) { return }
+
+        ref dir_receptor = dbr.rec(db,@qry_dir_receptor,cliente)
+        using cfdi
+        {
+            member @"Addenda"
+            {
+                member @"DirReceptor"
+                {
+                    @"titulo": "Dirección del receptor"
+                    @"valor1": @@(dir_receptor,"$direccion")
+                    @"valor2": @@(dir_receptor,"$colonia")
+                    @"valor3": @@(dir_receptor,"$codpos")
+                }
+                member @"LugarReceptor"
+                {
+                    @"titulo": "Domicilio del receptor"
+                    @"valor1": @@(dir_receptor,"$municipio") + ", " + @@(dir_receptor,"$estado") + ", " + @@(dir_receptor,"$pais")
+                    @"valor2": ""
+                    @"valor3": ""
+                }
+                member @"DirEmisor"
+                {
+                    @"titulo": "Domicilio de expedición"
+                    @"valor1": "Central nte 123, centro 1" //@emisor.Direccion + " " + @emisor.Colonia
+                    @"valor2": "Tuxtla Gutiérrez, Chiapas, México" //@emisor.Municipio + ", " + @emisor.Estado + ", " + @emisor.Pais
+                    @"valor3": ""
+                }
+                member @"NumLetraTotalDocumento"
+                {
+                    @"titulo": "Importe con letras"
+                    @"valor1": lib.numero_en_letras(@@(cfdi,"#Total")) + "PESOS MEXICANO"
+                    @"valor2": ""
+                    @"valor3": ""
+                }
+            }
+        }
+    }
+
+    sellarYTimbrar::&emisor,comprobante
+    {
+        new header { @"Content-Type": "application/json; charset=UTF-8" }
+        new payload
+        {
+            @"cti": field.str(emisor,"cti")
+            @"pwd": field.str(emisor,"pwd")
+            @"idd": ""
+            @"ncer": ""
+            @"nb64": @false
+            @"xml": comprobante
+        }
+        ref response = from.json(http.request(@url_svc_sellar_timbrar,"POST",header,to.json(payload)))
+
+        return response
+    }
+
+    enviarCorreo::&emisor,&receptor,&cfdi
+    {
+        if @@(receptor,"$correo") == "" { do rise_error(500,"El receptor no tiene un correo electrónico configurado.") }
+
+        // new header { @"Content-Type": "application/json; charset=UTF-8" }
+        new payload
+        {
+            @"para_nombre": field.str(receptor,"nombre") // Nombre del destinatario.
+            @"para_correos": field.str(receptor,"correo") // Dirección de correo del destinatario.
+            @"para_asunto": "CFDI" // Asunto del correo.
+            @"para_mensaje": "Archivos adjuntos" // Cuerpo del mensaje.
+            @"ctaTimb": "#" // # = La autenticación se toma por cuenta de Timbrado.
+            @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
+            @"pwd": field.str(emisor,"pwd") // Contraseña de timbrado.
+            @"uuid": "" // UUID del CFDI [doc]
+            @"res": "zipraw" // Tipo de resultado deseado.
+            @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
+        }
+        ref response = from.json(http.post(@url_svc_enviar_correo,payload))
+
+        if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
+
+        return response
+    }
+
+    aplicarFactura::&db,&params,&response
+    {
+        ref comprobante = parse.xmlStr(from.base64(@@(response,"$data/xml")))
+        ref emisor = cfdi.getElementByTagName(comprobante,"cfdi:Emisor")
+        ref complemento = cfdi.getElementByTagName(comprobante,"cfdi:Complemento")
+        ref tfd = cfdi.getElementByTagName(complemento,"tfd:TimbreFiscalDigital")
+
+        pk_document = @@(params,"#doc")
+        cfdi_uuid = cfdi.attr(tfd,"UUID")
+
+        new ut_cfd
+        {
+            @"uf_xml": cfdi_uuid
+            @"uf_cadenaoriginal": ""
+            @"uf_sellodigital": cfdi.attr(comprobante,"Sello")
+            // @"uf_iventa*": @null //PkVenta
+            // @"uf_idcxc*": @null //PkRecibo
+            // @"uf_aplcxc*": @null //PkAplicado
+            @"uf_fechahora*": now()
+            // @"uf_tipo*": @null
+            // @"uf_cfdi_info": dbr.num(db,"SELECT sys_pk FROM ut_cfdinfo WHERE NOT IFNULL(sys_deleted,0) ORDER BY sys_pk DESC LIMIT 1;",@null)
+            @"uf_sellodigitalsat": cfdi.attr(tfd,"SelloSAT")
+            @"uf_foliosat": cfdi_uuid
+            @"uf_nocertificadosat": cfdi.attr(tfd,"NoCertificadoSAT")
+            @"uf_fechahoracersat": cfdi.attr(tfd,"FechaTimbrado")
+            @"uf_xmlcfdi": @@(response,"$data/xml")
+            @"uf_rfc_emisor": cfdi.attr(emisor,"Rfc")
+        }
+
+        if @@(params,"$_entity_id") == "ventas"
+        {
+            using ut_cfd
+            {
+                @"uf_iventa": pk_document
+                @"uf_tipo": 3
+            }
+        }
+        else if @@(params,"$_entity_id") == "cxc"
+        {
+            using ut_cfd
+            {
+                @"uf_idcxc": pk_document
+                @"uf_tipo": 2
+            }
+
+            /* new p
+            {
+                @"recibo": pk_document
+                @"foliosat": cfdi_uuid
+            }
+            sql = "UPDATE aplcxc SET uf_cfdi = @foliosat WHERE fk_dcxc_aplicadoa = @recibo AND (TRIM(IFNULL(uf_cfdi,''))='' OR uf_cfdi='0');"
+            if not(dbr.execute(db,sql,p)) { do rise_error(500,"No fue posible aplicar el recibo.") } */
+        }
+
+        do dbr.save(db,"ut_cfd",ut_cfd)
+    }
+
+    saveResponse::&db,&response,comprobante,cfdi_id
+    {
+        if not(parse.bool(@@(response,"$success"))) {
+            message = @@(response,"$message")
+            do emision.saveLog(db,@false,cfdi_id,comprobante,message)
+            do rise_error(500,message)
+        }
+        else {
+            do emision.saveLog(db,@true,@@(response,"$data/uuid"),@@(response,"$data/xml"),"")
+            do emision.removeLog(db,cfdi_id)
+        }
+    }
+
+    saveLog::&db,success,cfdi_id,cfdi,log
+    {
+        success_cfdi_path = dbr.vars.getd(db,"mxcfdi_success_cfdi_path",@default_scfdi_path)
+        failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
+
+        log_path = ifstr(success, success_cfdi_path, failure_cfdi_path)
+        log_path = lib.replace_path_macros(log_path)
+        do dir.ensure(log_path)
+
+        file_path = path.concat(log_path,cfdi_id)
+        do file.wtext(file_path+".xml",from.base64(cfdi))
+        if not(success) { do file.wtext(file_path+".txt",log) }
+    }
+
+    removeLog::&db,cfdi_id
+    {
+        failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
+        
+        log_path = lib.replace_path_macros(failure_cfdi_path)
+        file_path = path.concat(log_path,cfdi_id)
+
+        if file.exists(file_path+".xml") { do file.delete(file_path+".xml") }
+        if file.exists(file_path+".txt") { do file.delete(file_path+".txt") }
     }
 
     catch::&db,&params,&data

@@ -1,0 +1,244 @@
+#include "dkli.dkh"
+
+#def Comprobante "cfdi:Comprobante"
+#def CfdiRelacionados "cfdi:CfdiRelacionados"
+#def CfdiRelacionado "cfdi:CfdiRelacionado"
+#def Emisor "cfdi:Emisor"
+#def Receptor "cfdi:Receptor"
+#def Conceptos "cfdi:Conceptos"
+#def Concepto "cfdi:Concepto"
+#def Impuestos "cfdi:Impuestos"
+#def Traslados "cfdi:Traslados"
+#def Traslado "cfdi:Traslado"
+#def Complemento "cfdi:Complemento"
+#def Addenda "cfdi:Addenda"
+
+#def addenda "induxsoft:addenda"
+#def etiqueta "induxsoft:etiqueta"
+
+#def Pagos "pago20:Pagos"
+#def Totales "pago20:Totales"
+#def Pago "pago20:Pago"
+#def DoctoRelacionado "pago20:DoctoRelacionado"
+#def ImpuestosDR "pago20:ImpuestosDR"
+#def TrasladosDR "pago20:TrasladosDR"
+#def TrasladoDR "pago20:TrasladoDR"
+#def ImpuestosP "pago20:ImpuestosP"
+#def TrasladosP "pago20:TrasladosP"
+#def TrasladoP "pago20:TrasladoP"
+
+#!
+program "Generar comprobante xml"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+
+    do @context.begin(@cfdi)
+
+    incluir_tcambio = not(containsword(@("$Moneda"),"MXN,XXX"))
+    incluir_cfdi_rels = (list.count(ifnull(@("&CfdiRelacionados/Relacionados"),list.create())) > 0)
+    incluir_imp_tras = (list.count(ifnull(@("&Impuestos/Traslados"),list.create())) > 0)
+    incluir_imp_ret = (list.count(ifnull(@("&Impuestos/Retenciones"),list.create())) > 0)
+    incluir_ttl_imp_tras = incluir_imp_tras
+    incluir_ttl_imp_ret = incluir_imp_ret
+
+    #$
+    Comprobante(
+        Version="4.0"
+        "xmlns:xsi"="http://www.w3.org/2001/XMLSchema-instance"
+        "xmlns:cfdi"="http://www.sat.gob.mx/cfd/4"
+        "xmlns:divisas"="http://www.sat.gob.mx/divisas"
+        "xmlns:donat"="http://www.sat.gob.mx/donat"
+        "xmlns:notariospublicos"="http://www.sat.gob.mx/notariospublicos"
+        "xmlns:implocal"="http://www.sat.gob.mx/implocal"
+        "xmlns:ine"="http://www.sat.gob.mx/ine"
+        "xmlns:cartaporte20"="http://www.sat.gob.mx/CartaPorte20"
+        "xmlns:nomina12"="http://www.sat.gob.mx/nomina12"
+        "xmlns:iedu"="http://www.sat.gob.mx/iedu"
+        "xmlns:terceros"="http://www.sat.gob.mx/terceros"
+        "xsi:schemaLocation"="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/divisas http://www.sat.gob.mx/sitio_internet/cfd/divisas/divisas.xsd http://www.sat.gob.mx/donat http://www.sat.gob.mx/sitio_internet/cfd/donat/donat11.xsd http://www.sat.gob.mx/notariospublicos http://www.sat.gob.mx/sitio_internet/cfd/notariospublicos/notariospublicos.xsd http://www.sat.gob.mx/implocal http://www.sat.gob.mx/sitio_internet/cfd/implocal/implocal.xsd http://www.sat.gob.mx/ine http://www.sat.gob.mx/sitio_internet/cfd/ine/ine11.xsd http://www.sat.gob.mx/CartaPorte20 http://www.sat.gob.mx/sitio_internet/cfd/CartaPorte/CartaPorte20.xsd http://www.sat.gob.mx/nomina12 http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd http://www.sat.gob.mx/iedu http://www.sat.gob.mx/sitio_internet/cfd/iedu/iedu.xsd http://www.sat.gob.mx/terceros http://www.sat.gob.mx/sitio_internet/cfd/terceros/terceros11.xsd"
+        Certificado=""
+        NoCertificado=""
+        Sello=""
+        Serie="#<@('Serie')>"
+        Folio="#<@('Folio')>"
+        Fecha="#<@('Fecha')>"
+        MetodoPago="#<@('MetodoPago')>"
+        FormaPago="#<@('FormaPago')>"
+        CondicionesDePago="#<@('CondicionesDePago')>"
+        TipoDeComprobante="#<@('TipoDeComprobante')>"
+        Moneda="#<@('Moneda')>"
+        "#<ifstr(incluir_tcambio,'TipoCambio','')>"="#<@('TipoCambio')>"
+        LugarExpedicion="#<@('LugarExpedicion')>"
+        Exportacion="#<@('Exportacion')>"
+        SubTotal="#<@('SubTotal')>"
+        Descuento="#<@('Descuento')>"
+        Total="#<@('Total')>"
+    )
+    {
+        #!
+        if incluir_cfdi_rels
+        {
+            #$
+            CfdiRelacionados(TipoRelacion="#<@('CfdiRelacionados/TipoRelacion')>")
+            {
+                #!
+                ref relacionados = @("&CfdiRelacionados/Relacionados")
+                for i = 0; i < list.count(relacionados)
+                {
+                    #$ CfdiRelacionado(UUID="#<list.str(relacionados,i)>")
+                }
+                #$
+            }
+        }
+        #$
+        Emisor(
+            Nombre="#<@('Emisor/Nombre')>"
+            Rfc="#<@('Emisor/Rfc')>"
+            RegimenFiscal="#<@('Emisor/RegimenFiscal')>"
+        )
+        Receptor(
+            Nombre="#<@('Receptor/Nombre')>"
+            DomicilioFiscalReceptor="#<@('Receptor/DomicilioFiscalReceptor')>"
+            Rfc="#<@('Receptor/Rfc')>"
+            UsoCFDI="#<@('Receptor/UsoCFDI')>"
+            RegimenFiscalReceptor="#<@('Receptor/RegimenFiscalReceptor')>"
+        )
+        Conceptos
+        {
+            #!
+            conceptos_traslados = 0
+            traslados_exentos = 0
+            for i = 0; i < list.count(@("&Conceptos"))
+            {
+                ref cpto = list.obj(@("&Conceptos"),i)
+                incluir_cpto_tras = (list.count(ifnull(@@(cpto,"&Traslados"),list.create())) > 0)
+                incluir_cpto_ret = (list.count(ifnull(@@(cpto,"&Retenciones"),list.create())) > 0)
+
+                #$
+                Concepto(
+                    ClaveProdServ="#<@@(cpto,'ClaveProdServ')>"
+                    ClaveUnidad="#<@@(cpto,'ClaveUnidad')>"
+                    NoIdentificacion="#<@@(cpto,'NoIdentificacion')>"
+                    Descripcion="#<@@(cpto,'Descripcion')>"
+                    Unidad="#<@@(cpto,'Unidad')>"
+                    ValorUnitario="#<@@(cpto,'ValorUnitario')>"
+                    Cantidad="#<@@(cpto,'Cantidad')>"
+                    Descuento="#<@@(cpto,'Descuento')>"
+                    Importe="#<@@(cpto,'Importe')>"
+                    ObjetoImp="#<@@(cpto,'ObjetoImp')>"
+                )
+                {
+                    #!
+                    if incluir_cpto_tras || incluir_cpto_ret
+                    {
+                        #$
+                        Impuestos
+                        {
+                            #!
+                            if incluir_cpto_tras
+                            {
+                                #$
+                                Traslados
+                                {
+                                    #!
+                                    ref traslados = field.obj(cpto,"Traslados")
+                                    for j = 0; j < list.count(traslados)
+                                    {
+                                        ref tras = list.obj(traslados,j)
+                                        incluir_tsacta = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
+                                        incluir_importe = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
+
+                                        conceptos_traslados = conceptos_traslados + 1
+                                        if @@(tras,"$TipoFactor") == "Exento" { traslados_exentos = traslados_exentos + 1 }
+
+                                        #$
+                                        Traslado(
+                                            Impuesto="#<@@(tras,'Impuesto')>"
+                                            TipoFactor="#<@@(tras,'TipoFactor')>"
+                                            "#<ifstr(incluir_tsacta,'TasaOCuota','')>"="#<@@(tras,'TasaOCuota')>"
+                                            Base="#<@@(tras,'Base')>"
+                                            "#<ifstr(incluir_importe,'Importe','')>"="#<@@(tras,'Importe')>"
+                                        )
+                                    }
+                                    #$
+                                }
+                            }
+                            #$
+                        }
+                    }
+                    #$
+                }
+            }
+            #! if traslados_exentos == conceptos_traslados { incluir_ttl_imp_tras = @false }
+            #$
+        }
+        #!
+        if incluir_imp_tras || incluir_imp_ret
+        {
+            #$
+            Impuestos(
+                "#<ifstr(incluir_ttl_imp_tras,'TotalImpuestosTrasladados','')>"="#<@('#Impuestos/TotalImpuestosTrasladados')>"
+                "#<ifstr(incluir_ttl_imp_ret,'TotalImpuestosRetenidos','')>"="#<@('#Impuestos/TotalImpuestosRetenidos')>"
+            )
+            {
+                #!
+                if incluir_imp_tras
+                {
+                    #$
+                    Traslados
+                    {
+                        #!
+                        ref traslados = @("&Impuestos/Traslados")
+                        for i = 0; i < list.count(traslados)
+                        {
+                            ref tras = list.obj(traslados,i)
+                            incluir_tsacta = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
+                            incluir_importe = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
+
+                            #$
+                            Traslado(
+                                Impuesto="#<@@(tras,'Impuesto')>"
+                                TipoFactor="#<@@(tras,'TipoFactor')>"
+                                "#<ifstr(incluir_tsacta,'TasaOCuota','')>"="#<@@(tras,'TasaOCuota')>"
+                                Base="#<@@(tras,'Base')>"
+                                "#<ifstr(incluir_importe,'Importe','')>"="#<@@(tras,'Importe')>"
+                            )
+                        }
+                        #$
+                    }
+                }
+                #$
+            }
+        }
+        #$
+        #!
+        if field.exist(@cfdi,"Addenda")
+        {
+            #$ Addenda
+            {
+                addenda(
+                    "xsi:schemaLocation"="http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd"
+                    "xmlns:xsi"="http://www.w3.org/2001/XMLSchema-instance"
+                    "xmlns:induxsoft"="http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd"
+                    notas=""
+                )
+                {
+                    #!
+                    ref tags = @('&Addenda')
+                    go foreach.fobj(key:key, value:tag) with(tags)
+                    {
+                        #$ etiqueta(id="#<key>" titulo="#<@@(tag,'titulo')>" 
+                            valor="#<@@(tag,'valor1')>"
+                            valor2="#<@@(tag,'valor2')>"
+                            valor3="#<@@(tag,'valor3')>"
+                        )
+                    }
+                    #$
+                }
+            }
+        }
+    }
+
+    #! do @context.end()
+}

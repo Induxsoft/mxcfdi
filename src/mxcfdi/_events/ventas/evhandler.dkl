@@ -5,6 +5,7 @@ program "Controlador de eventos"
     #include "functions.dkh"
     #include "serialize.dkh"
     #include "dbr.dkh"
+    #include "mxcfdi/_lib/config.dk"
 
     do @context.begin(@event_context)
 
@@ -18,14 +19,14 @@ program "Controlador de eventos"
 
     switch trim(@("$event"))
     {
-        case "ext_VD11"
+        case "ext_VD13" //Procesar documento de venta
         {
-            if @@(data,"#documento") == 5 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/ventas/devolucion/?doc="+@@(data,"$sys_pk") }
-            break
-        }
-        case "ext_VD13"
-        {
-            if @@(data,"#documento") == 4 { @http_context<"response/headers/location"> : "/!/mxcfdi/emision/ventas/factura/?doc="+@@(data,"$sys_pk") }
+            url_redir = ""
+
+            if @@(data,"#documento") == @cFactura { url_redir = @CFD_VNT_FACTURA }
+            if @@(data,"#documento") == @cNotaCredito { url_redir = @CFD_VNT_DEVOLUCION }
+
+            if url_redir != "" { @http_context<"response/headers/location"> : replace(url_redir,"@doc",@@(data,"$sys_pk")) }
             break
         }
     }

@@ -9,11 +9,32 @@ module
     @curr_month = ndatetime.month(@curr_ndt)
     @curr_day = ndatetime.day(@curr_ndt)
 
-	@cFactura = 4
+	// cdocumentos
+    @cCotizacion = 1
+    @cPedido = 2
+    @cRemision = 3
+    @cFactura = 4
     @cNotaCredito = 5
+    @cTicket = 6
+	@cNotaCargo = 17
+	// cformaspago
+    @fp_na = 0
+    @fp_contado = 1
+    @fp_credito = 2
+    @fp_financiado = 3
+    @fp_consignado = 4
+
+	// Estrategia que los métodos de redondeo matemáticos deben usar para redondear un número.
+    @ToEven = 0
+    @AwayFromZero = 1
+    @ToZero = 2
+    @ToNegativeInfinity = 3
+    @ToPositiveInfinity = 4
 
 	@default_max_rows = 250 // limite de registros para las vistas de lista
 	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
+	@default_scfdi_path = "data/@qname/mxcfdi/success_cfdi/@emisor/"
+	@default_fcfdi_path = "data/@qname/mxcfdi/failure_cfdi/@emisor/"
 	@json_path = "mxcfdi/_static/json"
 	
 	@sat_exportacion = "sat.c_Exportacion.json"
@@ -23,6 +44,13 @@ module
 	@sat_tipo_relacion = "sat.c_TipoRelacion.json"
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
 
+	// Sellar y timbrar CFDI 4.0 y CR 2.0
+    // svc: https://docs.induxsoft.net/es/api/cloud/factudesk/sellar-y-timbrar.md
+	@url_svc_sellar_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/sellar-y-timbrar/"
+	// Enviar CFDI o CR
+    // svc: https://docs.induxsoft.net/es/api/cloud/factudesk/enviar.md
+	@url_svc_enviar_correo = "https://factudesk.api.induxsoft.net/comprobantes/enviar/"
+
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"
@@ -30,4 +58,9 @@ module
 
 	//* ======================================== [ _PACKAGE ]
 	@CFD_EMISION = "/!/mxcfdi/emision/"
+	@CFD_VNT_FACTURA = "/!/mxcfdi/emision/ventas/factura/?doc=@doc"
+	@CFD_VNT_DEVOLUCION = "/!/mxcfdi/emision/ventas/devolucion/?doc=@doc"
+	@CFD_CXC_COBRO = "/!/mxcfdi/emision/cxc/cobro/?doc=@doc"
+	@CFD_CXC_BONIFICACION = "/!/mxcfdi/emision/cxc/bonificacion/?doc=@doc"
+	@CFD_CXC_NOTA_CARGO = "/!/mxcfdi/emision/cxc/nota-cargo/?doc=@doc"
 }

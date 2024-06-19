@@ -33,6 +33,95 @@ module "Lista de consultas MySQL"
     LIMIT #<@default_max_rows>
     "
 
+    @qry_read_venta = "
+    SELECT
+        vnt.sys_pk,
+        vnt.sys_recver,
+        vnt.documento,
+        vnt.referencia,
+        DATE_FORMAT(vnt.fecha,'%Y-%m-%d') AS fecha,
+        IFNULL(DATE_FORMAT(vnt.vencimiento,'%Y-%m-%d'),'') AS vencimiento,
+        ROUND(IFNULL(vnt.subtotal,0),2) AS subtotal,
+        ROUND((IFNULL(vnt.descuento1,0) - IFNULL(vnt.descuento2,0)),2) AS descuentos,
+        ROUND((IFNULL(vnt.impuesto1,0) + IFNULL(vnt.impuesto2,0) + IFNULL(vnt.impuesto3,0) + IFNULL(vnt.impuesto4,0)),2) AS impuestos,
+        ROUND(((((((IFNULL(vnt.subtotal,0)
+            - IFNULL(vnt.descuento1,0))
+            - IFNULL(vnt.descuento2,0))
+            + IFNULL(vnt.impuesto1,0))
+            + IFNULL(vnt.impuesto2,0))
+            + IFNULL(vnt.impuesto3,0))
+            + IFNULL(vnt.impuesto4,0))
+        ,2) AS total,
+        IFNULL(vnt.descuento1,0) AS descuento1,
+        IFNULL(vnt.descuento2,0) AS descuento2,
+        IFNULL(vnt.impuesto1,0) AS impuesto1,
+        IFNULL(vnt.impuesto2,0) AS impuesto2,
+        IFNULL(vnt.impuesto3,0) AS impuesto3,
+        IFNULL(vnt.impuesto4,0) AS impuesto4,
+        vnt.icconsumo,
+        vnt.icliente,
+        ROUND(vnt.tipocambio,6) AS tipocambio,
+        vnt.idivisa,
+        vnt.formapago,
+        vnt.statusadministrativo,
+        vnt.statusentrega,
+        vnt.statusfacturacion,
+        vnt.statusfinanciero,
+        dvs.codigo AS cdivisa,
+        s.serie,
+        f.folio
+    FROM venta AS vnt
+        INNER JOIN divisa AS dvs ON vnt.idivisa = dvs.sys_pk
+        INNER JOIN foliosdocumentos AS f ON vnt.ifolio = f.sys_pk
+        INNER JOIN blockdocumentos AS s ON f.block = s.sys_pk
+    WHERE vnt.#<@keyfield> = @doc
+    "
+
+    @qry_childs_venta = "
+    SELECT
+        p.uf_sat_proser,
+        p.uf_sat_uniproser,
+        p.codigo,
+        p.descripcion,
+        dt.unidad,
+        ROUND(dt.precio,6) AS precio,
+        ROUND(dt.cantidad,6) AS cantidad,
+        ROUND((dt.precio * dt.cantidad),6) AS subtotal,
+        ROUND((IFNULL(dt.descuento1,0) + IFNULL(dt.descuento2,0)),6) AS descuentos,
+        ROUND((IFNULL(dt.impuesto1,0) + IFNULL(dt.impuesto2,0) + IFNULL(dt.impuesto3,0) + IFNULL(dt.impuesto4,0)),6) AS impuestos,
+        ROUND(((((((
+            (dt.precio * dt.cantidad)
+            - IFNULL(dt.descuento1,0))
+            - IFNULL(dt.descuento2,0))
+            + IFNULL(dt.impuesto1,0))
+            + IFNULL(dt.impuesto2,0))
+            + IFNULL(dt.impuesto3,0))
+            + IFNULL(dt.impuesto4,0))
+        ,6) AS importe,
+        ROUND(IFNULL(dt.descuento1,0),6) AS descuento1,
+        ROUND(IFNULL(dt.descuento2,0),6) AS descuento2,
+        ROUND(IFNULL(dt.impuesto1,0),6) AS impuesto1,
+        ROUND(IFNULL(dt.impuesto2,0),6) AS impuesto2,
+        ROUND(IFNULL(dt.impuesto3,0),6) AS impuesto3,
+        ROUND(IFNULL(dt.impuesto4,0),6) AS impuesto4,
+        ROUND((CONVERT(REPLACE(SUBSTRING_INDEX(i.i1venta, '|', IFNULL(@zimpuesto,1)),'%',''), DECIMAL) / 100),6) AS i1_tasa,
+        ROUND((CONVERT(REPLACE(SUBSTRING_INDEX(i.i2venta, '|', IFNULL(@zimpuesto,1)),'%',''), DECIMAL) / 100),6) AS i2_tasa,
+        ROUND((CONVERT(REPLACE(SUBSTRING_INDEX(i.i3venta, '|', IFNULL(@zimpuesto,1)),'%',''), DECIMAL) / 100),6) AS i3_tasa,
+        ROUND((CONVERT(REPLACE(SUBSTRING_INDEX(i.i4venta, '|', IFNULL(@zimpuesto,1)),'%',''), DECIMAL) / 100),6) AS i4_tasa,
+        TRIM(IFNULL(i.uf_tipoi1,'')) AS i1_text,
+        TRIM(IFNULL(i.uf_tipoi2,'')) AS i2_text,
+        TRIM(IFNULL(i.uf_tipoi3,'')) AS i3_text,
+        TRIM(IFNULL(i.uf_tipoi4,'')) AS i4_text,
+        i.tasa AS exento_iva,
+        i.objetoimp
+        #<selects>
+    FROM dventa AS dt
+        INNER JOIN producto AS p ON dt.iproducto = p.sys_pk
+        INNER JOIN cfgimpuesto AS i ON p.impuestos = i.sys_pk
+        #<joins>
+    WHERE dt.fk_venta_detalle = @doc
+    "
+
     @qry_list_dcxc = "
     SELECT
         cxc.sys_pk,
@@ -57,6 +146,36 @@ module "Lista de consultas MySQL"
     LIMIT #<@default_max_rows>
     "
 
+    @qry_read_dcxc = "
+    SELECT
+        cxc.sys_pk,
+        cxc.sys_recver,
+        cxc.aplicable,
+        cxc.documento,
+        cxc.referencia,
+        DATE_FORMAT(cxc.fecha,'%Y-%m-%d') AS fecha,
+        IFNULL(DATE_FORMAT(cxc.aplicacion,'%Y-%m-%d'),'') AS vencimiento,
+        ROUND(IFNULL(cxc.bonificaciones,0),6) AS bonificaciones,
+        ROUND(IFNULL(cxc.debe,0),6) AS debe,
+        ROUND(IFNULL(cxc.haber,0),6) AS haber,
+        ROUND(IFNULL(cxc.intfinancieros,0),6) AS intfinancieros,
+        ROUND(IFNULL(cxc.intmoratorios,0),6) AS intmoratorios,
+        ROUND(IFNULL(cxc.pagos,0),6) AS pagos,
+        ROUND((IFNULL(cxc.debe,0) + IFNULL(cxc.intmoratorios,0) - IFNULL(cxc.pagos,0) - IFNULL(cxc.bonificaciones,0)),6) AS saldo,
+        cxc.icliente,
+        IFNULL(cxc.iventa,0) AS iventa,
+        ROUND(cxc.tipocambio,6) AS tipocambio,
+        dvs.sys_pk AS idivisa,
+        dvs.codigo AS cdivisa,
+        IFNULL(cxc.notas,'') AS concepto
+        #<selects>
+    FROM dcxc AS cxc
+        INNER JOIN cliente AS cte ON cte.sys_pk = cxc.icliente
+        INNER JOIN divisa AS dvs ON dvs.sys_pk = cte.idivisa
+        #<joins>
+    WHERE cxc.#<@keyfield> = @doc
+    "
+
     @qry_get_receptor = "
     SELECT
         cte.codigo,
@@ -76,11 +195,31 @@ module "Lista de consultas MySQL"
         IFNULL(cte.uf_addenda,0) AS uf_addenda,
         IFNULL(cte.domicilio1,0) AS domicilio1,
         IFNULL(cte.domicilio2,0) AS domicilio2,
-        IFNULL(cte.domicilio3,0) AS domicilio3
+        IFNULL(cte.domicilio3,0) AS domicilio3,
+        IFNULL(cte.cfdi_emisor,0) AS cfdi_emisor
     FROM cliente AS cte
         LEFT JOIN domicilio AS dom1 ON cte.domicilio1 = dom1.sys_pk
         LEFT JOIN domicilio AS dom2 ON cte.domicilio2 = dom2.sys_pk
         LEFT JOIN domicilio AS dom3 ON cte.domicilio3 = dom3.sys_pk
     WHERE cte.sys_pk = @icliente
+    "
+
+    @qry_dir_receptor = "
+    SELECT
+        d.direccion,
+        d.colonia,
+        d.codpos,
+        c.nombre AS municipio,
+        e.nombre AS estado,
+        p.nombre AS pais
+    FROM domicilio AS d
+        INNER JOIN ciudad AS c ON d.iciudad = c.sys_pk
+        INNER JOIN edoprov AS e ON c.estado = e.sys_pk
+        INNER JOIN pais AS p ON e.ipais = p.sys_pk
+    WHERE d.sys_pk = COALESCE(
+            IF(@domicilio1 = 0, NULL, @domicilio1),
+            IF(@domicilio2 = 0, NULL, @domicilio2),
+            IF(@domicilio3 = 0, NULL, @domicilio3)
+        )
     "
 }

@@ -1,8 +1,26 @@
 #include "dkli.dkh"
 #pattern function "function '$name' ()"
 #!
-module "Funciones de propósito general:lib"
+module "Funciones de propósito general :lib"
 {
+    if not(isset("@http_context")) && isset("@crud_context") { ref @http_context = ifnull(@@(@crud_context,"&http"),record.create()) }
+
+    module "Mapeo de funciones de .Net a Devkron"
+    {
+        ref lib_numeros = _import_library("induxsoft_dkl_NumeroAletrasCorregido.dll")
+
+        do _map_function(lib_numeros,"induxsoft_dkl_NumeroAletrasCorregido.NumerosEnLetras","ParteEntera","Int2Ltr","System.Decimal","$")
+        do _map_function(lib_numeros,"induxsoft_dkl_NumeroAletrasCorregido.NumerosEnLetras","ParteDecimal","Dec2Ltr","System.Decimal","$")
+        /**
+        * Función de redondeo mapeado del ensamblado `System.Math` de C#
+        * @param decimal value | El valor que será redondeado.
+        * @param int precision | Cantidad de decimales a redondear.
+        * @param int method | Especifica el método matemático de redondeo que se deben usar para redondear un número. 
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.midpointrounding?view=net-7.0#definition
+        */
+        do _map_function(-1,"System.Math","Round","RoundTo","System.Decimal,System.Int32, System.MidpointRounding","#")
+    }
+
     function hoy(fmt)
     {
         return date_str(now(),str(fmt))
@@ -13,9 +31,153 @@ module "Funciones de propósito general:lib"
         return value >= min && value <= max
     }
 
-    function record_combine(&obj1,&obj2)
+    function record.keys(&record)
+    {
+        return list.create_from_fields(ifnull(record,record.create()))
+    }
+
+    function record.values(&record)
+    {
+        if isnull(record) { ref record:record.create() }
+        ref keys = list.create_from_fields(record)
+        ref values = list.create()
+        for i = 0; i < list.count(keys)
+        {
+            key = list.str(keys,i)
+            // 1 - $ | 2 - # | 3 - * | 0 - not exist
+            switch field.typeof(record,key)
+            {
+                case 1 { do list.add(values,field.str(record,key)) }
+                case 2 { do list.add(values,field.num(record,key)) }
+                case 3 { do list.add(values,field.obj(record,key)) }
+            }
+        }
+        return values
+    }
+
+    function record.combine(&obj1,&obj2)
     {
         return record.copyexin(obj2,obj1,"*",",","",":")
+    }
+
+    function numero_en_letras(value)
+    {
+        number = parse.num(value)
+        return Int2Ltr(number) + " " + Dec2Ltr(number)
+    }
+
+    function date_format(str,fmt)
+    {
+        fecha = trim(str(str))
+        formato = trim(str(fmt))
+
+        if fecha == "" { return "" }
+        if formato == "" { formato = "yyyy-MM-ddTHH:mm:ss" }
+
+        ref datetime = str2dt(fecha)
+        fecha = date_str(datetime,formato)
+
+        return fecha
+
+        exception
+        {
+            do pop_exception()
+            return ""
+        }
+    }
+
+    function list_years(yearsBack,yearsForward)
+    {
+        ndt = ndatetime.now()
+        yearFrom = ndatetime.add(ndt, ((yearsBack + 1) * -1), "y")
+        
+        ref list = list.create()
+        date = yearFrom
+
+        for i = 1; i < yearsBack + (yearsForward + 2)
+        {
+            date = ndatetime.add(date,1,'y')
+            do list.add(list, ndatetime.year(date))
+        }
+        return list
+    }
+
+    function curr_url()
+    {
+        ref parameters = ifnull(@@(@http_context,"&request/get"),record.create())
+
+        v12_params = "_pack,_program,_entities_type,_entity_id,_view,_operation"
+        ref v12params = record.copy(parameters,v12_params)
+
+        v12_path = "/!/_pack/_program/_entity_id/_view/"
+        go foreach.fstr(key:key, value:value) with(v12params)
+        {
+            v12_path = replace(v12_path,key,value)
+        }
+        v12_path = replace(v12_path,"//","/")
+
+        http_args = "?"
+        go foreach.fstr(key:key, value:value) with(parameters)
+        {
+            if not(containsword(key,v12_params)) { http_args = http_args + key + "=" + value + "&" }
+        }
+        http_args = rremove(http_args,1)
+
+        return path.concat(v12_path,http_args)
+    }
+
+    function get_db()
+    {
+        qname = trim(@@(@http_context,"$session/idp/qname"))
+        ref db = @@(@http_context,"&session/idp/database")
+        
+        if isnull(db) || not(dbr.is_open(db)) { ref db:dbr.open(qname) }
+        do dbr.rec(db,"select 1 as success;",@null)
+        
+        exception
+        {
+            do pop_exception()
+            ref db:dbr.open(qname)
+        }
+
+        return db
+    }
+
+    function _params()
+    {
+        return ifnull(@@(@http_context,"&request/get"),record.create())
+    }
+
+    function _payload()
+    {
+        ref post = ifnull(@@(@http_context,"&request/post"),record.create())
+        if list.count(list.create_from_fields(post)) < 1 {
+            post_string = trim(field.dstr(@http_context,"request/post_string","{}"))
+            if post_string == "" { post_string = "{}" }
+            
+            ref post:from.json(post_string)
+        }
+        return post
+    }
+
+    function replace_path_macros(path)
+    {
+        ref _GET = ifnull(@@(@http_context,"&request/get"),record.create())
+
+        _prt = ifstr(parse.bool(@@(@http_context,"$request/headers/HTTPS")),"https","http")
+        _hst = @@(@http_context, "$request/headers/HTTP_HOST")
+        _cnn = @@(@http_context,"$session/idp/qname")
+        _pkt = @@(_GET, "$_pack")
+        _prg = @@(_GET, "$_program")
+        _etp = @@(_GET, "$_entities_type")
+        _eid = @@(_GET, "$_entity_id")
+        _vst = @@(_GET, "$_view")
+
+        path = replace(path, "@protocol", _prt)
+        path = replace(path, "@host", _hst)
+        path = replace(path, "@qname", _cnn)
+
+        return path
     }
 
     function newrec()
@@ -41,68 +203,6 @@ module "Funciones de propósito general:lib"
             @"sys_lock*": @null
         }
         return record
-    }
-
-    function date_format(str,fmt)
-    {
-        fecha = trim(str(str))
-        formato = trim(str(fmt))
-
-        if fecha == "" { return "" }
-        if formato == "" { formato = "yyyy-MM-ddTHH:mm:ss" }
-
-        ref datetime = str2dt(fecha)
-        fecha = date_str(datetime,formato)
-
-        return fecha
-
-        exception
-        {
-            // do rise_error(99,"Debe proporcionar una cadena de fecha con un formato válido.")
-            do pop_exception()
-            return ""
-        }
-    }
-
-    function list_years(yearsBack,yearsForward)
-    {
-        ndt = ndatetime.now()
-        yearFrom = ndatetime.add(ndt, ((yearsBack + 1) * -1), "y")
-        
-        ref list = list.create()
-        date = yearFrom
-
-        for i = 1; i < yearsBack + (yearsForward + 2)
-        {
-            date = ndatetime.add(date,1,'y')
-            do list.add(list, ndatetime.year(date))
-        }
-        return list
-    }
-
-    function curr_url()
-    {
-        if not(isset("@http_context")) && isset("@crud_context") { ref @http_context = ifnull(@@(@crud_context,"&http"),record.create()) }
-        ref parameters = ifnull(@@(@http_context,"&request/get"),record.create())
-
-        v12_params = "_pack,_program,_entities_type,_entity_id,_view,_operation"
-        ref v12params = record.copy(parameters,v12_params)
-
-        v12_path = "/!/_pack/_program/_entity_id/_view/"
-        go foreach.fstr(key:key, value:value) with(v12params)
-        {
-            v12_path = replace(v12_path,key,value)
-        }
-        v12_path = replace(v12_path,"//","/")
-
-        http_args = "?"
-        go foreach.fstr(key:key, value:value) with(parameters)
-        {
-            if not(containsword(key,v12_params)) { http_args = http_args + key + "=" + value + "&" }
-        }
-        http_args = rremove(http_args,1)
-
-        return path.concat(v12_path,http_args)
     }
 
     function form(name,type,&obj)
@@ -159,6 +259,28 @@ module "Funciones de propósito general:lib"
                 return fecha
             }
             default { return "" }
+        }
+    }
+
+    function FixTo(value,precision)
+    {
+        number = parse.num(value)
+        ref parts = split(number, ".")
+
+        if list.count(parts) == 1
+        {
+            if precision < 1 { return str(number) }
+            if precision > 0 { return str(number) + "." + padright("0", precision, "0") }
+        }
+        if list.count(parts) == 2
+        {
+            integer = list.str(parts, 0)
+            decimal = list.str(parts, 1)
+
+            if precision < 1 { return integer }
+            if precision > 0 { decimal = cut(decimal,precision) }
+
+            return integer + "." + padright(decimal, precision, '0')
         }
     }
 

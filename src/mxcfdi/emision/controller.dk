@@ -33,4 +33,8 @@ module "EmisionController"
 
     point @list to emision.list
     point @read to emision.read
+    point @blank to emision.read
+    point @create to emision.save
+    point @update to emision.save
+    point @delete to emision.delete
 }

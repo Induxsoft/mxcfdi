@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module "form.factura.dk"
+module "venta.factura.dk"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -12,7 +12,8 @@ module "form.factura.dk"
     do @context.begin(@crud_context)
 
     ref @_GET = ifnull(@("&parameters"),record.create())
-    ref dtcliente = ifnull(@("&./dtcliente"),record.create())
+    ref entity = ifnull(@("&./entity"),record.create())
+    ref cliente = ifnull(@("&./cliente"),record.create())
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -40,9 +41,7 @@ module "form.factura.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("forma_pago","tx",@null)
     }
-    if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "99" }
 
     new sel_metodo_pago
     {
@@ -53,12 +52,19 @@ module "form.factura.dk"
             @"class": "form-select rounded-0"
             @"name": "metodo_pago"
             @"required": ""
+            @"readonly": ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("metodo_pago","tx",@null)
     }
-    if @@(sel_metodo_pago,"$selected") == "" { sel_metodo_pago<"selected"> : "PPD" }
+
+    if @@(entity,"#formapago") == @fp_contado { sel_metodo_pago<"selected"> : "PUE" }
+    if @@(entity,"#formapago") == @fp_credito
+    {
+        sel_forma_pago<"selected"> : "99"
+        sel_forma_pago<"attributes/readonly"> : ""
+        sel_metodo_pago<"selected"> : "PPD"
+    }
 
     new sel_uso_cfdi
     {
@@ -101,12 +107,12 @@ module "form.factura.dk"
             @"class": "form-select rounded-0"
             @"name": "exportacion"
             @"required": ""
+            @"readonly": ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("exportacion","tx",@null)
+        @"selected": "01"
     }
-    if @@(sel_exportacion,"$selected") == "" { sel_exportacion<"selected"> : "01" }
 
     new sel_tipo_relacion
     {
@@ -157,6 +163,8 @@ module "form.factura.dk"
             form(method="POST" action="./" id="frm_factura")
             {
                 small(class="float-end"){$"CFDI 4.0 Ingreso"}
+                
+                input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
                 ##
                 do uie.print_from_url_field()
                 ##
@@ -175,8 +183,8 @@ module "form.factura.dk"
                     {
                         div(class="d-flex gap-2 #<ifstr(is_new,'d-none','')>")
                         {
-                            label{b{$""} $"#<@@(dtcliente,'$nombre')>"}
-                            label{b{$"RFC: "} $"#<@@(dtcliente,'$rfc')>"}
+                            label{b{$""} $"#<@@(cliente,'$nombre')>"}
+                            label{b{$"RFC: "} $"#<@@(cliente,'$rfc')>"}
                         }
 
                         div(class="row")
@@ -191,7 +199,7 @@ module "form.factura.dk"
                             div(class="col-4")
                             {
                                 label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
-                                input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(dtcliente,'$codpos')>" id="txt_codpos")
+                                input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
                             div(class="col-6")
                             {
@@ -210,7 +218,7 @@ module "form.factura.dk"
                             div(class="col-12")
                             {
                                 label(class="form-label" "for"="txt_cond_pago"){$"Condiciones de pago:"}
-                                input(class="form-control rounded-0" type="text" name="cond_pago" value="NO APLICA" id="txt_cond_pago" required="")
+                                input(class="form-control rounded-0" type="text" name="cond_pago" value="" id="txt_cond_pago" maxlength="1000" required="")
                             }
                             div(class="col-8")
                             {
