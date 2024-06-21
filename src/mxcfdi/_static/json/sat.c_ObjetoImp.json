@@ -1,0 +1,20 @@
+﻿[
+  {
+    "clave": "01",
+    "valor": "No objeto de impuesto.",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "02",
+    "valor": "Sí objeto de impuesto.",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "03",
+    "valor": "Sí objeto del impuesto y no obligado al desglose.",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  }
+]

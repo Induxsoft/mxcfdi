@@ -173,6 +173,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"list_reg_fiscal*": getFilRegFiscal(db,params,data)
             @"list_exportacion*": getJsonData(@sat_exportacion)
             @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
+            @"list_objeto_imp*": getJsonData(@sat_objeto_imp)
         }
     }
 
@@ -235,9 +236,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_venta
                 tname = "vnt"
 
-                if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
-
-                conditions = " AND vnt.documento = #<@cNotaCredito>"
+                joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
+                // if parse.bool(@@(params,"fil_timbrados")) { joins = "INNER JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa" }
+                conditions = " AND vnt.documento = #<@cNotaCredito> AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))"
                 break
             }
             case 12 //Bonificaciones
@@ -330,7 +331,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         //#endregion
 
-        //#region Evaluate filters
         if trim(@@(params,"$fil_text")) != ""
         {
             conditions = "
@@ -340,7 +340,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             )
             "
         }
-        //#endregion
 
         conditions = ftext(conditions)
         @list_query = ftext(@list_query)
@@ -369,6 +368,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     save::&db,&params,&data
     {
+        //#region Crear CFDI()
         namespace "emision"
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
@@ -410,6 +410,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     generarCFDI::&db,&params,&data
     {
+        //#region generarCFDI()
         namespace "emision"
 
         ref documento = field.obj(data,"documento")
@@ -499,6 +500,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     conceptosVenta::&db,&params,&cfdi
     {
+        //#region conceptosVenta()
         ref dventa = dbr.list(db,ftext(@qry_childs_venta),params)
         ref conceptos = list.create()
         ref _traslados = record.create()
@@ -609,7 +611,92 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     conceptosCxC::&db,&data,&cfdi
     {
-        // code...
+        //#region conceptosCxC()
+        ref conceptos = list.create()
+        ref _traslados = list.create()
+        ref _retenciones = list.create()
+
+        SubTotal = 0.00
+        Descuento = 0.00
+        Total = 0.00
+        TotalImpuestosTrasladados = 0.00
+        TotalImpuestosRetenidos = 0.00
+        
+        new concepto
+        {
+            @"ClaveProdServ": lib.ifempty(field.str(data,"codigo_sat"),"01010101")
+            @"ClaveUnidad": lib.ifempty(field.str(data,"unidad_sat"),"ACT")
+            // @"NoIdentificacion": field.str(data,"codigo")
+            @"Descripcion": field.str(data,"documento/concepto")
+            // @"Unidad": field.str(data,"unidad")
+            @"ValorUnitario": field.num(data,"documento/debe")
+            @"Cantidad": 1
+            @"Descuento": 0
+            @"Importe": field.num(data,"documento/debe")
+            @"ObjetoImp": field.str(data,"objeto_imp")
+        }
+
+        if field.str(concepto,"ObjetoImp") == "02"
+        {
+            TasaOCuota = RoundTo((parse.num(field.str(data,"tasa_iva")) / 100),6,@AwayFromZero)
+            ValorUnitario = RoundTo((field.num(concepto,"Importe") / (1+TasaOCuota)),6,@AwayFromZero)
+
+            using concepto
+            {
+                @"ValorUnitario": ValorUnitario
+                @"Importe": ValorUnitario
+            }
+
+            Base = ValorUnitario
+            Importe = RoundTo((Base * TasaOCuota),6,@AwayFromZero)
+
+            ref traslados = list.create()
+            new traslado
+            {
+                @"Impuesto": "002"
+                @"TipoFactor": "Tasa"
+                @"TasaOCuota": TasaOCuota
+                @"Base": Base
+                @"Importe": Importe
+            }
+            if field.str(data,"tasa_iva") == "Exento" { traslado<"TipoFactor"> : "Exento" }
+
+            do list.add(traslados,traslado)
+            concepto<"Traslados*"> : traslados
+
+            TotalImpuestosTrasladados = RoundTo(field.num(traslado,"Importe"),2,@AwayFromZero)
+
+            ref tras = record.copy(traslado,"*")
+            using tras
+            {
+                @"Base": RoundTo(@@(tras,"#Base"),2,@AwayFromZero)
+                @"Importe": RoundTo(@@(tras,"#Importe"),2,@AwayFromZero)
+            }
+            do list.add(_traslados,tras)
+        }
+        do list.add(conceptos,concepto)
+
+        SubTotal = RoundTo(field.num(concepto,"Importe"),2,@AwayFromZero)
+        Total = RoundTo((((SubTotal - Descuento) + TotalImpuestosTrasladados) - TotalImpuestosRetenidos),2,@AwayFromZero)
+
+        using cfdi
+        {
+            @"SubTotal": SubTotal
+            @"Descuento": Descuento
+            @"Total": Total
+
+            @"Conceptos*": conceptos
+
+            member @"Impuestos"
+            {
+                @"TotalImpuestosTrasladados": TotalImpuestosTrasladados
+                @"TotalImpuestosRetenidos": TotalImpuestosRetenidos
+
+                @"Traslados*": _traslados
+                @"Retenciones*": _retenciones
+            }
+        }
+        do rise_error(0,to.json(cfdi))
     }
 
     setConceptos::&db,&params,&data,&cfdi
@@ -620,6 +707,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     setAddenda::&db,&cliente,&cfdi
     {
+        //#region setAddenda()
         if not(@@(cliente,"#uf_addenda")) { return }
 
         ref dir_receptor = dbr.rec(db,@qry_dir_receptor,cliente)
@@ -661,6 +749,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     sellarYTimbrar::&emisor,comprobante
     {
+        //#region sellarYTimbrar()
         new header { @"Content-Type": "application/json; charset=UTF-8" }
         new payload
         {
@@ -678,6 +767,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     enviarCorreo::&emisor,&receptor,&cfdi
     {
+        //#region enviarCorreo()
         if @@(receptor,"$correo") == "" { do rise_error(500,"El receptor no tiene un correo electrónico configurado.") }
 
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
@@ -703,6 +793,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     aplicarFactura::&db,&params,&response
     {
+        //#region aplicarFactura()
         ref comprobante = parse.xmlStr(from.base64(@@(response,"$data/xml")))
         ref emisor = cfdi.getElementByTagName(comprobante,"cfdi:Emisor")
         ref complemento = cfdi.getElementByTagName(comprobante,"cfdi:Complemento")

@@ -275,6 +275,7 @@ module "venta.devolucion.dk"
         {$'
             document.addEventListener("DOMContentLoaded", () => {
                 emision.formId = "frm_devolucion";
+                emision.uuid_required = true;
                 emision.init();
             });
         '}

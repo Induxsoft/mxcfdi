@@ -1,7 +1,8 @@
 var emision =
 {
     formId:"", form:null, elem:null,
-    url_exit:"/!/mxcfdi/emision/", error_timeout:7,
+    url_exit:"/!/mxcfdi/emision/",
+    error_timeout:7, uuid_required:false,
 
     init()
     {
@@ -12,10 +13,12 @@ var emision =
         const btn_submit = document.getElementById("btn_submit");
         const btn_add_uuid = document.getElementById("btn_add_uuid");
         const btn_del_uuid = document.getElementById("btn_del_uuid");
+        const sel_tasa_iva = document.getElementById("sel_tasa_iva");
 
         if (btn_submit) btn_submit.addEventListener("click", (e) => this.submit());
         if (btn_add_uuid) btn_add_uuid.addEventListener("click", (e) => this.agregarUUID());
         if (btn_del_uuid) btn_del_uuid.addEventListener("click", (e) => this.removerUUID());
+        
         if (sel_metodo_pago && txt_cond_pago)
         {
             sel_metodo_pago.addEventListener("change", (e) => {
@@ -24,12 +27,35 @@ var emision =
             });
             trigger(sel_metodo_pago,"change");
         }
+        if (sel_tasa_iva)
+        {
+            const txt_subtotal = document.getElementById("txt_subtotal");
+            const txt_impuesto = document.getElementById("txt_impuesto");
+            const txt_total = document.getElementById("txt_total");
+
+            sel_tasa_iva.addEventListener("change", () => {
+                let Importe = Number(txt_total.value);
+
+                let TasaOCuota = Math.div(Number(sel_tasa_iva.value)||0, 100);
+                let Subtotal = Math.div(Importe,(1+TasaOCuota));
+                let Impuesto = Math.mul(Subtotal,TasaOCuota);
+
+                txt_subtotal.value = Subtotal;
+                txt_impuesto.value = Impuesto;
+            });
+            trigger(sel_tasa_iva,"change");
+        }
     },
 
     submit()
     {
         if (!this.form) return;
         if (!this.form.reportValidity()) return;
+        if (this.uuid_required && this.elem["sel_uuid"].options.length <= 0) {
+            alert("Es necesario relacionar al menos una factura.");
+            return;
+        }
+
         disableControls(["btn_submit"]);
 
         let rel_uuid = [];
@@ -41,8 +67,8 @@ var emision =
         fd.append("rel_uuid",JSON.stringify(rel_uuid));
 
         const onSuccess = (data) => {
-            if (data.message) {
-                alert(data.message);
+            if (!(data?.success??true) || (data?.message??"")!=="") {
+                alert(data.message ?? JSON.stringify(data));
                 return;
             }
             // console.log(data);

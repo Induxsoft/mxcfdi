@@ -11,14 +11,68 @@ module "Funciones de propósito general :lib"
 
         do _map_function(lib_numeros,"induxsoft_dkl_NumeroAletrasCorregido.NumerosEnLetras","ParteEntera","Int2Ltr","System.Decimal","$")
         do _map_function(lib_numeros,"induxsoft_dkl_NumeroAletrasCorregido.NumerosEnLetras","ParteDecimal","Dec2Ltr","System.Decimal","$")
+
         /**
-        * Función de redondeo mapeado del ensamblado `System.Math` de C#
-        * @param decimal value | El valor que será redondeado.
-        * @param int precision | Cantidad de decimales a redondear.
-        * @param int method | Especifica el método matemático de redondeo que se deben usar para redondear un número. 
-        * @link https://learn.microsoft.com/es-es/dotnet/api/system.midpointrounding?view=net-7.0#definition
+        * Convierte una cadena en una cadena codificada en HTML.
+        *
+        * @param String s | Cadena que se va a codificar.
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.net.webutility.htmlencode?view=net-8.0#system-net-webutility-htmlencode(system-string)
         */
-        do _map_function(-1,"System.Math","Round","RoundTo","System.Decimal,System.Int32, System.MidpointRounding","#")
+        do _map_function(-1,"System.Net.WebUtility","HtmlEncode","HtmlEncode","System.String","$")
+        /**
+        * Convierte una cadena que se ha codificado en HTML para su transmisión HTTP en una cadena descodificada.
+        *
+        * @param String s | Cadena que se va a descodificar.
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.net.webutility.htmldecode?view=net-8.0#system-net-webutility-htmldecode(system-string)
+        */
+        do _map_function(-1,"System.Net.WebUtility","HtmlDecode","HtmlDecode","System.String","$")
+
+        /**
+        * Devuelve el valor integral más pequeño que es mayor o igual que el número decimal especificado.
+        *
+        * @param Decimal d | Número decimal.
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.math.ceiling?view=net-7.0#system-math-ceiling(system-decimal)
+        */
+        do _map_function(-1,"System.Math","Ceiling","Ceiling","System.Decimal","#")
+        /**
+        * Devuelve el mayor valor integral menor o igual que el número decimal especificado.
+        *
+        * @param Decimal d | Número decimal.
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.math.floor?view=net-7.0#system-math-floor(system-decimal)
+        */
+        do _map_function(-1,"System.Math","Floor","Floor","System.Decimal","#")
+        /**
+        * Redondea un valor decimal a un número especificado de dígitos fraccionarios utilizando la convención de redondeo especificada.
+        *
+        * @param Decimal d | Número decimal que se va a redondear.
+        * @param Int decimals | Número de posiciones decimales del valor devuelto.
+        * @param MidpointRounding mode | Uno de los valores de enumeración que especifica qué estrategia de redondeo se va a usar.
+        *
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.math.round?view=net-7.0#system-math-round(system-decimal-system-int32-system-midpointrounding)
+        */
+        do _map_function(-1,"System.Math","Round","RoundTo","System.Decimal, System.Int32, System.MidpointRounding","#")
+    }
+
+    function FixTo(value,precision)
+    {
+        number = parse.num(value)
+        ref parts = split(number, ".")
+
+        if list.count(parts) == 1
+        {
+            if precision < 1 { return str(number) }
+            if precision > 0 { return str(number) + "." + padright("0", precision, "0") }
+        }
+        if list.count(parts) == 2
+        {
+            integer = list.str(parts, 0)
+            decimal = list.str(parts, 1)
+
+            if precision < 1 { return integer }
+            if precision > 0 { decimal = cut(decimal,precision) }
+
+            return integer + "." + padright(decimal, precision, '0')
+        }
     }
 
     function hoy(fmt)
@@ -29,6 +83,17 @@ module "Funciones de propósito general :lib"
     function between(value, min, max)
     {
         return value >= min && value <= max
+    }
+
+    function ifempty(s,d)
+    {
+        if trim(str(s)) == "" { return str(d) }
+        return str(s)
+    }
+
+    function isempty(s)
+    {
+        return trim(str(s)) == ""
     }
 
     function record.keys(&record)
@@ -259,28 +324,6 @@ module "Funciones de propósito general :lib"
                 return fecha
             }
             default { return "" }
-        }
-    }
-
-    function FixTo(value,precision)
-    {
-        number = parse.num(value)
-        ref parts = split(number, ".")
-
-        if list.count(parts) == 1
-        {
-            if precision < 1 { return str(number) }
-            if precision > 0 { return str(number) + "." + padright("0", precision, "0") }
-        }
-        if list.count(parts) == 2
-        {
-            integer = list.str(parts, 0)
-            decimal = list.str(parts, 1)
-
-            if precision < 1 { return integer }
-            if precision > 0 { decimal = cut(decimal,precision) }
-
-            return integer + "." + padright(decimal, precision, '0')
         }
     }
 

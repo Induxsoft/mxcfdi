@@ -19,22 +19,22 @@ program "Controlador de eventos"
 
     switch trim(@("$event"))
     {
-        case "ext_GB11"
+        case "ext_GB11" //Crear documento
         {
-            if @@(data,"#documento") == cNotaCargo { @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk")) }
+            if @@(data,"#documento") == @cNotaCargo { @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk")) }
             break
         }
-        case "ext_GB13"
+        case "ext_GB13" //Cobrar documento
         {
             @http_context<"response/headers/location"> : replace(@CFD_CXC_COBRO,"@doc",@@(data,"$sys_pk"))
             break
         }
-        case "ext_GB14"
+        case "ext_GB14" //Bonificar documento
         {
             @http_context<"response/headers/location"> : replace(@CFD_CXC_BONIFICACION,"@doc",@@(data,"$sys_pk"))
             break
         }
-        case "ext_GB15"
+        case "ext_GB15" //Aplicar intereses moratorios
         {
             @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk"))
             break

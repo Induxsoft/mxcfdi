@@ -25,6 +25,7 @@ module
     @fp_consignado = 4
 
 	// Estrategia que los métodos de redondeo matemáticos deben usar para redondear un número.
+	// https://learn.microsoft.com/es-es/dotnet/api/system.midpointrounding?view=net-7.0
     @ToEven = 0
     @AwayFromZero = 1
     @ToZero = 2
@@ -40,6 +41,7 @@ module
 	@sat_exportacion = "sat.c_Exportacion.json"
 	@sat_forma_pago = "sat.c_FormaPago.json"
 	@sat_metodo_pago = "sat.c_MetodoPago.json"
+	@sat_objeto_imp = "sat.c_ObjetoImp.json"
 	@sat_regimen_fiscal = "sat.c_RegimenFiscal.json"
 	@sat_tipo_relacion = "sat.c_TipoRelacion.json"
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
