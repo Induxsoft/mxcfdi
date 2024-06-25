@@ -40,8 +40,9 @@ var emision =
                 let Subtotal = Math.div(Importe,(1+TasaOCuota));
                 let Impuesto = Math.mul(Subtotal,TasaOCuota);
 
-                txt_subtotal.value = Subtotal;
-                txt_impuesto.value = Impuesto;
+                txt_subtotal.value = RoundTo(Subtotal,2);
+                txt_impuesto.value = RoundTo(Impuesto,2);
+                txt_total.value = RoundTo(Importe,2);
             });
             trigger(sel_tasa_iva,"change");
         }

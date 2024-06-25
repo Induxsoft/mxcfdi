@@ -17,6 +17,7 @@ module
     @cNotaCredito = 5
     @cTicket = 6
 	@cNotaCargo = 17
+	@cRecibo = 19
 	// cformaspago
     @fp_na = 0
     @fp_contado = 1
@@ -41,6 +42,7 @@ module
 	@sat_exportacion = "sat.c_Exportacion.json"
 	@sat_forma_pago = "sat.c_FormaPago.json"
 	@sat_metodo_pago = "sat.c_MetodoPago.json"
+	@sat_moneda = "sat.c_Moneda.json"
 	@sat_objeto_imp = "sat.c_ObjetoImp.json"
 	@sat_regimen_fiscal = "sat.c_RegimenFiscal.json"
 	@sat_tipo_relacion = "sat.c_TipoRelacion.json"

@@ -14,6 +14,26 @@
                 "varinput": {
                     "control": "button"
                 }
+            },
+            {
+                "varname": "mxcfdi_nventa",
+                "vardefault": "0",
+                "varvalue": "0",
+                "varcaption": "No asumir facturas del módulo de venta",
+                "varhelp": "Excluir Facturas y Devoluciones de los comprobantes de Ingreso y Egreso",
+                "vartype": "bool",
+                "varinput": {
+                    "control": "select",
+                    "source":{
+                        "type":"list",
+                        "values":[
+                            {"val":"1", "text":"Si"},
+                            {"val":"0", "text":"No"}
+                        ],
+                        "showfield":"text",
+                        "keyfield":"val"
+                    }
+                }
             }
         ]
     }

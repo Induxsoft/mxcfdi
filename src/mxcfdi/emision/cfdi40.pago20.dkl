@@ -35,13 +35,6 @@ program "Generar comprobante xml"
 
     do @context.begin(@cfdi)
 
-    incluir_tcambio = not(containsword(@("$Moneda"),"MXN,XXX"))
-    incluir_cfdi_rels = (list.count(ifnull(@("&CfdiRelacionados/Relacionados"),list.create())) > 0)
-    incluir_imp_tras = (list.count(ifnull(@("&Impuestos/Traslados"),list.create())) > 0)
-    incluir_imp_ret = (list.count(ifnull(@("&Impuestos/Retenciones"),list.create())) > 0)
-    incluir_ttl_imp_tras = incluir_imp_tras
-    incluir_ttl_imp_ret = incluir_imp_ret
-
     #$
     Comprobante(
         Version="4.0"
@@ -63,35 +56,14 @@ program "Generar comprobante xml"
         "#<ifstr(@('Serie')!='','Serie','')>"="#<@('Serie')>"
         "#<ifstr(@('Folio')!='','Folio','')>"="#<@('Folio')>"
         Fecha="#<date_str(now(),'yyyy-MM-ddTHH:mm:ss')>"
-        MetodoPago="#<@('MetodoPago')>"
-        FormaPago="#<@('FormaPago')>"
-        CondicionesDePago="#<@('CondicionesDePago')>"
-        TipoDeComprobante="#<@('TipoDeComprobante')>"
-        Moneda="#<@('Moneda')>"
-        "#<ifstr(incluir_tcambio,'TipoCambio','')>"="#<@('TipoCambio')>"
+        TipoDeComprobante="P"
+        Moneda="XXX"
         LugarExpedicion="#<@('LugarExpedicion')>"
-        Exportacion="#<@('Exportacion')>"
-        SubTotal="#<@('SubTotal')>"
-        Descuento="#<@('Descuento')>"
-        Total="#<@('Total')>"
+        Exportacion="01"
+        SubTotal="0"
+        Total="0"
     )
     {
-        #!
-        if incluir_cfdi_rels
-        {
-            #$
-            CfdiRelacionados(TipoRelacion="#<@('CfdiRelacionados/TipoRelacion')>")
-            {
-                #!
-                ref relacionados = @("&CfdiRelacionados/Relacionados")
-                for i = 0; i < list.count(relacionados)
-                {
-                    #$ CfdiRelacionado(UUID="#<list.str(relacionados,i)>")
-                }
-                #$
-            }
-        }
-        #$
         Emisor(
             Nombre="#<@('Emisor/Nombre')>"
             Rfc="#<@('Emisor/Rfc')>"
@@ -106,112 +78,101 @@ program "Generar comprobante xml"
         )
         Conceptos
         {
-            #!
-            conceptos_traslados = 0
-            traslados_exentos = 0
-            for i = 0; i < list.count(@("&Conceptos"))
+            Concepto(
+                ClaveProdServ="84111506"
+                ClaveUnidad="ACT"
+                Descripcion="Pago"
+                ValorUnitario="0"
+                Cantidad="1"
+                Importe="0"
+                ObjetoImp="01"
+            )
+        }
+        Complemento
+        {
+            Pagos(
+                Version="2.0"
+                "xmlns:pago20"="http://www.sat.gob.mx/Pagos20"
+		        "xsi:schemaLocation"="http://www.sat.gob.mx/Pagos20 http://www.sat.gob.mx/sitio_internet/cfd/Pagos/Pagos20.xsd"
+            )
             {
-                ref cpto = list.obj(@("&Conceptos"),i)
-                incluir_cpto_tras = (list.count(ifnull(@@(cpto,"&Traslados"),list.create())) > 0)
-                incluir_cpto_ret = (list.count(ifnull(@@(cpto,"&Retenciones"),list.create())) > 0)
-
-                #$
-                Concepto(
-                    ClaveProdServ="#<@@(cpto,'ClaveProdServ')>"
-                    ClaveUnidad="#<@@(cpto,'ClaveUnidad')>"
-                    "#<ifstr(@@(cpto,'NoIdentificacion')!='','NoIdentificacion','')>"="#<@@(cpto,'NoIdentificacion')>"
-                    Descripcion="#<@@(cpto,'Descripcion')>"
-                    "#<ifstr(@@(cpto,'Unidad')!='','Unidad','')>"="#<@@(cpto,'Unidad')>"
-                    ValorUnitario="#<@@(cpto,'ValorUnitario')>"
-                    Cantidad="#<@@(cpto,'Cantidad')>"
-                    Descuento="#<@@(cpto,'Descuento')>"
-                    Importe="#<@@(cpto,'Importe')>"
-                    ObjetoImp="#<@@(cpto,'ObjetoImp')>"
+                Totales(
+                    MontoTotalPagos="#<@('Complemento/Totales/MontoTotalPagos')>"
+                    TotalTrasladosBaseIVA16="#<@('Complemento/Totales/TotalTrasladosBaseIVA16')>"
+                    TotalTrasladosImpuestoIVA16="#<@('Complemento/Totales/TotalTrasladosImpuestoIVA16')>"
+                )
+                Pago(
+                    FechaPago="#<@('Complemento/Pago/FechaPago')>"
+                    MonedaP="#<@('Complemento/Pago/MonedaP')>"
+                    TipoCambioP="#<@('Complemento/Pago/TipoCambioP')>"
+                    Monto="#<@('Complemento/Pago/Monto')>"
+                    FormaDePagoP="#<@('Complemento/Pago/FormaDePagoP')>"
+                    NumOperacion="#<@('Complemento/Pago/NumOperacion')>"
                 )
                 {
                     #!
-                    if incluir_cpto_tras || incluir_cpto_ret
+                    ref doctosrel = ifnull(@("&Complemento/Pago/Relacionados"))
+                    for i = 0; i < list.count(doctosrel)
                     {
+                        ref docto = list.obj(doctosrel,i)
                         #$
-                        Impuestos
+                        DoctoRelacionado(
+                            IdDocumento="#<@@(docto,'IdDocumento')>"
+                            Serie="#<@@(docto,'Serie')>"
+                            Folio="#<@@(docto,'Folio')>"
+                            MonedaDR="#<@@(docto,'MonedaDR')>"
+                            EquivalenciaDR="#<@@(docto,'EquivalenciaDR')>"
+                            NumParcialidad="#<@@(docto,'NumParcialidad')>"
+                            ImpSaldoAnt="#<@@(docto,'ImpSaldoAnt')>"
+                            ImpPagado="#<@@(docto,'ImpPagado')>"
+                            ImpSaldoInsoluto="#<@@(docto,'ImpSaldoInsoluto')>"
+                            ObjetoImpDR="#<@@(docto,'ObjetoImpDR')>"
+                        )
                         {
-                            #!
-                            if incluir_cpto_tras
+                            ImpuestosDR
                             {
-                                #$
-                                Traslados
+                                TrasladosDR
                                 {
                                     #!
-                                    ref traslados = field.obj(cpto,"Traslados")
+                                    ref traslados = field.obj(docto,"Traslados")
                                     for j = 0; j < list.count(traslados)
                                     {
                                         ref tras = list.obj(traslados,j)
                                         incluir_tsacta = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
                                         incluir_importe = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
 
-                                        conceptos_traslados = conceptos_traslados + 1
-                                        if @@(tras,"$TipoFactor") == "Exento" { traslados_exentos = traslados_exentos + 1 }
-
                                         #$
-                                        Traslado(
-                                            Impuesto="#<@@(tras,'Impuesto')>"
-                                            TipoFactor="#<@@(tras,'TipoFactor')>"
-                                            "#<ifstr(incluir_tsacta,'TasaOCuota','')>"="#<@@(tras,'TasaOCuota')>"
-                                            Base="#<@@(tras,'Base')>"
-                                            "#<ifstr(incluir_importe,'Importe','')>"="#<@@(tras,'Importe')>"
+                                        TrasladoDR(
+                                            ImpuestoDR="#<@@(tras,'ImpuestoDR')>"
+                                            TipoFactorDR="#<@@(tras,'TipoFactorDR')>"
+                                            "#<ifstr(incluir_tsacta,'TasaOCuotaDR','')>"="#<@@(tras,'TasaOCuotaDR')>"
+                                            BaseDR="#<@@(tras,'BaseDR')>"
+                                            "#<ifstr(incluir_importe,'ImporteDR','')>"="#<@@(tras,'ImporteDR')>"
                                         )
                                     }
                                     #$
                                 }
                             }
-                            #$
                         }
+                        #!
                     }
                     #$
-                }
-            }
-            #! if traslados_exentos == conceptos_traslados { incluir_ttl_imp_tras = @false }
-            #$
-        }
-        #!
-        if incluir_imp_tras || incluir_imp_ret
-        {
-            #$
-            Impuestos(
-                "#<ifstr(incluir_ttl_imp_tras,'TotalImpuestosTrasladados','')>"="#<@('#Impuestos/TotalImpuestosTrasladados')>"
-                "#<ifstr(incluir_ttl_imp_ret,'TotalImpuestosRetenidos','')>"="#<@('#Impuestos/TotalImpuestosRetenidos')>"
-            )
-            {
-                #!
-                if incluir_imp_tras
-                {
-                    #$
-                    Traslados
+                    ImpuestosP
                     {
-                        #!
-                        ref traslados = @("&Impuestos/Traslados")
-                        for i = 0; i < list.count(traslados)
+                        TrasladosP
                         {
-                            ref tras = list.obj(traslados,i)
-                            incluir_tsacta = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
-                            incluir_importe = containsword(@@(tras,"$TipoFactor"),"Tasa,Cuota")
-
-                            #$
-                            Traslado(
-                                Impuesto="#<@@(tras,'Impuesto')>"
-                                TipoFactor="#<@@(tras,'TipoFactor')>"
-                                "#<ifstr(incluir_tsacta,'TasaOCuota','')>"="#<@@(tras,'TasaOCuota')>"
-                                Base="#<@@(tras,'Base')>"
-                                "#<ifstr(incluir_importe,'Importe','')>"="#<@@(tras,'Importe')>"
+                            TrasladoP(
+                                ImpuestoP="002"
+                                TipoFactorP="Tasa"
+                                TasaOCuotaP="0.160000"
+                                BaseP="0.00"
+                                ImporteP="0.00"
                             )
                         }
-                        #$
                     }
                 }
-                #$
             }
         }
-        #$
         #!
         if field.exist(@cfdi,"Addenda")
         {

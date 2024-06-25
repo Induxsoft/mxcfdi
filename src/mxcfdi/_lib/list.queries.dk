@@ -133,7 +133,8 @@ module "Lista de consultas MySQL"
         dvs.codigo AS cdivisa,
         cxc.tipocambio,
         IFNULL(cxc.debe,0) AS debe,
-        IFNULL(cxc.haber,0) AS haber
+        IFNULL(cxc.haber,0) AS haber,
+        (IFNULL(cxc.debe,0) + IFNULL(cxc.haber,0)) AS total
         #<selects>
     FROM dcxc AS cxc 
         INNER JOIN cdocumentos AS doc ON doc.id = cxc.documento
@@ -162,6 +163,7 @@ module "Lista de consultas MySQL"
         ROUND(IFNULL(cxc.intmoratorios,0),6) AS intmoratorios,
         ROUND(IFNULL(cxc.pagos,0),6) AS pagos,
         ROUND((IFNULL(cxc.debe,0) + IFNULL(cxc.intmoratorios,0) - IFNULL(cxc.pagos,0) - IFNULL(cxc.bonificaciones,0)),6) AS saldo,
+        ROUND((IFNULL(cxc.debe,0) + IFNULL(cxc.haber,0)),6) AS importe,
         cxc.icliente,
         IFNULL(cxc.iventa,0) AS iventa,
         ROUND(cxc.tipocambio,6) AS tipocambio,
@@ -181,7 +183,7 @@ module "Lista de consultas MySQL"
         cte.codigo,
         cte.nombre,
         UPPER(TRIM(IFNULL(cte.rfc,''))) AS rfc,
-        TRIM(IFNULL(cte.regfiscal,'')) AS regfiscal,
+        TRIM(IFNULL(cte.regfiscal,'')) AS reg_fiscal,
         COALESCE(
             IF(TRIM(cte.contactof_email) = '', NULL, TRIM(cte.contactof_email)),
             IF(TRIM(cte.replegal_email) = '', NULL, TRIM(cte.replegal_email)),

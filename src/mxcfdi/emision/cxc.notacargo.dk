@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module "form.factura.dk"
+module "cxc.notacargo.dk"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -89,7 +89,7 @@ module "form.factura.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",@null)
+        @"selected": lib.form("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -173,7 +173,7 @@ module "form.factura.dk"
 
     new nav_config
     {
-        @"title": "Nota de Cargo Fiscal"
+        @"title": ifstr(@@(entity,"#documento")==@cNotaCargo, "Nota de Cargo Fiscal", "Factura de Cargo Fiscal")
         @"buttons*": print_buttons
         // @"urlexit": "../"
         member @"hidden" { @"print": @true }
@@ -349,7 +349,7 @@ module "form.factura.dk"
         {$'
             document.addEventListener("DOMContentLoaded", () => {
                 emision.formId = "frm_notacargo";
-                emision.uuid_required = true;
+                emision.uuid_required = #<(@@(entity,"#documento")==@cNotaCargo)>;
                 emision.init();
             });
         '}

@@ -167,6 +167,16 @@ module "Funciones de propósito general :lib"
         return list
     }
 
+    function list_to_record(&list,keyfield,valuefield)
+    {
+        ref record = record.create()
+        for i = 0; i < list.count(list) {
+            ref obj = list.obj(list,i)
+            record<@@(obj,"$"+str(keyfield))> : @@(obj,"$"+str(valuefield))
+        }
+        return record
+    }
+
     function curr_url()
     {
         ref parameters = ifnull(@@(@http_context,"&request/get"),record.create())

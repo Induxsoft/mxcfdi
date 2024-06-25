@@ -1,0 +1,1248 @@
+﻿[{
+        "clave": "AED",
+        "valor": "Dirham de EAU",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AFN",
+        "valor": "Afghani",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ALL",
+        "valor": "Lek",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AMD",
+        "valor": "Dram armenio",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ANG",
+        "valor": "Florín antillano neerlandés",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AOA",
+        "valor": "Kwanza",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ARS",
+        "valor": "Peso Argentino",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AUD",
+        "valor": "Dólar Australiano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AWG",
+        "valor": "Aruba Florin",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "AZN",
+        "valor": "Azerbaijanian Manat",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BAM",
+        "valor": "Convertibles marca",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BBD",
+        "valor": "Dólar de Barbados",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BDT",
+        "valor": "Taka",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BGN",
+        "valor": "Lev búlgaro",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BHD",
+        "valor": "Dinar de Bahrein",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BIF",
+        "valor": "Burundi Franc",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BMD",
+        "valor": "Dólar de Bermudas",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BND",
+        "valor": "Dólar de Brunei",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BOB",
+        "valor": "Boliviano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BOV",
+        "valor": "Mvdol",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BRL",
+        "valor": "Real brasileño",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BSD",
+        "valor": "Dólar de las Bahamas",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BTN",
+        "valor": "Ngultrum",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BWP",
+        "valor": "Pula",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BYR",
+        "valor": "Rublo bielorruso",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "BZD",
+        "valor": "Dólar de Belice",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CAD",
+        "valor": "Dólar Canadiense",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CDF",
+        "valor": "Franco congoleño",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CHE",
+        "valor": "WIR Euro",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CHF",
+        "valor": "Franco Suizo",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CHW",
+        "valor": "Franc WIR",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CLF",
+        "valor": "Unidad de Fomento",
+        "decimales": "4",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CLP",
+        "valor": "Peso chileno",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CNY",
+        "valor": "Yuan Renminbi",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "COP",
+        "valor": "Peso Colombiano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "COU",
+        "valor": "Unidad de Valor real",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CRC",
+        "valor": "Colón costarricense",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CUC",
+        "valor": "Peso Convertible",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CUP",
+        "valor": "Peso Cubano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CVE",
+        "valor": "Cabo Verde Escudo",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "CZK",
+        "valor": "Corona checa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "DJF",
+        "valor": "Franco de Djibouti",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "DKK",
+        "valor": "Corona danesa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "DOP",
+        "valor": "Peso Dominicano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "DZD",
+        "valor": "Dinar argelino",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "EGP",
+        "valor": "Libra egipcia",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ERN",
+        "valor": "Nakfa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ETB",
+        "valor": "Birr etíope",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "EUR",
+        "valor": "Euro",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "FJD",
+        "valor": "Dólar de Fiji",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "FKP",
+        "valor": "Libra malvinense",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GBP",
+        "valor": "Libra Esterlina",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GEL",
+        "valor": "Lari",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GHS",
+        "valor": "Cedi de Ghana",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GIP",
+        "valor": "Libra de Gibraltar",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GMD",
+        "valor": "Dalasi",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GNF",
+        "valor": "Franco guineano",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GTQ",
+        "valor": "Quetzal",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "GYD",
+        "valor": "Dólar guyanés",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "HKD",
+        "valor": "Dólar De Hong Kong",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "HNL",
+        "valor": "Lempira",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "HRK",
+        "valor": "Kuna",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "HTG",
+        "valor": "Gourde",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "HUF",
+        "valor": "Florín",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "IDR",
+        "valor": "Rupia",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ILS",
+        "valor": "Nuevo Shekel Israelí",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "INR",
+        "valor": "Rupia india",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "IQD",
+        "valor": "Dinar iraquí",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "IRR",
+        "valor": "Rial iraní",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ISK",
+        "valor": "Corona islandesa",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "JMD",
+        "valor": "Dólar Jamaiquino",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "JOD",
+        "valor": "Dinar jordano",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "JPY",
+        "valor": "Yen",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KES",
+        "valor": "Chelín keniano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KGS",
+        "valor": "Som",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KHR",
+        "valor": "Riel",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KMF",
+        "valor": "Franco Comoro",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KPW",
+        "valor": "Corea del Norte ganó",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KRW",
+        "valor": "Won",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KWD",
+        "valor": "Dinar kuwaití",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KYD",
+        "valor": "Dólar de las Islas Caimán",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "KZT",
+        "valor": "Tenge",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LAK",
+        "valor": "Kip",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LBP",
+        "valor": "Libra libanesa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LKR",
+        "valor": "Rupia de Sri Lanka",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LRD",
+        "valor": "Dólar liberiano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LSL",
+        "valor": "Loti",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "LYD",
+        "valor": "Dinar libio",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MAD",
+        "valor": "Dirham marroquí",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MDL",
+        "valor": "Leu moldavo",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MGA",
+        "valor": "Ariary malgache",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MKD",
+        "valor": "Denar",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MMK",
+        "valor": "Kyat",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MNT",
+        "valor": "Tugrik",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MOP",
+        "valor": "Pataca",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MRO",
+        "valor": "Ouguiya",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MUR",
+        "valor": "Rupia de Mauricio",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MVR",
+        "valor": "Rupia",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MWK",
+        "valor": "Kwacha",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MXN",
+        "valor": "Peso Mexicano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MXV",
+        "valor": "México Unidad de Inversión (UDI)",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MYR",
+        "valor": "Ringgit malayo",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "MZN",
+        "valor": "Mozambique Metical",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NAD",
+        "valor": "Dólar de Namibia",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NGN",
+        "valor": "Naira",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NIO",
+        "valor": "Córdoba Oro",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NOK",
+        "valor": "Corona noruega",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NPR",
+        "valor": "Rupia nepalí",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "NZD",
+        "valor": "Dólar de Nueva Zelanda",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "OMR",
+        "valor": "Rial omaní",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PAB",
+        "valor": "Balboa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PEN",
+        "valor": "Nuevo Sol",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PGK",
+        "valor": "Kina",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PHP",
+        "valor": "Peso filipino",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PKR",
+        "valor": "Rupia de Pakistán",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PLN",
+        "valor": "Zloty",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "PYG",
+        "valor": "Guaraní",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "QAR",
+        "valor": "Qatar Rial",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "RON",
+        "valor": "Leu rumano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "RSD",
+        "valor": "Dinar serbio",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "RUB",
+        "valor": "Rublo ruso",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "RWF",
+        "valor": "Franco ruandés",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SAR",
+        "valor": "Riyal saudí",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SBD",
+        "valor": "Dólar de las Islas Salomón",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SCR",
+        "valor": "Rupia de Seychelles",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SDG",
+        "valor": "Libra sudanesa",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SEK",
+        "valor": "Corona sueca",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SGD",
+        "valor": "Dólar De Singapur",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SHP",
+        "valor": "Libra de Santa Helena",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SLL",
+        "valor": "Leona",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SOS",
+        "valor": "Chelín somalí",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SRD",
+        "valor": "Dólar de Suriname",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SSP",
+        "valor": "Libra sudanesa Sur",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "STD",
+        "valor": "Dobra",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SVC",
+        "valor": "Colon El Salvador",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SYP",
+        "valor": "Libra Siria",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "SZL",
+        "valor": "Lilangeni",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "THB",
+        "valor": "Baht",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TJS",
+        "valor": "Somoni",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TMT",
+        "valor": "Turkmenistán nuevo manat",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TND",
+        "valor": "Dinar tunecino",
+        "decimales": "3",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TOP",
+        "valor": "Pa'anga",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TRY",
+        "valor": "Lira turca",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TTD",
+        "valor": "Dólar de Trinidad y Tobago",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TWD",
+        "valor": "Nuevo dólar de Taiwán",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "TZS",
+        "valor": "Shilling tanzano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "UAH",
+        "valor": "Hryvnia",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "UGX",
+        "valor": "Shilling de Uganda",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "USD",
+        "valor": "Dólar americano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "USN",
+        "valor": "Dólar estadounidense (día siguiente)",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "UYI",
+        "valor": "Peso Uruguay en Unidades Indexadas (URUIURUI)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "UYU",
+        "valor": "Peso Uruguayo",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "UZS",
+        "valor": "Uzbekistán Sum",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "VEF",
+        "valor": "Bolívar",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "VND",
+        "valor": "Dong",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "VUV",
+        "valor": "Vatu",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "WST",
+        "valor": "Tala",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XAF",
+        "valor": "Franco CFA BEAC",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XAG",
+        "valor": "Plata",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XAU",
+        "valor": "Oro",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XBA",
+        "valor": "Unidad de Mercados de Bonos Unidad Europea Composite (EURCO)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XBB",
+        "valor": "Unidad Monetaria de Bonos de Mercados Unidad Europea (UEM-6)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XBC",
+        "valor": "Mercados de Bonos Unidad Europea unidad de cuenta a 9 (UCE-9)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XBD",
+        "valor": "Mercados de Bonos Unidad Europea unidad de cuenta a 17 (UCE-17)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XCD",
+        "valor": "Dólar del Caribe Oriental",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XDR",
+        "valor": "DEG (Derechos Especiales de Giro)",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XOF",
+        "valor": "Franco CFA BCEAO",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XPD",
+        "valor": "Paladio",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XPF",
+        "valor": "Franco CFP",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XPT",
+        "valor": "Platino",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XSU",
+        "valor": "Sucre",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XTS",
+        "valor": "Códigos reservados específicamente para propósitos de prueba",
+        "decimales": "0",
+        "porcentajevariación": "",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XUA",
+        "valor": "Unidad ADB de Cuenta",
+        "decimales": "0",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "XXX",
+        "valor": "Los códigos asignados para las transacciones en que intervenga ninguna moneda",
+        "decimales": "0",
+        "porcentajevariación": "",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "YER",
+        "valor": "Rial yemení",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ZAR",
+        "valor": "Rand",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ZMW",
+        "valor": "Kwacha zambiano",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }, {
+        "clave": "ZWL",
+        "valor": "Zimbabwe Dólar",
+        "decimales": "2",
+        "porcentajevariación": "500%",
+        "fechainicio": "2022-01-01",
+        "fechafin": ""
+    }
+]

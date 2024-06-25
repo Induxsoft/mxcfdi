@@ -44,6 +44,12 @@ module "list.dk"
         @"pagos*": from.json('[{"id":21,"const":"Cobros"}]')
     }
 
+    if @("#./mxcfdi_nventa")
+    {
+        do list.del(@@(doctype,"&ingresos"),0)
+        do list.del(@@(doctype,"&egresos"),0)
+    }
+
     new fil_fdr_field
     {
         @"datatable*": from.json('[
@@ -130,22 +136,6 @@ module "list.dk"
             member @"total"
             {
                 @"caption": "Total"
-                @"align": "end"
-                @"format": @true
-                @"thousandssep": @true
-                @"decs": 2
-            }
-            member @"debe"
-            {
-                @"caption": "Debe"
-                @"align": "end"
-                @"format": @true
-                @"thousandssep": @true
-                @"decs": 2
-            }
-            member @"haber"
-            {
-                @"caption": "Haber"
                 @"align": "end"
                 @"format": @true
                 @"thousandssep": @true

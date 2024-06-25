@@ -94,7 +94,7 @@ module "venta.factura.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",@null)
+        @"selected": lib.form("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 

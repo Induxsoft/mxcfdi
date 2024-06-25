@@ -33,7 +33,7 @@ function show_alert(selector,content,timeout)
     }, (timeout * 1000));
 }
 
-function path_concat(p1,p2,...px)
+function path_concat(p1, p2, ...px)
 {
     p1 = p1.toString().replaceAll("\\","/");
     p2 = p2.toString().replaceAll("\\","/");
@@ -164,4 +164,14 @@ function createFullElement(tagName, attributes={}, innerHTML="")
     }
     
     return element;
+}
+
+function RoundTo(num, dec) {
+    var signo = (num >= 0 ? 1 : -1);
+    num = num * signo;
+    if (dec === 0) return signo * Math.round(num);
+    num = num.toString().split('e');
+    num = Math.round(+(num[0] + 'e' + (num[1] ? (+num[1] + dec) : dec)));
+    num = num.toString().split('e');
+    return signo * (num[0] + 'e' + (num[1] ? (+num[1] - dec) : -dec));
 }

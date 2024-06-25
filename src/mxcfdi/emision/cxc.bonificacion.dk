@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module "form.factura.dk"
+module "cxc.bonificacion.dk"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -89,7 +89,7 @@ module "form.factura.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",@null)
+        @"selected": lib.form("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -123,7 +123,43 @@ module "form.factura.dk"
         @"text_field": "valor"
         @"selected": lib.form("tipo_relacion","tx",@null)
     }
-    if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "02" }
+    if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "01" }
+
+    new sel_objeto_imp
+    {
+        @"datatable*": ifnull(@("&./list_objeto_imp"),list.create())
+        @"id": "sel_objeto_imp"
+        new member "attributes"
+        {
+            @"class": "form-select rounded-0"
+            @"name": "objeto_imp"
+            @"required": ""
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": lib.form("objeto_imp","tx",@null)
+    }
+    if @@(sel_objeto_imp,"$selected") == "" { sel_objeto_imp<"selected"> : "02" }
+
+    new sel_tasa_iva
+    {
+        @"datatable*": from.json('[
+            {"clave":"16","valor":"16"},
+            {"clave":"0","valor":"0"},
+            {"clave":"Exento","valor":"Exento"},
+            {"clave":"8","valor":"8 (Frontera)"}
+        ]')
+        @"id": "sel_tasa_iva"
+        new member "attributes"
+        {
+            @"class": "form-select rounded-0"
+            @"name": "tasa_iva"
+            @"required": ""
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": lib.form("tasa_iva","tx",@null)
+    }
 
     fn_print_buttons::
     {
@@ -240,6 +276,39 @@ module "form.factura.dk"
                                 input(class="form-control rounded-0" type="text" name="codigo_sat" value="01010101" id="txt_codigo_sat")
                             }
                         }
+
+                        div(class="d-flex align-items-end flex-column mt-2 gap-1")
+                        {
+                            div(class="d-inline-flex align-items-center gap-2")
+                            {
+                                label(class="form-label" "for"="sel_objeto_imp"){$"Objeto de impuesto:"}
+                                ##
+                                do uie.dbSelect(sel_objeto_imp)
+                                ##
+                            }
+                            div(class="d-inline-flex align-items-center gap-2")
+                            {
+                                label(class="form-label" "for"="sel_tasa_iva"){$"Tasa IVA:"}
+                                ##
+                                do uie.dbSelect(sel_tasa_iva)
+                                ##
+                            }
+                            div(class="d-inline-flex align-items-center gap-2")
+                            {
+                                label(class="form-label" "for"="txt_subtotal"){$"Subtotal:"}
+                                input(class="form-control rounded-0 induxsoft-num-field" type="number" name="" value="" id="txt_subtotal" disabled="")
+                            }
+                            div(class="d-inline-flex align-items-center gap-2")
+                            {
+                                label(class="form-label" "for"="txt_impuesto"){$"Impuesto:"}
+                                input(class="form-control rounded-0 induxsoft-num-field" type="number" name="" value="" id="txt_impuesto" disabled="")
+                            }
+                            div(class="d-inline-flex align-items-center gap-2")
+                            {
+                                label(class="form-label" "for"="txt_total"){$"Total:"}
+                                input(class="form-control rounded-0 induxsoft-num-field" type="number" name="" value="#<@@(entity,'#haber')>" id="txt_total" disabled="")
+                            }
+                        }
                     }
 
                     div(class="tab-pane fade" id="nav-relacionar" role="tabpanel" "aria-labelledby"="nav-relacionar-tab")
@@ -280,6 +349,7 @@ module "form.factura.dk"
         {$'
             document.addEventListener("DOMContentLoaded", () => {
                 emision.formId = "frm_bonificacion";
+                emision.uuid_required = true;
                 emision.init();
             });
         '}

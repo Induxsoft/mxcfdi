@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module "form.factura.dk"
+module "cxc.cobro.dk"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -14,6 +14,9 @@ module "form.factura.dk"
     ref @_GET = ifnull(@("&parameters"),record.create())
     ref entity = ifnull(@("&./entity"),record.create())
     ref cliente = ifnull(@("&./cliente"),record.create())
+    ref doctosrel = ifnull(@("&./doctosrel"),list.create())
+    ref lst_objeto_imp = ifnull(@("&./list_objeto_imp"),list.create())
+    ref arr_objeto_imp = lib.list_to_record(lst_objeto_imp,"clave","valor")
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -73,7 +76,7 @@ module "form.factura.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",@null)
+        @"selected": lib.form("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -139,7 +142,7 @@ module "form.factura.dk"
         {
             div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
 
-            form(method="POST" action="./" id="frm_bonificacion")
+            form(method="POST" action="./" id="frm_cobro")
             {
                 small(class="float-end"){$"CFDI 4.0 Pago 2.0"}
 
@@ -168,26 +171,33 @@ module "form.factura.dk"
 
                         div(class="row")
                         {
-                            div(class="col-8")
+                            div(class="col-lg-5 col-md-6")
                             {
                                 label(class="form-label" "for"="sel_reg_fiscal"){$"Régimen fiscal:"}
                                 ##
                                 do uie.dbSelect(sel_reg_fiscal)
                                 ##
                             }
-                            div(class="col-4")
+                            div(class="col-lg-5 col-md-6")
                             {
-                                label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
+                                label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
+                                ##
+                                do uie.dbSelect(sel_uso_cfdi)
+                                ##
+                            }
+                            div(class="col-lg-2 col-md-3")
+                            {
+                                label(class="form-label" "for"="txt_codpos"){$"C. P Receptor:"}
                                 input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
-                            div(class="col-6")
+                            div(class="col-lg-6 col-md-6")
                             {
                                 label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
                                 ##
                                 do uie.dbSelect(sel_forma_pago)
                                 ##
                             }
-                            div(class="col-6")
+                            div(class="col-lg-6 col-md-3")
                             {
                                 label(class="form-label" "for"="txt_no_operacion"){$"No. Operación:"}
                                 input(class="form-control rounded-0" type="text" name="no_operacion" value="" id="txt_no_operacion" required="")
@@ -225,6 +235,45 @@ module "form.factura.dk"
                     }
                 }
             }
+
+            div(class="d-flex justify-content-end align-items-center border-top gap-1 px-2 my-2" id="tbl_action_bar")
+            {
+                small(class="flex-grow-1 text-muted"){$"DoctoRelacionado: seleccione el objeto de impuesto en la cuadrícula"}
+
+                // small(class="text-muted"){$"|"}
+                // button(class="btn btn-sm rounded-0" type="button" id="btn_add_row" title="Agregar fila"){$"#<@ICON_ADD_ROW>"}
+                // button(class="btn btn-sm rounded-0" type="button" id="btn_edt_row" title=""){$"#<@ICON_EDIT> Editar impuestos"}
+                // button(class="btn btn-sm rounded-0" type="button" id="btn_del_row" title="Eliminar fila"){$"#<@ICON_REMOVE_ROW>"}
+            }
+            div(class="alert alert-danger rounded-0 mb-1 py-0 d-none" role="alert" id="tbl_alerts"){$""}
+            div(class="" id="div_tbl_doctos" style="width:auto; min-width:100%; max-height:55vh; display:flex;")
+            {
+                "edit-table"(id="tbl_doctos" data="#<to.json(doctosrel)>" "auto-confirm"="true" style="width:100%;"
+                "row-height"="1.2rem"
+                "control-styles"="
+                    tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+                    tr td { font-size:.8rem; }
+                    #__table_input { font-size:unset !important; }
+                ")
+                {
+                    "edit-thead"
+                    {
+                        "edit-tr"
+                        {
+                            "edit-th"(type="NoEditable" field="IdDocumento"){$"IdDocumento"}
+                            "edit-th"(type="NoEditable" field="Serie" textalign="center"){$"Serie"}
+                            "edit-th"(type="NoEditable" field="Folio" textalign="center"){$"Folio"}
+                            "edit-th"(type="NoEditable" field="MonedaDR" textalign="center"){$"MonedaDR"}
+                            "edit-th"(type="NoEditable" field="EquivalenciaDR" textalign="end"){$"EquivalenciaDR"}
+                            "edit-th"(type="NoEditable" field="NumParcialidad" textalign="center"){$"NumParcialidad"}
+                            "edit-th"(type="NoEditable" field="ImpSaldoAnt" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoAnt"}
+                            "edit-th"(type="NoEditable" field="ImpPagado" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpPagado"}
+                            "edit-th"(type="NoEditable" field="ImpSaldoInsoluto" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoInsoluto"}
+                            "edit-th"(type="Select" field="ObjetoImpDR" options="#<to.json(arr_objeto_imp)>"){$"ObjetoImpDR"}
+                        }
+                    }
+                }
+            }
         }
 
         script(src="#<@JS_MAIN>"){$""}
@@ -232,7 +281,7 @@ module "form.factura.dk"
         script(type="text/javascript")
         {$'
             document.addEventListener("DOMContentLoaded", () => {
-                emision.formId = "frm_bonificacion";
+                emision.formId = "frm_cobro";
                 emision.init();
             });
         '}
