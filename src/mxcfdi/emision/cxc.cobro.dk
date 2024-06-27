@@ -46,7 +46,7 @@ module "cxc.cobro.dk"
         @"text_field": "valor"
         @"selected": lib.form("forma_pago","tx",@null)
     }
-    if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "99" }
+    if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "01" }
 
     new sel_uso_cfdi
     {
@@ -57,12 +57,12 @@ module "cxc.cobro.dk"
             @"class": "form-select rounded-0"
             @"name": "uso_cfdi"
             @"required": ""
+            @"readonly": ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("uso_cfdi","tx",@null)
+        @"selected": "CP01"
     }
-    if @@(sel_uso_cfdi,"$selected") == "" { sel_uso_cfdi<"selected"> : "G03" }
 
     new sel_reg_fiscal
     {

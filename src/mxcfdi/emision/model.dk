@@ -379,8 +379,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     list::&db,&params
     {
-        do emision.evaluateFilters(db,params)
+        do dbr.apps.action.grant("GX10")
 
+        do emision.evaluateFilters(db,params)
         new data
         {
             @"data*": entity.list(db,params)
@@ -388,21 +389,42 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"itemreports*": dbr.apps.itemactions(db,"DET084","report","",0)
             @"mxcfdi_nventa": parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
         }
-
         return data
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+            do dbr.apps.action.log()
+            do rise_error(code,error)
+        }
     }
 
     read::&db,&params
     {
+        do dbr.apps.action.grant("GX10")
+
         new data {}
         do emision.prepareView(db,params,data)
         return data
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+            do dbr.apps.action.log()
+            do rise_error(code,error)
+        }
     }
 
     save::&db,&params,&data
     {
         //#region Crear CFDI()
         namespace "emision"
+
+        @use_transaction = @false
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
 
@@ -419,10 +441,17 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"cliente*": cliente
         }
 
+        do dbr.apps.action.pre(actionCode(params))
+        do dbr.begin(db)
+
         comprobante = generarCFDI(db,params,data)
         ref response = sellarYTimbrar(emisor,comprobante)
         do saveResponse(db,response,comprobante,cfdi_id)
         do aplicarFactura(db,params,response)
+
+        do dbr.apps.action.pos(response)
+        do dbr.commit(db)
+        do dbr.apps.action.ext(response)
         
         // response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
         return response
@@ -439,6 +468,56 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     delete::&db,&params
     {
         do rise_error(500,"Acción no implementada")
+    }
+
+    actionCode::&params
+    {
+        //#region actionCode()
+        _view = @@(params,"$_view")
+
+        switch @@(params,"$_entity_id")
+        {
+            case "ventas"
+            {
+                if _view == "factura" { return "GX21" }
+                if _view == "devolucion" { return "GX22" }
+                break
+            }
+            case "cxc"
+            {
+                if _view == "nota-cargo" { return "GX31" }
+                if _view == "cobro" { return "GX32" }
+                if _view == "bonificacion" { return "GX33" }
+                break
+            }
+        }
+
+        return ""
+    }
+
+    tipoComprobante::&params
+    {
+        //#region tipoComprobante()
+        _view = @@(params,"$_view")
+
+        switch @@(params,"$_entity_id")
+        {
+            case "ventas"
+            {
+                if _view == "factura" { return "I" }
+                if _view == "devolucion" { return "E" }
+                break
+            }
+            case "cxc"
+            {
+                if _view == "nota-cargo" { return "I" }
+                if _view == "cobro" { return "P" }
+                if _view == "bonificacion" { return "E" }
+                break
+            }
+        }
+
+        return ""
     }
 
     generarCFDI::&db,&params,&data
@@ -461,7 +540,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
             @"FormaPago": field.dstr(data,"forma_pago","99")
             @"CondicionesDePago": field.dstr(data,"cond_pago","")
-            @"TipoDeComprobante": getTipoComprobante(params)
+            @"TipoDeComprobante": tipoComprobante(params)
             @"Moneda": field.str(documento,"cdivisa")
             @"TipoCambio": field.dnum(documento,"tipocambio",1)
             @"LugarExpedicion": "29039"
@@ -493,6 +572,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             }
         }
 
+        if @@(cfdi,"$Moneda") == "MXN" { cfdi<"TipoCambio"> : 1 }
         if @@(cfdi,"$TipoDeComprobante") == "P" {
             program_name = "cfdi40.pago20.dkl"
             do setComplementoP(db,data,cfdi)
@@ -503,30 +583,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         comprobante = to.base64(replace(runscript(path.concat(program_path,program_name),"cfdi",cfdi)," = ","="))
         return comprobante
-    }
-
-    getTipoComprobante::&params
-    {
-        _view = @@(params,"$_view")
-
-        switch @@(params,"$_entity_id")
-        {
-            case "ventas"
-            {
-                if _view == "factura" { return "I" }
-                if _view == "devolucion" { return "E" }
-                break
-            }
-            case "cxc"
-            {
-                if _view == "bonificacion" { return "E" }
-                if _view == "nota-cargo" { return "I" }
-                if _view == "cobro" { return "P" }
-                break
-            }
-        }
-
-        return ""
     }
 
     getClaveImpuesto::descripcion
@@ -755,7 +811,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         SELECT fac.referencia, IFNULL(fac.iventa,0) AS iventa
         FROM aplcxc AS apl
             INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
-        WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (IFNULL(apl.uf_cfdi,'')='' OR apl.uf_cfdi='0')
+        WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
         GROUP BY fac.iventa;
         "
         ref facturas_aplicadas = dbr.list(db,sql_facturas_aplicadas,params)
@@ -789,12 +845,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 INNER JOIN foliosdocumentos AS fd ON v.ifolio = fd.sys_pk
                 INNER JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
                 INNER JOIN divisa AS dv ON v.idivisa = dv.sys_pk
-            WHERE
-                a.fk_dcxc_aplicadoa = @irecibo
-                AND v.sys_pk = @iventa
-                AND v.statusadministrativo != 99
+            WHERE v.sys_pk = @iventa AND v.statusadministrativo != 99
             "
-            ref facturas_saldadas = dbr.list(db,sql_facturas_saldadas,params)
+            ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
 
             for j = 0; j < list.count(facturas_saldadas)
             {
@@ -807,7 +860,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     getImpuestosDR::&db,&params
     {
-        //#region getImpuestosDR()
         do errordet(@error_det)
 
         ref response = emision.descargarCFDI(db,@@(params,"$uuid"),"xmlb64")
@@ -847,7 +899,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         TotalTrasladosBaseIVAExento = 0.00
         MontoTotalPagos = 0.00
 
-        pagado = @@(data,"#documento/importe")
+        Pagado = @@(data,"#documento/importe")
 
         for i = 0; i < list.count(doctosrel)
         {
@@ -866,13 +918,13 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 ref traslados_dr = list.create()
                 ref retenciones_dr = list.create()
 
-                proporcion = (pagado / cfdi.attr(comprobante,"#Total"))
+                Proporcion = (Pagado / cfdi.attr(comprobante,"#Total"))
 
                 for j = 0; j < list.count(cfdi.nodes(traslados))
                 {
-                    ref traslado = cfdi.attributes(list.obj(cfdi.nodes(traslados),i))
+                    ref traslado = cfdi.attributes(list.obj(cfdi.nodes(traslados),j))
                     
-                    BaseDR = RoundTo(proporcion * @@(traslado,"#Base"),6,@AwayFromZero)
+                    BaseDR = RoundTo(Proporcion * @@(traslado,"#Base"),6,@AwayFromZero)
                     ImporteDR = RoundTo(BaseDR * @@(traslado,"#TasaOCuota"),6,@AwayFromZero)
 
                     new traslado_dr
@@ -884,6 +936,37 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                         @"ImporteDR": ImporteDR
                     }
                     
+                    if field.str(traslado_dr,"ImpuestoDR") == "002" {
+                    switch field.num(traslado_dr,"TasaOCuotaDR") * 100
+                    {
+                        case 16
+                        {
+                            TotalTrasladosBaseIVA16 = TotalTrasladosBaseIVA16 + @@(traslado_dr,"#BaseDR")
+                            TotalTrasladosImpuestoIVA16 = TotalTrasladosImpuestoIVA16 + @@(traslado_dr,"#ImporteDR")
+                            break
+                        }
+                        case 8
+                        {
+                            TotalTrasladosBaseIVA8 = TotalTrasladosBaseIVA8 + @@(traslado_dr,"#BaseDR")
+                            TotalTrasladosImpuestoIVA8 = TotalTrasladosImpuestoIVA8 + @@(traslado_dr,"#ImporteDR")
+                            break
+                        }
+                        case 0
+                        {
+                            if field.str(traslado_dr,"TipoFactorDR") == "Exento"
+                            {
+                                TotalTrasladosBaseIVAExento = TotalTrasladosBaseIVAExento + @@(traslado_dr,"#BaseDR")
+                            }
+                            else
+                            {
+                                TotalTrasladosBaseIVA0 = TotalTrasladosBaseIVA0 + @@(traslado_dr,"#BaseDR")
+                                TotalTrasladosImpuestoIVA0 = TotalTrasladosImpuestoIVA0 + @@(traslado_dr,"#ImporteDR")
+                            }
+                            break
+                        }
+                    }
+                    }
+
                     gp_tras = md5(@@(traslado_dr,"$ImpuestoDR")+@@(traslado_dr,"$TipoFactorDR")+@@(traslado_dr,"$TasaOCuotaDR"))
                     if not(field.exist(_traslados_dr,gp_tras))
                     {
@@ -895,8 +978,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                         _traslados_dr<gp_tras+"/BaseP"> : @@(_traslados_dr,"#"+gp_tras+"/BaseP") + @@(traslado_dr,"#BaseDR")
                         _traslados_dr<gp_tras+"/ImporteP"> : @@(_traslados_dr,"#"+gp_tras+"/ImporteP") + @@(traslado_dr,"#ImporteDR")
                     }
-                    // TotalTrasladosBaseIVA16 = TotalTrasladosBaseIVA16 + @@(traslado_dr,"#BaseDR")
-                    // TotalTrasladosImpuestoIVA16 = TotalTrasladosImpuestoIVA16 + @@(traslado_dr,"#ImporteDR")
 
                     do list.add(traslados_dr,traslado_dr)
                 }
@@ -927,6 +1008,16 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         {
             member @"Complemento"
             {
+                member @"Totales"
+                {
+                    @"TotalTrasladosBaseIVA16": RoundTo(TotalTrasladosBaseIVA16,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA16": RoundTo(TotalTrasladosImpuestoIVA16,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVA8": RoundTo(TotalTrasladosBaseIVA8,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA8": RoundTo(TotalTrasladosImpuestoIVA8,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVA0": RoundTo(TotalTrasladosBaseIVA0,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA0": RoundTo(TotalTrasladosImpuestoIVA0,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVAExento": RoundTo(TotalTrasladosBaseIVAExento,2,@AwayFromZero)
+                }
                 member @"Pago"
                 {
                     @"Relacionados*": relacionados
@@ -943,7 +1034,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     setComplementoP::&db,&data,&cfdi
     {
         //#region setComplementoP()
-        do rise_error(0,"Pendiente por implementar...")
+        // do rise_error(0,"Pendiente por implementar...")
         ref documento = field.obj(data,"documento")
 
         using cfdi
@@ -953,8 +1044,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 member @"Totales"
                 {
                     @"MontoTotalPagos": RoundTo(field.num(documento,"importe"),2,@AwayFromZero)
-                    @"TotalTrasladosBaseIVA16": 0.00
-                    @"TotalTrasladosImpuestoIVA16": 0.00
+                    // ...
                 }
                 member @"Pago"
                 {
@@ -970,7 +1060,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if @@(cfdi,"$Complemento/Pago/MonedaP") == "MXN" { cfdi<"Complemento/Pago/TipoCambioP"> : 1 }
 
         do emision.setDoctoRelacionado(db,data,cfdi)
-        do rise_error(0,to.json(cfdi))
+        // do rise_error(0,to.json(cfdi))
     }
 
     setAddenda::&db,&cliente,&cfdi
@@ -1110,29 +1200,37 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"uf_rfc_emisor": cfdi.attr(emisor,"Rfc")
         }
 
-        if @@(params,"$_entity_id") == "ventas"
+        switch @@(params,"$_entity_id")
         {
-            using ut_cfd
+            case "ventas"
             {
-                @"uf_iventa": pk_document
-                @"uf_tipo": 3
+                using ut_cfd
+                {
+                    @"uf_iventa": pk_document
+                    @"uf_tipo": 3
+                }
+                break
             }
-        }
-        else if @@(params,"$_entity_id") == "cxc"
-        {
-            using ut_cfd
+            case "cxc"
             {
-                @"uf_idcxc": pk_document
-                @"uf_tipo": 2
-            }
+                using ut_cfd
+                {
+                    @"uf_idcxc": pk_document
+                    @"uf_tipo": 2
+                }
 
-            /* new p
-            {
-                @"recibo": pk_document
-                @"foliosat": cfdi_uuid
+                if cfdi.attr(comprobante,"TipoDeComprobante") == "P"
+                {
+                    new p
+                    {
+                        @"recibo": pk_document
+                        @"foliosat": cfdi_uuid
+                    }
+                    sql = "UPDATE aplcxc SET uf_cfdi = @foliosat WHERE fk_dcxc_aplicadoa = @recibo AND (TRIM(IFNULL(uf_cfdi,''))='' OR uf_cfdi='0');"
+                    if not(dbr.execute(db,sql,p)) { do rise_error(500,"No fue posible actualizar el registro de aplicación del recibo (aplcxc).") }
+                }
+                break
             }
-            sql = "UPDATE aplcxc SET uf_cfdi = @foliosat WHERE fk_dcxc_aplicadoa = @recibo AND (TRIM(IFNULL(uf_cfdi,''))='' OR uf_cfdi='0');"
-            if not(dbr.execute(db,sql,p)) { do rise_error(500,"No fue posible aplicar el recibo.") } */
         }
 
         do dbr.save(db,"ut_cfd",ut_cfd)

@@ -149,10 +149,42 @@ var emision =
                     console.error(error);
                 });
             }
+        },
+
+        getDoctos()
+        {
+            return new Promise(resolve => {
+                let Doctos = this.table_doctos?.DataArray??[];
+                let response =
+                {
+                    success: true,
+                    message: ""
+                }
+                
+                for (let i = 0; i < Doctos.length; i++) {
+                    const docto = Doctos[i];
+                    
+                    if ((docto?.IdDocumento??"").trim()==="") {
+                        response.success = false;
+                        response.message = "Es necesario timbrar todos los documentos para continuar";
+                        break;
+                    }
+                    if ((docto?.ObjetoImpDR??"").trim()==="") {
+                        response.success = false;
+                        response.message = "Es necesario seleccionar el 'ObjetoImpDR' de todos los documentos para continuar";
+                        this.table_doctos.NavTo(i,9);
+                        break;
+                    }
+                }
+
+                if (response.success) response.data = Doctos;
+
+                resolve(response);
+            });
         }
     },
 
-    submit()
+    async submit()
     {
         if (!this.form) return;
         if (!this.form.reportValidity()) return;
@@ -168,11 +200,18 @@ var emision =
             rel_uuid.push(opt.value);
         });
 
-        let doctosrel = this.cobro.table_doctos?.DataArray??[];
-
         const fd = new FormData(this.form);
         fd.append("rel_uuid",JSON.stringify(rel_uuid));
-        fd.append("doctosrel",JSON.stringify(doctosrel));
+        
+        if (this.formId === "frm_cobro") {
+            const res = await this.cobro.getDoctos();
+            if (!res.success) {
+                alert(res.message);
+                disableControls(["btn_submit"],false);
+                return;
+            }
+            fd.append("doctosrel",JSON.stringify(res.data));
+        }
 
         const onSuccess = (data) => {
             if (!(data?.success??true) || (data?.message??"")!=="") {
