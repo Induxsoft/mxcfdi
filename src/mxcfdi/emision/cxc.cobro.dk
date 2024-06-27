@@ -236,40 +236,83 @@ module "cxc.cobro.dk"
                 }
             }
 
-            div(class="d-flex justify-content-end align-items-center border-top gap-1 px-2 my-2" id="tbl_action_bar")
+            div(class="alert alert-danger rounded-0 mt-1 mb-0 py-0 d-none" role="alert" id="tbl_alerts"){$""}
+            nav(class="mt-1")
             {
-                small(class="flex-grow-1 text-muted"){$"DoctoRelacionado: seleccione el objeto de impuesto en la cuadrícula"}
-
-                // small(class="text-muted"){$"|"}
-                // button(class="btn btn-sm rounded-0" type="button" id="btn_add_row" title="Agregar fila"){$"#<@ICON_ADD_ROW>"}
-                // button(class="btn btn-sm rounded-0" type="button" id="btn_edt_row" title=""){$"#<@ICON_EDIT> Editar impuestos"}
-                // button(class="btn btn-sm rounded-0" type="button" id="btn_del_row" title="Eliminar fila"){$"#<@ICON_REMOVE_ROW>"}
-            }
-            div(class="alert alert-danger rounded-0 mb-1 py-0 d-none" role="alert" id="tbl_alerts"){$""}
-            div(class="" id="div_tbl_doctos" style="width:auto; min-width:100%; max-height:55vh; display:flex;")
-            {
-                "edit-table"(id="tbl_doctos" data="#<to.json(doctosrel)>" "auto-confirm"="true" style="width:100%;"
-                "row-height"="1.2rem"
-                "control-styles"="
-                    tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
-                    tr td { font-size:.8rem; }
-                    #__table_input { font-size:unset !important; }
-                ")
+                div(class="nav nav-tabs mb-2" id="nav-tab" role="tablist")
                 {
-                    "edit-thead"
+                    button(class="nav-link py-1 active" type="button" role="tab" id="nav-doctos-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-doctos" "aria-controls"="nav-doctos" "aria-selected"="true"){$"DoctoRelacionado"}
+                    // button(class="nav-link py-1" type="button" role="tab" id="nav-impuestos-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-impuestos" "aria-controls"="nav-impuestos" "aria-selected"="false"){$"Impuestos"}
+                }
+            }
+            div(class="tab-content")
+            {
+                div(class="tab-pane fade show active" id="nav-doctos" role="tabpanel" "aria-labelledby"="nav-doctos-tab")
+                {
+                    div(class="d-flex justify-content-end align-items-center border-top gap-1 px-2 my-2" id="tbl_doctos_action_bar")
                     {
-                        "edit-tr"
+                        small(class="flex-grow-1 text-muted"){$"Seleccione el objeto de impuesto en la cuadrícula"}
+                    }
+                    div(class="" id="div_tbl_doctos" style="width:auto; min-width:100%; max-height:55vh; display:flex;")
+                    {
+                        "edit-table"(id="tbl_doctos" data="#<to.json(doctosrel)>" "auto-confirm"="true" style="width:100%;"
+                        "row-height"="1.2rem"
+                        "control-styles"="
+                            tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+                            tr td { font-size:.8rem; }
+                            #__table_input { font-size:unset !important; }
+                        ")
                         {
-                            "edit-th"(type="NoEditable" field="IdDocumento"){$"IdDocumento"}
-                            "edit-th"(type="NoEditable" field="Serie" textalign="center"){$"Serie"}
-                            "edit-th"(type="NoEditable" field="Folio" textalign="center"){$"Folio"}
-                            "edit-th"(type="NoEditable" field="MonedaDR" textalign="center"){$"MonedaDR"}
-                            "edit-th"(type="NoEditable" field="EquivalenciaDR" textalign="end"){$"EquivalenciaDR"}
-                            "edit-th"(type="NoEditable" field="NumParcialidad" textalign="center"){$"NumParcialidad"}
-                            "edit-th"(type="NoEditable" field="ImpSaldoAnt" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoAnt"}
-                            "edit-th"(type="NoEditable" field="ImpPagado" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpPagado"}
-                            "edit-th"(type="NoEditable" field="ImpSaldoInsoluto" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoInsoluto"}
-                            "edit-th"(type="Select" field="ObjetoImpDR" options="#<to.json(arr_objeto_imp)>"){$"ObjetoImpDR"}
+                            "edit-thead"
+                            {
+                                "edit-tr"
+                                {
+                                    "edit-th"(type="NoEditable" field="IdDocumento"){$"IdDocumento"}
+                                    "edit-th"(type="NoEditable" field="Serie" textalign="center"){$"Serie"}
+                                    "edit-th"(type="NoEditable" field="Folio" textalign="center"){$"Folio"}
+                                    "edit-th"(type="NoEditable" field="MonedaDR" textalign="center"){$"MonedaDR"}
+                                    "edit-th"(type="NoEditable" field="EquivalenciaDR" textalign="end" format="true" thousandssep="true" decs="6"){$"EquivalenciaDR"}
+                                    "edit-th"(type="NoEditable" field="NumParcialidad" textalign="center"){$"NumParcialidad"}
+                                    "edit-th"(type="NoEditable" field="ImpSaldoAnt" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoAnt"}
+                                    "edit-th"(type="NoEditable" field="ImpPagado" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpPagado"}
+                                    "edit-th"(type="NoEditable" field="ImpSaldoInsoluto" textalign="end" format="true" thousandssep="true" decs="2"){$"ImpSaldoInsoluto"}
+                                    "edit-th"(type="Select" field="ObjetoImpDR" options="#<to.json(arr_objeto_imp)>"){$"ObjetoImpDR"}
+                                }
+                            }
+                        }
+                    }
+                }
+
+                div(class="tab-pane fade" id="nav-impuestos" role="tabpanel" "aria-labelledby"="nav-impuestos-tab")
+                {
+                    div(class="d-flex justify-content-end align-items-center border-top gap-1 px-2 my-2" id="tbl_trasladosdr_action_bar")
+                    {
+                        small(class="flex-grow-1 text-muted"){$"Objeto de impuesto: Traslado"}
+                        // small(class="text-muted"){$"|"}
+                        // button(class="btn btn-sm rounded-0" type="button" id="btn_add_row" title="Agregar fila"){$"#<@ICON_ADD_ROW>"}
+                        button(class="btn btn-sm rounded-0" type="button" id="btn_del_row" title="Eliminar fila"){$"#<@ICON_TRASH> Eliminar"}
+                    }
+                    div(class="" id="div_tbl_trasladosdr" style="width:auto; min-width:100%; max-height:55vh; display:flex;")
+                    {
+                        "edit-table"(id="tbl_trasladosdr" data="[]" "auto-confirm"="true" style="width:100%;"
+                        "row-height"="1.2rem"
+                        "control-styles"="
+                            tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+                            tr td { font-size:.8rem; }
+                            #__table_input { font-size:unset !important; }
+                        ")
+                        {
+                            "edit-thead"
+                            {
+                                "edit-tr"
+                                {
+                                    "edit-th"(type="NoEditable" field="ImpuestoDR"){$"ImpuestoDR"}
+                                    "edit-th"(type="NoEditable" field="TipoFactorDR" textalign="center"){$"TipoFactorDR"}
+                                    "edit-th"(type="Number" field="TasaOCuotaDR" textalign="end" format="true" thousandssep="true" decs="6"){$"TasaOCuotaDR"}
+                                    "edit-th"(type="Number" field="BaseDR" textalign="end" format="true" thousandssep="true" decs="6"){$"BaseDR"}
+                                    "edit-th"(type="Number" field="ImporteDR" textalign="end" format="true" thousandssep="true" decs="6"){$"ImporteDR"}
+                                }
+                            }
                         }
                     }
                 }
@@ -282,6 +325,7 @@ module "cxc.cobro.dk"
         {$'
             document.addEventListener("DOMContentLoaded", () => {
                 emision.formId = "frm_cobro";
+                emision.cobro.url_get_impuestos_dr = "#<@url_get_impuestos_dr>";
                 emision.init();
             });
         '}

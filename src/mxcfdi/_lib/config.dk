@@ -49,11 +49,14 @@ module
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
 
 	// Sellar y timbrar CFDI 4.0 y CR 2.0
-    // svc: https://docs.induxsoft.net/es/api/cloud/factudesk/sellar-y-timbrar.md
-	@url_svc_sellar_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/sellar-y-timbrar/"
+    // DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/sellar-y-timbrar.md
+	@svc_fdsk_sellar_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/sellar-y-timbrar/"
 	// Enviar CFDI o CR
-    // svc: https://docs.induxsoft.net/es/api/cloud/factudesk/enviar.md
-	@url_svc_enviar_correo = "https://factudesk.api.induxsoft.net/comprobantes/enviar/"
+    // DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/enviar.md
+	@svc_fdsk_enviar = "https://factudesk.api.induxsoft.net/comprobantes/enviar/"
+	// Descargar CFDI o CR
+	// DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/descargar.md
+	@svc_fdsk_descargar = "https://factudesk.api.induxsoft.net/comprobantes/descargar/"
 
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
@@ -61,6 +64,8 @@ module
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 
 	//* ======================================== [ _PACKAGE ]
+	@url_get_impuestos_dr = "/!/mxcfdi/emision/?_view=impuestos-dr&uuid=@uuid"
+
 	@CFD_EMISION = "/!/mxcfdi/emision/"
 	@CFD_VNT_FACTURA = "/!/mxcfdi/emision/ventas/factura/?doc=@doc"
 	@CFD_VNT_DEVOLUCION = "/!/mxcfdi/emision/ventas/devolucion/?doc=@doc"

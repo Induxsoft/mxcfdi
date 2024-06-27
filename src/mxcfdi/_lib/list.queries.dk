@@ -184,11 +184,7 @@ module "Lista de consultas MySQL"
         cte.nombre,
         UPPER(TRIM(IFNULL(cte.rfc,''))) AS rfc,
         TRIM(IFNULL(cte.regfiscal,'')) AS reg_fiscal,
-        COALESCE(
-            IF(TRIM(cte.contactof_email) = '', NULL, TRIM(cte.contactof_email)),
-            IF(TRIM(cte.replegal_email) = '', NULL, TRIM(cte.replegal_email)),
-            IF(TRIM(cte.email) = '', NULL, TRIM(cte.email))
-        , '') AS correo,
+        IFNULL(cte.email,'') AS correo,
         COALESCE(
             IF(TRIM(dom1.codpos) = '', NULL, TRIM(dom1.codpos)),
             IF(TRIM(dom2.codpos) = '', NULL, TRIM(dom2.codpos)),
@@ -205,6 +201,11 @@ module "Lista de consultas MySQL"
         LEFT JOIN domicilio AS dom3 ON cte.domicilio3 = dom3.sys_pk
     WHERE cte.sys_pk = @icliente
     "
+    /* COALESCE(
+        IF(TRIM(cte.contactof_email) = '', NULL, TRIM(cte.contactof_email)),
+        IF(TRIM(cte.replegal_email) = '', NULL, TRIM(cte.replegal_email)),
+        IF(TRIM(cte.email) = '', NULL, TRIM(cte.email))
+    , '') AS correo, */
 
     @qry_dir_receptor = "
     SELECT

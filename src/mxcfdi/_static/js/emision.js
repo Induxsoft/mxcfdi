@@ -46,6 +46,110 @@ var emision =
             });
             trigger(sel_tasa_iva,"change");
         }
+
+        if (this.formId === "frm_cobro") this.cobro.init();
+    },
+
+    cobro: {
+        table_doctos:null, table_traslados:null,
+        impuestos_dr:{},
+        url_get_impuestos_dr:"",
+
+        init()
+        {
+            this.table_doctos = document.getElementById("tbl_doctos");
+            this.table_traslados = document.getElementById("tbl_trasladosdr");
+
+            this.setTableEvents();
+        },
+
+        setTableEvents()
+        {
+            if (this.table_doctos)
+            {
+                let table = this.table_doctos;
+                let array = table?.DataArray??[];
+                const events = table.EdiTable.Const.Events;
+
+                table.AutoAddRow = false;
+                table.AutoDelRow = false;
+                table.EverMove = false;
+
+                this.verificarFacturasTimbradas(table,array);
+
+                // table.Events[events.ConfirmEdition] = (e) => { this.showImpuestosDR(e,array) };
+            }
+            if (this.table_traslados)
+            {
+                let table = this.table_traslados;
+                let array = table?.DataArray??[];
+                const events = table.EdiTable.Const.Events;
+
+                table.AutoAddRow = false;
+                table.AutoDelRow = false;
+                table.EverMove = false;
+            }
+        },
+
+        verificarFacturasTimbradas(table,array)
+        {
+            let sin_timbrar = 0;
+            array.forEach((obj,irow) => {
+                if ((obj?.IdDocumento??"").trim() === "")
+                {
+                    const tr = table.GetTrByIndex(irow);
+                    tr.querySelectorAll("td").forEach((td,icol) => {
+                        if (td.getAttribute("data-cell") === "IdDocumento")
+                        {
+                            td.style.backgroundColor = "#DC3545";
+                            // td.style.color = "#FFFFFF";
+                            td.style.opacity = 1;
+                        }
+                        if (td.getAttribute("data-cell") === "ObjetoImpDR")
+                        {
+                            // td.style.pointerEvents = "none"; //Desactivar celda
+                            td.style.backgroundColor = "#E9ECEF"; //"#888888";
+                            // td.style.color = "#FFFFFF";
+                            td.style.opacity = 1;
+                            table.Columns[icol].type = "NoEditable"; //Desactivar celda
+                        }
+                    });
+                    sin_timbrar += 1;
+                }
+            });
+            if (sin_timbrar > 0) disableControls(["btn_submit"]);
+        },
+
+        showImpuestosDR(e,array)
+        {
+            let index = e.sender.RowIndexOfTd(e.td);
+            let field = e.coldef.field;
+            let docto = array[index];
+
+            if (field !== "ObjetoImpDR") return;
+            if (docto.ObjetoImpDR !== "02") return;
+
+            this.setImpuestosDR(docto.IdDocumento);
+        },
+
+        setImpuestosDR(IdDocumento)
+        {
+            if (!(Object.keys(this.impuestos_dr)).includes(IdDocumento))
+            {
+                let url = InduxsoftCrudlModel.UrlReplace(this.url_get_impuestos_dr,{uuid:IdDocumento});
+                fetch(url).then(response => response.json())
+                .then(data => {
+                    if (!(data?.success??true) || (data?.message??"")!=="") {
+                        alert(data.message ?? JSON.stringify(data));
+                        return;
+                    }
+                    console.log(data);
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+            }
+        }
     },
 
     submit()
@@ -64,8 +168,11 @@ var emision =
             rel_uuid.push(opt.value);
         });
 
+        let doctosrel = this.cobro.table_doctos?.DataArray??[];
+
         const fd = new FormData(this.form);
         fd.append("rel_uuid",JSON.stringify(rel_uuid));
+        fd.append("doctosrel",JSON.stringify(doctosrel));
 
         const onSuccess = (data) => {
             if (!(data?.success??true) || (data?.message??"")!=="") {

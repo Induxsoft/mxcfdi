@@ -2,6 +2,13 @@
 #!
 module "EmisionController"
 {
+    point @list to emision.list
+    point @read to emision.read
+    point @blank to emision.read
+    point @create to emision.save
+    point @update to emision.save
+    point @delete to emision.delete
+    
     switch @@(@http_context,"$request/get/_view")
     {
         case "factura"
@@ -29,12 +36,10 @@ module "EmisionController"
             @form_view = "cxc.notacargo.dk"
             break
         }
+        case "impuestos-dr"
+        {
+            point @list to emision.getImpuestosDR
+            break
+        }
     }
-
-    point @list to emision.list
-    point @read to emision.read
-    point @blank to emision.read
-    point @create to emision.save
-    point @update to emision.save
-    point @delete to emision.delete
 }
