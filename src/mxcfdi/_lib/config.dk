@@ -62,8 +62,10 @@ module
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
+	@JS_EMISION_LIST = "/$/mxcfdi/js/emision.list.js"
 
 	//* ======================================== [ _PACKAGE ]
+	@url_download_cfdi = "/!/mxcfdi/emision/?_view=download-zip&uuid=@uuid"
 	@url_get_impuestos_dr = "/!/mxcfdi/emision/?_view=impuestos-dr&uuid=@uuid"
 
 	@CFD_EMISION = "/!/mxcfdi/emision/"

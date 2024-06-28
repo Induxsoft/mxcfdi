@@ -199,7 +199,7 @@ module "list.dk"
         @"urlexit": "/" //"javascript:window.history.back();"
         @"actions*": itemactions
         @"reports*": itemreports
-        @"jscurrentcontext": "getCurrentContext"
+        @"jscurrentcontext": "list.getCurrentContext"
     }
 
     #$ div(class="container-fluid p-0")
@@ -300,33 +300,17 @@ module "list.dk"
         }
 
 		#$
-		script(type="text/javascript")
-		{$'
+        script(src="#<@JS_MAIN>"){$""}
+        script(src="#<@JS_EMISION_LIST>"){$""}
+        script(type="text/javascript")
+        {$'
             function filter(rf) { rf.form.submit(); }
 
-			function getCurrentContext()
-			{
-				const table = document.getElementById("#<table_id>");
-				const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
-    			return { item_id:id, context: {} }
-			}
-
             document.addEventListener("DOMContentLoaded", () => {
-                const btn_emitir = document.getElementById("btn_emitir");
-
-                if (btn_emitir) btn_emitir.addEventListener("click", () => {
-                    let href = btn_emitir.getAttribute("data-href");
-                    let context = getCurrentContext();
-                    let item_id = (context.item_id || "");
-
-                    if ((typeof item_id === "string" && item_id.trim() === "") || (typeof item_id === "number" && item_id <= 0)) {
-                        alert("Se requiere seleccionar un elemento de la lista.");
-                        return;
-                    }
-
-                    window.location.href = href.replace("@_src_context_item_id",item_id);
-                });
+                list.tableId = "#<table_id>";
+                list.url_download = "#<@url_download_cfdi>";
+                list.init()
             });
-		'}
+        '}
     }
 }

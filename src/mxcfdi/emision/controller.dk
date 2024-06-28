@@ -36,6 +36,11 @@ module "EmisionController"
             @form_view = "cxc.notacargo.dk"
             break
         }
+        case "download-zip"
+        {
+            point @list to emision.downloadZip
+            break
+        }
         case "impuestos-dr"
         {
             point @list to emision.getImpuestosDR
