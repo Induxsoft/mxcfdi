@@ -149,41 +149,52 @@ module "list.dk"
     {
         act_btn_cls = "btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"
 
-        _doct = @("#parameters/fil_doctype")
+        doctype = @("#parameters/fil_doctype")
+        url_template = "/!/mxcfdi/emision/{_entity_id}/{_view}/?doc=@_src_context_item_id"
         action_id = ""
-        url_emitir_cfdi = ""
+        entity_id = ""
+        view = ""
 
-        if _doct == 1 {
+        if doctype == 1 {
             action_id = "GX21"
-            url_emitir_cfdi = "/!/mxcfdi/emision/ventas/factura/?doc=@_src_context_item_id"
+            entity_id = "ventas"
+            view = "factura"
         }
-        if _doct == 2 {
+        if doctype == 2 {
             action_id = "GX31"
-            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/nota-cargo/?doc=@_src_context_item_id"
+            entity_id = "cxc"
+            view = "nota-cargo"
         }
-        if _doct == 11 {
+        if doctype == 11 {
             action_id = "GX22"
-            url_emitir_cfdi = "/!/mxcfdi/emision/ventas/devolucion/?doc=@_src_context_item_id"
+            entity_id = "ventas"
+            view = "devolucion"
         }
-        if _doct == 12 {
+        if doctype == 12 {
             action_id = "GX33"
-            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/bonificacion/?doc=@_src_context_item_id"
+            entity_id = "cxc"
+            view = "bonificacion"
         }
-        if _doct == 21 {
+        if doctype == 21 {
             action_id = "GX32"
-            url_emitir_cfdi = "/!/mxcfdi/emision/cxc/cobro/?doc=@_src_context_item_id"
+            entity_id = "cxc"
+            view = "cobro"
         }
         
         if parse.bool(@("$parameters/fil_timbrados"))
         {
+            url_send_mail = replace(url_template,"{_entity_id}",entity_id)
+            url_send_mail = replace(url_send_mail,"{_view}","send-mail")
             #$
             button(class="#<act_btn_cls>" type="button" id="btn_download"){$"Descargar"}
-            button(class="#<act_btn_cls>" type="button" id="btn_send_mail"){$"Enviar"}
-            button(class="#<act_btn_cls>" type="button" id="btn_cancel"){$"Cancelar CFDI"}
+            button(class="#<act_btn_cls>" type="button" id="btn_sendmail" "data-href"="#<url_send_mail>"){$"Enviar"}
+            button(class="#<act_btn_cls>" type="button" id="btn_cancelar"){$"Cancelar CFDI"}
             #!
         }
         else
         {
+            url_emitir_cfdi = replace(url_template,"{_entity_id}",entity_id)
+            url_emitir_cfdi = replace(url_emitir_cfdi,"{_view}",view)
             #$
             button(class="#<act_btn_cls>" type="button" id="btn_emitir" "data-href"="#<url_emitir_cfdi>"){$"Crear CFDI"}
             button(class="#<act_btn_cls>" type="button" id="btn_preview"){$"Vista Previa"}
@@ -305,10 +316,13 @@ module "list.dk"
         script(type="text/javascript")
         {$'
             function filter(rf) { rf.form.submit(); }
+            function between(val,min,max) { return (val >= min && val <= max); }
 
             document.addEventListener("DOMContentLoaded", () => {
                 list.tableId = "#<table_id>";
+                list.url_preview = "#<@url_cfdi_preview>";
                 list.url_download = "#<@url_download_cfdi>";
+                list.parameters = #<to.json(@("&parameters"))>;
                 list.init()
             });
         '}

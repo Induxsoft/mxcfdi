@@ -58,13 +58,17 @@ module
 	// DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/descargar.md
 	@svc_fdsk_descargar = "https://factudesk.api.induxsoft.net/comprobantes/descargar/"
 
+	@svc_fdsk_preview = "https://factudesk.api.induxsoft.net/comprobantes/descargar/save_xml_preview.dkl"
+
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 	@JS_EMISION_LIST = "/$/mxcfdi/js/emision.list.js"
+	@JS_FORM_SENDMAIL = "/$/mxcfdi/js/form.sendmail.js"
 
 	//* ======================================== [ _PACKAGE ]
+	@url_cfdi_preview = "/!/mxcfdi/emision/@_entity_id/cfdi-preview/?doc=@doc"
 	@url_download_cfdi = "/!/mxcfdi/emision/?_view=download-zip&uuid=@uuid"
 	@url_get_impuestos_dr = "/!/mxcfdi/emision/?_view=impuestos-dr&uuid=@uuid"
 

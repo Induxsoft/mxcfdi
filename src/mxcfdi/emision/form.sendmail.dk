@@ -1,0 +1,83 @@
+#include "dkli.dkh"
+#!
+module "form.sendmail.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+
+    do @context.begin(@crud_context)
+
+    ref cliente = ifnull(@("&./cliente"),record.create())
+
+    fn_print_buttons::
+    {
+        #$
+        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="button" id="btn_submit" title="Enviar correos"){$"Enviar"}
+        #!
+    }
+    point print_buttons to fn_print_buttons
+
+    new nav_config
+    {
+        @"title": "Enviar CFDI por correo"
+        @"buttons*": print_buttons
+        member @"hidden" { @"print": @true }
+    }
+
+    #$
+    div(class="container")
+    {
+        #! do uie.printV12FormBar(nav_config)
+
+        #$
+        link(href="#<@CSS_MAIN>" rel="stylesheet")
+        div(class="container-section" id="work_area")
+        {
+            div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
+            form(method="POST" action="./" id="frm_sendmail")
+            {
+                input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
+                input(type="hidden" name="" value="#<@@(cliente,'$correo')>" id="txt_correos")
+                ##
+                do uie.print_from_url_field()
+                ##
+                div(class="row")
+                {
+                    div(class="col-12")
+                    {
+                        label(class="form-label" "for"="txt_email"){$"Ingrese un correo electrónico válido:"}
+                        div(class="input-group input-group-sm")
+                        {
+                            input(class="form-control rounded-0" type="email" name="" value="" id="txt_emails" placeholder="name1@example1.com; name2@example2.com; name3@example3.com ...")
+                            button(class="btn btn-secondary rounded-0" type="button" id="btn_add_mail"){$"Agregar"}
+                        }
+                    }
+                    div(class="col-12")
+                    {
+                        div(class="d-flex justify-content-between align-items-center my-1")
+                        {
+                            label(class="form-label fw-bold mb-0" "for"="email_list"){$"Correos:"}
+                            button(class="btn btn-sm btn-secondary rounded-0" type="button" id="btn_del_mail"){$"Eliminar"}
+                        }
+                        select(class="form-select" name="" id="email_list" size="5" multiple=""){$""}
+                    }
+                }
+            }
+        }
+
+        script(src="#<@JS_MAIN>"){$""}
+        script(src="#<@JS_FORM_SENDMAIL>"){$""}
+        script(type="text/javascript")
+        {$'
+            document.addEventListener("DOMContentLoaded", () => {
+                mail.formId = "frm_sendmail";
+                mail.init();
+            });
+        '}
+    }
+    #!
+
+    do @context.end()
+}

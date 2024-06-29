@@ -162,30 +162,30 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return filtered
     }
 
-    downloadZip::&db,&params
-    {
-        ref response = emision.descargar(db,@@(params,"$uuid"),"ziplnk")
-        return @@(response,"&data")
-    }
-
     prepareView::&db,&params,&data
     {
         namespace "emision"
 
+        _view = trim(@@(params,"$_view"))
+
         data<"entity*"> : getEntity(db,params)
         data<"cliente*"> : getCliente(db,params)
-        if @@(params,"$_entity_id") == "cxc" && @@(params,"$_view") == "cobro" { data<"doctosrel*"> : getDoctoRelacionado(db,@@(params,"#doc")) }
 
-        using data
+        if containsword(_view,"factura,devolucion,nota-cargo,cobro,bonificacion")
         {
-            @"list_forma_pago*": getJsonData(@sat_forma_pago)
-            @"list_metodo_pago*": getJsonData(@sat_metodo_pago)
-            @"list_uso_cfdi*": getFilUsoCfdi(db,params,data)
-            @"list_reg_fiscal*": getFilRegFiscal(db,params,data)
-            @"list_exportacion*": getJsonData(@sat_exportacion)
-            @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
-            @"list_objeto_imp*": getJsonData(@sat_objeto_imp)
-        }   
+            if _view == "cobro" { data<"doctosrel*"> : getDoctoRelacionado(db,@@(params,"#doc")) }
+
+            using data
+            {
+                @"list_forma_pago*": getJsonData(@sat_forma_pago)
+                @"list_metodo_pago*": getJsonData(@sat_metodo_pago)
+                @"list_uso_cfdi*": getFilUsoCfdi(db,params,data)
+                @"list_reg_fiscal*": getFilRegFiscal(db,params,data)
+                @"list_exportacion*": getJsonData(@sat_exportacion)
+                @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
+                @"list_objeto_imp*": getJsonData(@sat_objeto_imp)
+            }
+        }
     }
 
     evaluateFilters::&db,&params
@@ -385,6 +385,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     list::&db,&params
     {
+        //#region list()
         do dbr.apps.action.grant("GX10")
 
         do emision.evaluateFilters(db,params)
@@ -409,6 +410,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     read::&db,&params
     {
+        //#region read()
         do dbr.apps.action.grant("GX10")
 
         new data {}
@@ -427,7 +429,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     save::&db,&params,&data
     {
-        //#region Crear CFDI()
+        //#region save()
         namespace "emision"
 
         @use_transaction = @false
@@ -557,7 +559,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
             member @"CfdiRelacionados"
             {
-                @"TipoRelacion": field.str(data,"tipo_relacion")
+                @"TipoRelacion": field.dstr(data,"tipo_relacion","")
                 @"Relacionados*": from.json(field.dstr(data,"rel_uuid","[]"))
             }
 
@@ -1129,32 +1131,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return response
     }
 
-    enviarCorreo::&emisor,&receptor
-    {
-        //#region enviarCorreo()
-        if @@(receptor,"$correo") == "" { do rise_error(500,"El receptor no tiene un correo electrónico configurado.") }
-
-        // new header { @"Content-Type": "application/json; charset=UTF-8" }
-        new payload
-        {
-            @"para_nombre": field.str(receptor,"nombre") // Nombre del destinatario.
-            @"para_correos": field.str(receptor,"correo") // Dirección de correo del destinatario.
-            @"para_asunto": "CFDI" // Asunto del correo.
-            @"para_mensaje": "Archivos adjuntos" // Cuerpo del mensaje.
-            @"ctaTimb": "#" // # = La autenticación se toma por cuenta de Timbrado.
-            @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
-            @"pwd": field.str(emisor,"pwd") // Contraseña de timbrado.
-            @"uuid": "" // UUID del CFDI [doc]
-            @"res": "zipraw" // Tipo de resultado deseado.
-            @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
-        }
-        ref response = from.json(http.post(@svc_fdsk_enviar,payload))
-
-        if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
-
-        return response
-    }
-
     descargar::&db,IdDocumento,res
     {
         //#region descargar()
@@ -1240,6 +1216,145 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
 
         do dbr.save(db,"ut_cfd",ut_cfd)
+    }
+
+    cfdi.preview::&db,&params
+    {
+        //#region preview()
+        namespace "emision"
+
+        ref documento = getEntity(db,params)
+        ref cliente = getCliente(db,params)
+        ref emisor = getEmisor(db,params,cliente)
+
+        new data
+        {
+            @"reg_fiscal": "601"
+            @"codpos": @@(cliente,"$codpos")
+            @"forma_pago": ""
+            @"metodo_pago": ""
+            @"cond_pago": ""
+            @"uso_cfdi": "G03"
+            @"exportacion": "01"
+
+            @"unidad_sat": "ACT"
+            @"codigo_sat": "01010101"
+            @"objeto_imp": "02"
+            @"tasa_iva": "16"
+
+            @"no_operacion": ""
+            @"doctosrel": "[]"
+
+            @"documento*": documento
+            @"emisor*": emisor
+            @"cliente*": cliente
+        }
+
+        doctype = @@(documento,"#documento")
+        view = @@(params,"$_view")
+        switch @@(params,"$_entity_id")
+        {
+            case "ventas"
+            {
+                if doctype == @cFactura { view = "factura" }
+                if doctype == @cNotaCredito { view = "devolucion" }
+                break
+            }
+            case "cxc"
+            {
+                if doctype == @cNotaCargo { view = "nota-cargo" }
+                if doctype == @cRecibo
+                {
+                    view = "cobro"
+                    ref doctosrel = getDoctoRelacionado(db,@@(params,"#doc"))
+                    using data
+                    {
+                        @"uso_cfdi": "CP01"
+                        @"forma_pago": "01"
+                        @"doctosrel": to.json(doctosrel)
+                    }
+                }
+                if doctype == @cNotaCredito { view = "bonificacion" }
+                break
+            }
+        }
+        params<"_view"> : view
+        
+        cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
+        comprobante = generarCFDI(db,params,data)
+
+        new payload
+        {
+            @"cti": field.str(emisor,"cti")
+            @"pwd": field.str(emisor,"pwd")
+            @"rfc": field.str(emisor,"rfc")
+            @"tpo": "cfdi"
+            @"res": "prnlnk"
+            @"uuid": cfdi_id
+            @"xml": from.base64(comprobante)
+        }
+        ref response = from.json(http.post(@svc_fdsk_preview,payload))
+
+        if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
+        
+        return @@(response,"&data")
+
+        exception
+        {
+            do errordet(@error_det)
+            do record.clear(data)
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+
+    cfdi.sendmail::&db,&params,&data
+    {
+        //#region sendmail()
+        namespace "emision"
+        do errordet(@error_det)
+
+        if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
+
+        ref cliente = getCliente(db,params)
+        ref emisor = getEmisor(db,params,cliente)
+
+        if trim(@@(data,"$emails")) == "" { do rise_error(500,"Debe agregar al menos un correo electrónico válido.") }
+
+        ref doc = @null
+        if @@(params,"$_entity_id") == "ventas" {
+            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM venta vnt LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa WHERE vnt.sys_pk = @doc",params)
+        }
+        else if @@(params,"$_entity_id") == "cxc" {
+            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc vnt LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc",params)
+        }
+
+        if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
+        if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
+
+        // new header { @"Content-Type": "application/json; charset=UTF-8" }
+        new payload
+        {
+            @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
+            @"pwd": field.str(emisor,"pwd") // Contraseña de la cuenta de timbrado.
+            @"to": trim(@@(data,"$emails")) // Dirección de correo del destinatario.
+            @"subject": "CFDI "+@@(doc,"$referencia")+" ("+@@(params,"$_entity_id")+")" // Asunto del correo.
+            @"doc": @@(doc,"$uf_foliosat") // UUID del CFDI o Idd [doc]
+            @"res": "zip" // Tipo de resultado deseado.
+            @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
+        }
+        ref response = from.json(http.post(@svc_fdsk_enviar,payload))
+
+        if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
+        response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
+
+        return response
+    }
+
+    cfdi.download::&db,&params
+    {
+        //#region download()
+        ref response = emision.descargar(db,@@(params,"$uuid"),"ziplnk")
+        return @@(response,"&data")
     }
 
     saveResponse::&db,&response,comprobante,cfdi_id

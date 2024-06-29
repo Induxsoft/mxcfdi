@@ -36,9 +36,23 @@ module "EmisionController"
             @form_view = "cxc.notacargo.dk"
             break
         }
+        case "send-mail"
+        {
+            @form_view = "form.sendmail.dk"
+            point @create to emision.cfdi.sendmail
+            point @update to emision.cfdi.sendmail
+            break
+        }
+        case "cfdi-preview"
+        {
+            point @list to emision.cfdi.preview
+            point @read to emision.cfdi.preview
+            break
+        }
         case "download-zip"
         {
-            point @list to emision.downloadZip
+            point @list to emision.cfdi.download
+            point @read to emision.cfdi.download
             break
         }
         case "impuestos-dr"
