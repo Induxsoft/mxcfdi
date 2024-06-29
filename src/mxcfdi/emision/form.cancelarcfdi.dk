@@ -1,0 +1,92 @@
+#include "dkli.dkh"
+#!
+module "form.sendmail.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+
+    do @context.begin(@crud_context)
+
+    ref documento = ifnull(@("&./entity"),record.create())
+
+    new sel_motivo
+    {
+        @"datatable*": ifnull(@("&./list_motivo"),list.create())
+        @"id": "sel_motivo"
+        new member "attributes"
+        {
+            @"class": "form-select rounded-0"
+            @"name": "motivo"
+            @"required": ""
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+    }
+
+    fn_print_buttons::
+    {
+        #$
+        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="button" id="btn_submit" title="Cancelar cfdi"){$"Cancelar"}
+        #!
+    }
+    point print_buttons to fn_print_buttons
+
+    new nav_config
+    {
+        @"title": "Cancelar CFDI "+@@(documento,"$referencia")+" ("+@("$parameters/_entity_id")+")"
+        @"buttons*": print_buttons
+        member @"hidden" { @"print": @true }
+    }
+
+    #$
+    div(class="container")
+    {
+        #! do uie.printV12FormBar(nav_config)
+
+        #$
+        link(href="#<@CSS_MAIN>" rel="stylesheet")
+        div(class="container-section" id="work_area")
+        {
+            div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
+            form(method="POST" action="./" id="frm_cancelar")
+            {
+                input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
+                ##
+                do uie.print_from_url_field()
+                ##
+
+                span(class="text-danger"){$"Este proceso es incancelable e irreversible."}
+                div(class="row")
+                {
+                    div(class="col-12")
+                    {
+                        label(class="form-label fw-bold" "for"="sel_motivo"){$"Seleccione el motivo de cancelación:"}
+                        ##
+                        do uie.dbSelect(sel_motivo)
+                        ##
+                    }
+                    div(class="col-12" id="div_uuid")
+                    {
+                        label(class="form-label fw-bold mb-0" "for"="txt_uuid"){$"Indique el UUID:"}
+                        input(class="form-control rounded-0" type="text" name="uuid" value="" id="txt_uuid" maxlength="36")
+                    }
+                }
+            }
+        }
+
+        script(src="#<@JS_MAIN>"){$""}
+        // script(src="#<@JS_FORM_CANCELARCFDI>"){$""}
+        // script(type="text/javascript")
+        // {$'
+        //     document.addEventListener("DOMContentLoaded", () => {
+        //         cancelar.formId = "frm_cancelar";
+        //         cancelar.init();
+        //     });
+        // '}
+    }
+    #!
+
+    do @context.end()
+}

@@ -185,10 +185,13 @@ module "list.dk"
         {
             url_send_mail = replace(url_template,"{_entity_id}",entity_id)
             url_send_mail = replace(url_send_mail,"{_view}","send-mail")
+
+            url_cancelar = replace(url_template,"{_entity_id}",entity_id)
+            url_cancelar = replace(url_cancelar,"{_view}","cancelar-cfdi")
             #$
             button(class="#<act_btn_cls>" type="button" id="btn_download"){$"Descargar"}
             button(class="#<act_btn_cls>" type="button" id="btn_sendmail" "data-href"="#<url_send_mail>"){$"Enviar"}
-            button(class="#<act_btn_cls>" type="button" id="btn_cancelar"){$"Cancelar CFDI"}
+            button(class="#<act_btn_cls>" type="button" id="btn_cancelar" "data-href"="#<url_cancelar>"){$"Cancelar CFDI"}
             #!
         }
         else

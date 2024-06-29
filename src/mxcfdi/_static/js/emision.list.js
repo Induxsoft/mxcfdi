@@ -13,6 +13,7 @@ var list =
         const btn_cancelar = document.getElementById("btn_cancelar");
 
         if (btn_emitir) btn_emitir.addEventListener("click", (e) => this.goto(e.target));
+        if (btn_cancelar) btn_cancelar.addEventListener("click", (e) => this.goto(e.target));
         if (btn_sendmail) btn_sendmail.addEventListener("click", (e) => this.goto(e.target));
         if (btn_preview) btn_preview.addEventListener("click", (e) => this.preview(e.target));
         if (btn_download) btn_download.addEventListener("click", (e) => this.download(e.target));

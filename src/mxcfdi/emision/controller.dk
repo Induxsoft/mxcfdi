@@ -55,6 +55,13 @@ module "EmisionController"
             point @read to emision.cfdi.download
             break
         }
+        case "cancelar-cfdi"
+        {
+            @form_view = "form.cancelarcfdi.dk"
+            point @create to emision.cfdi.cancelar
+            point @update to emision.cfdi.cancelar
+            break
+        }
         case "impuestos-dr"
         {
             point @list to emision.getImpuestosDR

@@ -164,6 +164,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     prepareView::&db,&params,&data
     {
+        //#region prepareView()
         namespace "emision"
 
         _view = trim(@@(params,"$_view"))
@@ -185,6 +186,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
                 @"list_objeto_imp*": getJsonData(@sat_objeto_imp)
             }
+        }
+        else if _view == "cancelar-cfdi"
+        {
+            data<"list_motivo*"> : getJsonData(@sat_motivo_cancelacion)
         }
     }
 
@@ -1348,6 +1353,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
 
         return response
+    }
+
+    cfdi.cancelar::&db,&params,&data
+    {
+        //#region cancelar()
+        namespace "emision"
+
+        do rise_error(0,to.json(data))
     }
 
     cfdi.download::&db,&params

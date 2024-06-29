@@ -1,0 +1,18 @@
+﻿[
+  {
+    "clave": "01",
+    "valor": "Comprobantes emitidos con errores con relación.",
+  },
+  {
+    "clave": "02",
+    "valor": "Comprobantes emitidos con errores sin relación.",
+  },
+  {
+    "clave": "03",
+    "valor": "No se llevó a cabo la operación.",
+  },
+  {
+    "clave": "04",
+    "valor": "Operación nominativa relacionada en una factura global.",
+  }
+]
