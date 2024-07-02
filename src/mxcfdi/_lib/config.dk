@@ -58,6 +58,9 @@ module
 	// Descargar CFDI o CR
 	// DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/descargar.md
 	@svc_fdsk_descargar = "https://factudesk.api.induxsoft.net/comprobantes/descargar/"
+	// Cancelación de CR (1.0/2.0) y CFDI (3.3/4.0)
+	// DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/cancelar.md
+	@svc_fdsk_cancelar = "https://factudesk.api.induxsoft.net/comprobantes/cancelaciones/solicitar/"
 
 	@svc_fdsk_preview = "https://factudesk.api.induxsoft.net/comprobantes/descargar/save_xml_preview.dkl"
 

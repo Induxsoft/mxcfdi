@@ -6,10 +6,16 @@ module "form.sendmail.dk"
     #include "serialize.dkh"
     #include "uielements.v12.dkl"
     #include "../_lib/config.dk"
+    #include "../_lib/lib.dk"
 
     do @context.begin(@crud_context)
 
     ref documento = ifnull(@("&./entity"),record.create())
+    ref http_query = split(lib.curr_url(),"?")
+    
+    url_args = ""
+
+    if list.count(http_query) > 1 { url_args = "?"+list.str(http_query,1) }
 
     new sel_motivo
     {
@@ -23,12 +29,13 @@ module "form.sendmail.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
+        @"selected": @("$./form/motivo")
     }
 
     fn_print_buttons::
     {
         #$
-        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="button" id="btn_submit" title="Cancelar cfdi"){$"Cancelar"}
+        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="submit" id="btn_submit" title="Cancelar cfdi"){$"Cancelar"}
         #!
     }
     point print_buttons to fn_print_buttons
@@ -37,26 +44,27 @@ module "form.sendmail.dk"
     {
         @"title": "Cancelar CFDI "+@@(documento,"$referencia")+" ("+@("$parameters/_entity_id")+")"
         @"buttons*": print_buttons
+        @"urlexit": @CFD_EMISION
         member @"hidden" { @"print": @true }
     }
 
     #$
     div(class="container")
     {
-        #! do uie.printV12FormBar(nav_config)
-
-        #$
         link(href="#<@CSS_MAIN>" rel="stylesheet")
         div(class="container-section" id="work_area")
         {
-            div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
-            form(method="POST" action="./" id="frm_cancelar")
+            form(method="POST" action="./#<url_args>" id="frm_cancelar")
             {
+                ##
+                do uie.printV12FormBar(nav_config)
+                // do uie.print_from_url_field()
+                ##
                 input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
-                ##
-                do uie.print_from_url_field()
-                ##
+                
+                div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
 
+                h6{$"¿Está seguro que desea cancelar este comprobante?"}
                 span(class="text-danger"){$"Este proceso es incancelable e irreversible."}
                 div(class="row")
                 {
@@ -70,21 +78,37 @@ module "form.sendmail.dk"
                     div(class="col-12" id="div_uuid")
                     {
                         label(class="form-label fw-bold mb-0" "for"="txt_uuid"){$"Indique el UUID:"}
-                        input(class="form-control rounded-0" type="text" name="uuid" value="" id="txt_uuid" maxlength="36")
+                        input(class="form-control rounded-0" type="text" name="uuid" value="" id="txt_uuid" maxlength="36" pattern="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" title="Por favor, introduce un UUID válido. Debe tener el formato 8-4-4-4-12 con caracteres hexadecimales." required="")
                     }
                 }
             }
         }
 
         script(src="#<@JS_MAIN>"){$""}
-        // script(src="#<@JS_FORM_CANCELARCFDI>"){$""}
-        // script(type="text/javascript")
-        // {$'
-        //     document.addEventListener("DOMContentLoaded", () => {
-        //         cancelar.formId = "frm_cancelar";
-        //         cancelar.init();
-        //     });
-        // '}
+        script(type="text/javascript")
+        {$'
+            document.addEventListener("DOMContentLoaded", () => {
+                const frm_cancelar = document.getElementById("frm_cancelar");
+                const sel_motivo = document.getElementById("sel_motivo");
+                const txt_uuid = document.getElementById("txt_uuid");
+                const div_uuid = document.getElementById("div_uuid");
+                const btn_submit = document.getElementById("btn_submit");
+
+                sel_motivo.addEventListener("change", (e) => {
+                    if (e.target.value == 1) {
+                        div_uuid.hidden = false;
+                        txt_uuid.required = true;
+                    } else {
+                        div_uuid.hidden = true;
+                        txt_uuid.required = false;
+                    }
+                });
+
+                frm_cancelar.addEventListener("submit", (e) => { btn_submit.disabled = true });
+
+                trigger(sel_motivo,"change");
+            });
+        '}
     }
     #!
 

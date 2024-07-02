@@ -1150,8 +1150,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"tpo": "cfdi" // cfdi/cr (opcional)
             @"res": res // (Opcional) tipo de resultado deseado
         }
-        ref response = from.json(http.post(@svc_fdsk_descargar,payload))
 
+        ref response = from.json(http.post(@svc_fdsk_descargar,payload))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
 
         return response
@@ -1298,8 +1298,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"uuid": cfdi_id
             @"xml": from.base64(comprobante)
         }
-        ref response = from.json(http.post(@svc_fdsk_preview,payload))
 
+        ref response = from.json(http.post(@svc_fdsk_preview,payload))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
         
         return @@(response,"&data")
@@ -1319,18 +1319,17 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         do errordet(@error_det)
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
-
         ref cliente = getCliente(db,params)
         ref emisor = getEmisor(db,params,cliente)
+        ref doc = @null
 
         if trim(@@(data,"$emails")) == "" { do rise_error(500,"Debe agregar al menos un correo electrónico válido.") }
 
-        ref doc = @null
         if @@(params,"$_entity_id") == "ventas" {
             ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM venta vnt LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa WHERE vnt.sys_pk = @doc",params)
         }
         else if @@(params,"$_entity_id") == "cxc" {
-            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc vnt LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc",params)
+            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc cxc LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc",params)
         }
 
         if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
@@ -1347,8 +1346,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"res": "zip" // Tipo de resultado deseado.
             @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
         }
-        ref response = from.json(http.post(@svc_fdsk_enviar,payload))
 
+        ref response = from.json(http.post(@svc_fdsk_enviar,payload))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
         response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
 
@@ -1359,8 +1358,79 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         //#region cancelar()
         namespace "emision"
+        @use_transaction = @false
 
-        do rise_error(0,to.json(data))
+        if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
+        ref cliente = getCliente(db,params)
+        ref emisor = getEmisor(db,params,cliente)
+        ref doc = @null
+
+        uuid_regex = "^[0-9A-Fa-f]{8}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{12}$"
+        _entity_id = @@(params,"$_entity_id")
+        cve_motivo = @@(data,"$motivo")
+        rel_uuid = trim(@@(data,"$uuid"))
+
+        if cve_motivo == "01" && not(Regex.IsMatch(rel_uuid,uuid_regex)) {
+            do rise_error(500,"Es necesario indicar un UUID válido.\r\nDebe tener el formato 8-4-4-4-12 con caracteres hexadecimales.")
+        }
+
+        if _entity_id == "ventas" {
+            sql = "
+            SELECT vnt.sys_pk AS iventa, cfd.sys_pk AS icfd, vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+            FROM venta vnt
+                LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa
+            WHERE vnt.sys_pk = @doc
+            "
+            ref doc:dbr.rec(db,sql,params)
+
+            aplicados = dbr.num(db,"SELECT COUNT(apl.sys_pk) FROM dcxc cxc INNER JOIN aplcxc apl ON cxc.sys_pk = apl.aplicadoa WHERE cxc.iventa = @iventa;",doc)
+            if aplicados > 0 { do rise_error(500,"No es posible cancelar la factura porque tiene pagos relacionados.") }
+        }
+        else if _entity_id == "cxc" {
+            sql = "
+            SELECT cxc.sys_pk AS idcxc, cfd.sys_pk AS icfd, cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+            FROM dcxc cxc
+                LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc
+            WHERE cxc.sys_pk = @doc
+            "
+            ref doc:dbr.rec(db,sql,params)
+        }
+
+        if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
+        if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
+
+        do dbr.begin(db)
+
+        sql_unlink_cfdi = "
+        UPDATE ut_cfd SET
+            sys_info = COALESCE(CONCAT('uf_iventa:',uf_iventa),CONCAT('uf_idcxc:',uf_idcxc)),
+            uf_canceladosat=1,
+            uf_ackcancelacion_sat='1',
+            uf_iventa=NULL,
+            uf_idcxc=NULL
+        WHERE sys_pk = @icfd
+        "
+        if not(dbr.execute(db,sql_unlink_cfdi,doc)) { do rise_error(500,"No fue posible establecer la cancelación.") }
+
+        new header { @"Content-Type": "application/json; charset=UTF-8" }
+        new payload
+        {
+            @"ctaTimb": "#" // Autorizar por cuenta de timbrado.
+            @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
+            @"pwd": field.str(emisor,"pwd") // Contraseña de la cuenta de timbrado.
+            @"uuid": @@(doc,"$uf_foliosat") // UUID del CFDI.
+            @"tipo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención.
+            @"motivo": cve_motivo // Clave del motivo de cancelación del SAT.
+            @"frel": rel_uuid // UUID del CFDI relacionado, en caso de que el motivo sea'01'.
+        }
+
+        ref response = from.json(http.request(@svc_fdsk_cancelar,"POST",header,to.json(payload)))
+        if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
+        @url_redir = ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
+
+        do dbr.commit(db)
+
+        exception{ do catch(db,params,data) }
     }
 
     cfdi.download::&db,&params

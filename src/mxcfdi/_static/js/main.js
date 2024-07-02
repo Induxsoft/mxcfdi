@@ -6,9 +6,27 @@
 function trigger(elementOrSelector,eventName)
 {
     if (!elementOrSelector) return;
+    if (!eventName) return;
 
     const element = (typeof elementOrSelector === "string") ? document.querySelector(elementOrSelector) : elementOrSelector;
-    const event = new Event(eventName);
+    if (!element) {
+        console.error("Elemento no encontrado.");
+        return
+    }
+    
+    var event = null;
+    if (typeof Event === "function")
+    {
+        event = new Event(eventName, {
+            bubbles: true,
+            cancelable: true
+        });
+    }
+    else
+    {
+        event = document.createEvent("Event");
+        event.initEvent(eventName,true,true);
+    }
     element.dispatchEvent(event);
 }
 
