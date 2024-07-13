@@ -64,6 +64,8 @@ module
 
 	@svc_fdsk_preview = "https://factudesk.api.induxsoft.net/comprobantes/descargar/save_xml_preview.dkl"
 
+	@svc_fdsk_get_emisor="https://factudesk.api.induxsoft.net/emisores/{nic}/"
+
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"

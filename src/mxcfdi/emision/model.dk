@@ -80,7 +80,17 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         
         return dbr.rec(db,@qry_get_receptor,p)
     }
+    getEmisorFactudesk::&data
+    {
+        new h{@"content-type":"application/json; charset=utf-8"}
 
+        res=http.request(@svc_fdsk_get_emisor,"POST",h,to.json(data))
+        ref result=from.json(res)
+
+        if not(@@(result,"$success")){do rise_error(500,@@(result,"$message"))}
+
+        return @@(result,"&data")
+    }
     getEmisor::&db,&params,&cliente
     {
         ref emisor = @null
@@ -105,12 +115,17 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         if not(isnull(emisor))
         {
+            ref result=getEmisorFactudesk(emisor)
             using emisor
             {
-                @"nombre": "ESCUELA WILSON ESQUIVEL"
-                @"rfc": "EWE1709045U0"
-                @"reg_fiscal": "601"
+                @"nombre":@@(result,"$razon_social")
+                @"rfc": @@(result,"$rfc")
+                @"reg_fiscal": @@(result,"$reg_fiscal")
             }
+        }
+        else 
+        {
+            do rise_error(500,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica` ")
         }
 
         return emisor
@@ -174,6 +189,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         if containsword(_view,"factura,devolucion,nota-cargo,cobro,bonificacion")
         {
+            
             if _view == "cobro" { data<"doctosrel*"> : getDoctoRelacionado(db,@@(params,"#doc")) }
 
             using data
@@ -436,7 +452,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         //#region save()
         namespace "emision"
-
+        
         @use_transaction = @false
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
@@ -444,7 +460,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref documento = getEntity(db,params)
         ref cliente = getCliente(db,params)
         ref emisor = getEmisor(db,params,cliente)
-
+        
         cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
 
         using data
@@ -456,8 +472,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         do dbr.apps.action.pre(actionCode(params))
         do dbr.begin(db)
-
+        
         comprobante = generarCFDI(db,params,data)
+        
         ref response = sellarYTimbrar(emisor,comprobante)
         do saveResponse(db,response,comprobante,cfdi_id)
         do aplicarFactura(db,params,response)
@@ -544,7 +561,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         program_path = "mxcfdi/emision"
         program_name = "cfdi40.dkl"
-
+        
         new cfdi
         {
             @"Serie": field.dstr(documento,"serie","")
@@ -567,7 +584,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"TipoRelacion": field.dstr(data,"tipo_relacion","")
                 @"Relacionados*": from.json(field.dstr(data,"rel_uuid","[]"))
             }
-
+            
             member @"Emisor"
             {
                 @"Nombre": cfdiSpecialChars(field.str(emisor,"nombre"))
@@ -586,7 +603,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
 
         if @@(cfdi,"$Moneda") == "MXN" { cfdi<"TipoCambio"> : 1 }
-        if @@(cfdi,"$TipoDeComprobante") == "P" {
+        if @@(cfdi,"$TipoDeComprobante") == "P" 
+        {
             program_name = "cfdi40.pago20.dkl"
             do setComplementoP(db,data,cfdi)
         }
@@ -820,6 +838,12 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         //#region getDoctoRelacionado()
         new params { @"irecibo": irecibo }
 
+        mxcfdi_nventa = parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
+        if mxcfdi_nventa
+        {
+            return getDoctoRelacionadoCXC(db,irecibo)
+        }
+
         sql_facturas_aplicadas = "
         SELECT fac.referencia, IFNULL(fac.iventa,0) AS iventa
         FROM aplcxc AS apl
@@ -870,7 +894,60 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         return relacionados
     }
+    getDoctoRelacionadoCXC::&db,irecibo
+    {
+        new params { @"irecibo": irecibo }
 
+        sql_facturas_aplicadas = "
+        SELECT fac.referencia,fac.sys_pk ifactura
+        FROM aplcxc AS apl
+            INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
+        WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
+        GROUP BY fac.sys_pk;
+        "
+        ref facturas_aplicadas = dbr.list(db,sql_facturas_aplicadas,params)
+        ref relacionados = list.create()
+
+        for i = 0; i < list.count(facturas_aplicadas)
+        {
+            params<"ifactura"> : field.num(list.obj(facturas_aplicadas,i),"ifactura")
+
+            sql_facturas_saldadas = "
+            SELECT
+                @parcis:=(@parcis + 1) AS NumParcialidad,
+                f.debe,
+                ROUND(f.debe - @rownum:=(@rownum + a.importe),2) AS ImpSaldoInsoluto,
+                ROUND(a.importe,2) AS ImpPagado,
+                ROUND(f.debe - @rownum + a.importe,2) AS ImpSaldoAnt,
+                (SELECT uf_foliosat FROM ut_cfd WHERE uf_idcxc=@ifactura LIMIT 1) AS IdDocumento,
+                bd.serie AS Serie,
+                fd.folio AS Folio,
+                dv.codigo AS MonedaDR,
+                f.tipocambio AS EquivalenciaDR,
+                '' AS ObjetoImpDR,
+                a.sys_pk AS pk_aplcxc, -- Registro de aplicación de pago
+                a.fk_dcxc_aplicadoa, -- Doc del pago (Recibo)
+                a.aplicadoa AS fk_aplicadoa, -- Doc al que se aplico el pago (Factura)
+                IFNULL(a.uf_cfdi,'') AS uf_cfdi
+            FROM (SELECT @parcis:=0) q, (SELECT @rownum:=0) r, aplcxc AS a
+                INNER JOIN dcxc AS p ON a.fk_dcxc_aplicadoa = p.sys_pk
+                INNER JOIN dcxc AS f ON a.aplicadoa = f.sys_pk
+                LEFT JOIN foliosdocumentos AS fd ON f.ifolio = fd.sys_pk
+                LEFT JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
+                INNER JOIN cliente cl on f.icliente=cl.sys_pk
+                INNER JOIN divisa AS dv ON cl.idivisa = dv.sys_pk
+            WHERE f.sys_pk = @ifactura
+            "
+            ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
+
+            for j = 0; j < list.count(facturas_saldadas)
+            {
+                do list.add(relacionados,list.obj(facturas_saldadas,j))
+            }
+        }
+
+        return relacionados
+    }
     getImpuestosDR::&db,&params
     {
         do errordet(@error_det)
@@ -1272,6 +1349,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 {
                     view = "cobro"
                     ref doctosrel = getDoctoRelacionado(db,@@(params,"#doc"))
+                    
                     using data
                     {
                         @"uso_cfdi": "CP01"
