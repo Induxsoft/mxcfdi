@@ -99,7 +99,7 @@ function readonlyControls(elementsId=[], value=true)
             else
             {
                 el.style.pointerEvents = (value) ? "none" : "";
-                el.style.backgroundColor = (value) ? "rgb(233, 236, 239)" : "";
+                el.style.backgroundColor = (value) ? "#e9ecef" : "";
                 el.style.opacity = (value) ? "1" : "";
             }
         }
