@@ -139,12 +139,11 @@ module "venta.devolucion.dk"
         #!
     }
     point print_buttons to fn_print_buttons
-
     new nav_config
     {
         @"title": "Nota de Devolución"
         @"buttons*": print_buttons
-        // @"urlexit": "../"
+        @"urlexit": "/!/ventas/venta/"
         member @"hidden" { @"print": @true }
     }
 

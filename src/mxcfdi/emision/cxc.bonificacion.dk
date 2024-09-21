@@ -170,12 +170,11 @@ module "cxc.bonificacion.dk"
         #!
     }
     point print_buttons to fn_print_buttons
-
     new nav_config
     {
         @"title": "Bonificación"
         @"buttons*": print_buttons
-        // @"urlexit": "../"
+        @"urlexit": "/!/cxc/clientes/"+@@(entity,"$icliente")+"/balance/"
         member @"hidden" { @"print": @true }
     }
 

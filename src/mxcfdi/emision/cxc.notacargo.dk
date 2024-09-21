@@ -170,12 +170,11 @@ module "cxc.notacargo.dk"
         #!
     }
     point print_buttons to fn_print_buttons
-
     new nav_config
     {
         @"title": ifstr(@@(entity,"#documento")==@cNotaCargo, "Nota de Cargo Fiscal", "Factura de Cargo Fiscal")
         @"buttons*": print_buttons
-        // @"urlexit": "../"
+        @"urlexit": "/!/cxc/clientes/"+@@(entity,"$icliente")+"/balance/"
         member @"hidden" { @"print": @true }
     }
 

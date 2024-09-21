@@ -121,15 +121,14 @@ module "cxc.cobro.dk"
         #!
     }
     point print_buttons to fn_print_buttons
-
     new nav_config
     {
         @"title": "Cobro"
         @"buttons*": print_buttons
-        // @"urlexit": "../"
+        @"urlexit": "/!/cxc/clientes/"+@@(entity,"$icliente")+"/balance/"
         member @"hidden" { @"print": @true }
     }
-    
+
     #$
     div(class="container")
     {
