@@ -1,0 +1,65 @@
+#include "dkli.dkh"
+#!
+module "Funciones para los servicios"
+{
+    function get_db()
+    {
+        qname = trim(@@(@http_context,"$session/idp/qname"))
+        ref db = @@(@http_context,"&session/idp/database")
+        
+        if isnull(db) || not(dbr.is_open(db)) { ref db:dbr.open(qname) }
+        do dbr.rec(db,"select 1 as success;",@null)
+        
+        exception
+        {
+            do pop_exception()
+            ref db:dbr.open(qname)
+        }
+
+        return db
+    }
+    
+    function _params()
+    {
+        return ifnull(@@(@http_context,"&request/get"),record.create())
+    }
+
+    function _payload()
+    {
+        ref post = ifnull(@@(@http_context,"&request/post"),record.create())
+        if list.count(list.create_from_fields(post)) < 1 {
+            post_string = trim(field.dstr(@http_context,"request/post_string","{}"))
+            if post_string == "" { post_string = "{}" }
+            
+            ref post:from.json(post_string)
+        }
+        return post
+    }
+
+    function api_base_service()
+    {
+        expose response, params, payload, method
+
+        new response { @"success": @true }
+        ref params = _params()
+        ref payload = _payload()
+        method = @@(@http_context,"$request/headers/REQUEST_METHOD")
+
+        // Permite la petición desde cualquier origen para acceder al recurso
+        @http_context<"response/headers/Access-Control-Allow-Origin"> : "*"
+        // Permite al servicio soportar todos los metodos http
+        @http_context<"response/headers/Access-Control-Allow-Methods"> : "*"
+        // "Content-Type, Authorization, X-Requested-With"
+        @http_context<"response/headers/Access-Control-Allow-Headers"> : "*"
+
+        // Establecer encabezado de respuesta http
+        @http_context<"response/headers/Content-Type"> : "application/json;charset=utf-8"
+        // Indicar tipo de respuesta
+        @http_context<"response/output"> : "text"
+        
+        that
+
+        // Asignar la respuesa de salida
+        @http_context<"response/text"> : to.json(response)
+    }
+}

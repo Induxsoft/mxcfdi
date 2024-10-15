@@ -1,0 +1,35 @@
+#include "dkli.dkh"
+#!
+module ":pos"
+{
+    module "Mapeo de funciones"
+    {
+        ref lib_precfdi = _import_library("precfdi4lib.dll")
+
+        do _map_function(lib_precfdi, "precfdi4lib.proc", "setDatabase", "ticket.set_db", "*System.Object", "void")
+        do _map_function(lib_precfdi, "precfdi4lib.proc", "GenCodeTicket", "ticket.encode_folio", "*System.Object,*System.Object,*System.Object", "$") 
+        do _map_function(lib_precfdi, "precfdi4lib.proc", "DecodeTicket", "ticket.decode_folio", "System.String, System.Boolean", "#") 
+        do _map_function(lib_precfdi, "precfdi4lib.proc", "VentaXml", "ticket.xml", "System.Int32", "$")
+    }
+
+    function ticket.obtener(&db,&data)
+    {
+        do ticket.set_db(db)
+        
+        sys_pk = dbr.num(db,"select sys_pk from venta where referencia = @folio",data)
+        folio = ticket.encode_folio(hoy("yyyy-MM-dd"), hoy("HH:mm:ss"), sys_pk)
+        sys_pk = ticket.decode_folio(folio,@false)
+        comprobante = ticket.xml(sys_pk)
+
+        return comprobante
+    }
+
+    function ticket.facturar(&db,&data)
+    {
+        do ticket.set_db(db)
+
+        // Generar factura con ticket
+
+        return @null
+    }
+}

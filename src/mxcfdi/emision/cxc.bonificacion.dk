@@ -41,7 +41,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("forma_pago","tx",@null)
+        @"selected": fd("forma_pago","tx",@null)
     }
     if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "99" }
 
@@ -57,7 +57,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("metodo_pago","tx",@null)
+        @"selected": fd("metodo_pago","tx",@null)
     }
     if @@(sel_metodo_pago,"$selected") == "" { sel_metodo_pago<"selected"> : "PPD" }
 
@@ -73,7 +73,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("uso_cfdi","tx",@null)
+        @"selected": fd("uso_cfdi","tx",@null)
     }
     if @@(sel_uso_cfdi,"$selected") == "" { sel_uso_cfdi<"selected"> : "G03" }
 
@@ -89,7 +89,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",cliente)
+        @"selected": fd("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -105,7 +105,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("exportacion","tx",@null)
+        @"selected": fd("exportacion","tx",@null)
     }
     if @@(sel_exportacion,"$selected") == "" { sel_exportacion<"selected"> : "01" }
 
@@ -121,7 +121,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("tipo_relacion","tx",@null)
+        @"selected": fd("tipo_relacion","tx",@null)
     }
     if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "01" }
 
@@ -137,7 +137,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("objeto_imp","tx",@null)
+        @"selected": fd("objeto_imp","tx",@null)
     }
     if @@(sel_objeto_imp,"$selected") == "" { sel_objeto_imp<"selected"> : "02" }
 
@@ -158,7 +158,7 @@ module "cxc.bonificacion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("tasa_iva","tx",@null)
+        @"selected": fd("tasa_iva","tx",@null)
     }
 
     fn_print_buttons::

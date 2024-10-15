@@ -78,7 +78,7 @@ module "venta.devolucion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("uso_cfdi","tx",@null)
+        @"selected": fd("uso_cfdi","tx",@null)
     }
     if @@(sel_uso_cfdi,"$selected") == "" { sel_uso_cfdi<"selected"> : "G03" }
 
@@ -94,7 +94,7 @@ module "venta.devolucion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",cliente)
+        @"selected": fd("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -126,7 +126,7 @@ module "venta.devolucion.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("tipo_relacion","tx",@null)
+        @"selected": fd("tipo_relacion","tx",@null)
     }
     if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "02" }
 

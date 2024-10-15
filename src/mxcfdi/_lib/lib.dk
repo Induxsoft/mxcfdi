@@ -1,7 +1,7 @@
 #include "dkli.dkh"
 #pattern function "function '$name' ()"
 #!
-module "Funciones de propósito general :lib"
+module "Funciones de propósito general"
 {
     if not(isset("@http_context")) && isset("@crud_context") { ref @http_context = ifnull(@@(@crud_context,"&http"),record.create()) }
 
@@ -212,40 +212,6 @@ module "Funciones de propósito general :lib"
         return path.concat(v12_path,http_args)
     }
 
-    function get_db()
-    {
-        qname = trim(@@(@http_context,"$session/idp/qname"))
-        ref db = @@(@http_context,"&session/idp/database")
-        
-        if isnull(db) || not(dbr.is_open(db)) { ref db:dbr.open(qname) }
-        do dbr.rec(db,"select 1 as success;",@null)
-        
-        exception
-        {
-            do pop_exception()
-            ref db:dbr.open(qname)
-        }
-
-        return db
-    }
-
-    function _params()
-    {
-        return ifnull(@@(@http_context,"&request/get"),record.create())
-    }
-
-    function _payload()
-    {
-        ref post = ifnull(@@(@http_context,"&request/post"),record.create())
-        if list.count(list.create_from_fields(post)) < 1 {
-            post_string = trim(field.dstr(@http_context,"request/post_string","{}"))
-            if post_string == "" { post_string = "{}" }
-            
-            ref post:from.json(post_string)
-        }
-        return post
-    }
-
     function replace_path_macros(path)
     {
         ref _GET = ifnull(@@(@http_context,"&request/get"),record.create())
@@ -291,7 +257,7 @@ module "Funciones de propósito general :lib"
         return record
     }
 
-    function form(name,type,&obj)
+    function fd(name,type,&obj)
     {
         name = trim(str(name))
         if isnull(obj) { ref obj:record.create() }
@@ -308,8 +274,8 @@ module "Funciones de propósito general :lib"
             case "nm"
             {
                 value = @("#./form/"+name)
-                if value <= 0 { value = @("#input/"+name) }
-                if value <= 0 { value = @@(obj,"#"+name) }
+                if value == 0 { value = @("#input/"+name) }
+                if value == 0 { value = @@(obj,"#"+name) }
                 return value
             }
             case "ch"
@@ -317,7 +283,6 @@ module "Funciones de propósito general :lib"
                 bool = trim(@("$./form/"+name))
                 if bool == "" { bool = trim(@("$input/"+name)) }
                 if bool == "" { bool = trim(@@(obj,"$"+name)) }
-                
                 return ifstr(parse.bool(bool),"checked","")
             }
             case "rd"
@@ -325,7 +290,6 @@ module "Funciones de propósito general :lib"
                 bool = trim(@("$./form/"+name))
                 if bool == "" { bool = trim(@("$input/"+name)) }
                 if bool == "" { bool = trim(@@(obj,"$"+name)) }
-                
                 return ifstr(parse.bool(bool),"checked","")
             }
             case "dt"

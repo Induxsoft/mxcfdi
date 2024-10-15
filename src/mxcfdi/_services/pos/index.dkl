@@ -1,0 +1,41 @@
+#include "dkli.dkh"
+#!
+module "POS Services"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "webcl.dkh"
+    #include "dbr.dkh"
+    #include "website.dkl"
+    #include "mxcfdi/_lib/lib.dk"
+
+    go api_base_service(method:method, params:params, payload:postData, response:response)
+    {
+        if method != "POST" { do rise_error(511,"Método proporcionado no admitido") }
+        ref db = get_db()
+
+        switch @@(postData,"$operacion")
+        {
+            case "obtener_venta"
+            {
+                response<"data"> : pos.ticket.obtener(db,postData)
+                break
+            }
+            case "venta_facturada"
+            {
+                response<"data*"> : pos.ticket.facturar(db,postData)
+                break
+            }
+        }
+
+        exception
+        {
+            do errordet(@false)
+            using response
+            {
+                @"success": @false
+                @"message": last_error()
+            }
+        }
+    }
+}

@@ -211,8 +211,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     evaluateFilters::&db,&params
     {
-        alias "lib.between" "between"
-
         tname = ""
         show_tab = "ingresos"
         fil_doctype = @@(params,"#fil_doctype")
@@ -566,7 +564,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         {
             @"Serie": field.dstr(documento,"serie","")
             @"Folio": field.dstr(documento,"folio","")
-            @"Fecha": lib.hoy("yyyy-MM-ddTHH:mm:ss")
+            @"Fecha": hoy("yyyy-MM-ddTHH:mm:ss")
             @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
             @"FormaPago": field.dstr(data,"forma_pago","99")
             @"CondicionesDePago": field.dstr(data,"cond_pago","")
@@ -732,8 +730,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"TotalImpuestosTrasladados": TotalImpuestosTrasladados
                 @"TotalImpuestosRetenidos": TotalImpuestosRetenidos
 
-                @"Traslados*": lib.record.values(_traslados)
-                @"Retenciones*": lib.record.values(_retenciones)
+                @"Traslados*": record.values(_traslados)
+                @"Retenciones*": record.values(_retenciones)
             }
         }
     }
@@ -753,8 +751,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         
         new concepto
         {
-            @"ClaveProdServ": lib.ifempty(field.str(data,"codigo_sat"),"01010101")
-            @"ClaveUnidad": lib.ifempty(field.str(data,"unidad_sat"),"ACT")
+            @"ClaveProdServ": ifempty(field.str(data,"codigo_sat"),"01010101")
+            @"ClaveUnidad": ifempty(field.str(data,"unidad_sat"),"ACT")
             // @"NoIdentificacion": field.str(data,"codigo")
             @"Descripcion": field.str(data,"documento/concepto")
             // @"Unidad": field.str(data,"unidad")
@@ -784,7 +782,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             {
                 @"Impuesto": "002"
                 @"TipoFactor": "Tasa"
-                @"TasaOCuota": lib.FixTo(TasaOCuota,6)
+                @"TasaOCuota": FixTo(TasaOCuota,6)
                 @"Base": Base
                 @"Importe": Importe
             }
@@ -1113,8 +1111,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     @"Relacionados*": relacionados
                     member @"ImpuestosP"
                     {
-                        @"TrasladosP*": lib.record.values(_traslados_dr)
-                        @"RetencionesP*": lib.record.values(_retenciones_dr)
+                        @"TrasladosP*": record.values(_traslados_dr)
+                        @"RetencionesP*": record.values(_retenciones_dr)
                     }
                 }
             }
@@ -1138,7 +1136,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 }
                 member @"Pago"
                 {
-                    @"FechaPago": lib.hoy("yyyy-MM-ddTHH:mm:ss")
+                    @"FechaPago": hoy("yyyy-MM-ddTHH:mm:ss")
                     @"MonedaP": field.str(documento,"cdivisa")
                     @"TipoCambioP": field.num(documento,"tipocambio")
                     @"Monto": RoundTo(field.num(documento,"importe"),2,@AwayFromZero)
@@ -1187,7 +1185,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 member @"NumLetraTotalDocumento"
                 {
                     @"titulo": "Importe con letras"
-                    @"valor1": lib.numero_en_letras(@@(cfdi,"#Total")) + "PESOS MEXICANO"
+                    @"valor1": numero_en_letras(@@(cfdi,"#Total")) + "PESOS MEXICANO"
                     @"valor2": ""
                     @"valor3": ""
                 }
@@ -1520,6 +1518,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     saveResponse::&db,&response,comprobante,cfdi_id
     {
+        //#region saveResponse()
         if not(parse.bool(@@(response,"$success"))) {
             message = @@(response,"$message")
             do emision.saveLog(db,@false,cfdi_id,comprobante,message)
@@ -1533,11 +1532,12 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     saveLog::&db,success,cfdi_id,cfdi,log
     {
+        //#region saveLog()
         success_cfdi_path = dbr.vars.getd(db,"mxcfdi_success_cfdi_path",@default_scfdi_path)
         failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
 
         log_path = ifstr(success, success_cfdi_path, failure_cfdi_path)
-        log_path = lib.replace_path_macros(log_path)
+        log_path = replace_path_macros(log_path)
         do dir.ensure(log_path)
 
         file_path = path.concat(log_path,cfdi_id)
@@ -1547,9 +1547,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     removeLog::&db,cfdi_id
     {
+        //#region removeLog()
         failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
         
-        log_path = lib.replace_path_macros(failure_cfdi_path)
+        log_path = replace_path_macros(failure_cfdi_path)
         file_path = path.concat(log_path,cfdi_id)
 
         if file.exists(file_path+".xml") { do file.delete(file_path+".xml") }
@@ -1558,6 +1559,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     catch::&db,&params,&data
     {
+        //#region catch()
         do errordet(@error_det)
         if isnull(data){ ref data:record.create() }
         if dbr.in_transaction(db){ do dbr.rollback(db) }

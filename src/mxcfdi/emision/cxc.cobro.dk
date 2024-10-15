@@ -16,7 +16,7 @@ module "cxc.cobro.dk"
     ref cliente = ifnull(@("&./cliente"),record.create())
     ref doctosrel = ifnull(@("&./doctosrel"),list.create())
     ref lst_objeto_imp = ifnull(@("&./list_objeto_imp"),list.create())
-    ref arr_objeto_imp = lib.list_to_record(lst_objeto_imp,"clave","valor")
+    ref arr_objeto_imp = list_to_record(lst_objeto_imp,"clave","valor")
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -44,7 +44,7 @@ module "cxc.cobro.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("forma_pago","tx",@null)
+        @"selected": fd("forma_pago","tx",@null)
     }
     if @@(sel_forma_pago,"$selected") == "" { sel_forma_pago<"selected"> : "01" }
 
@@ -76,7 +76,7 @@ module "cxc.cobro.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("reg_fiscal","tx",cliente)
+        @"selected": fd("reg_fiscal","tx",cliente)
     }
     if @@(sel_reg_fiscal,"$selected") == "" { sel_reg_fiscal<"selected"> : "601" }
 
@@ -92,7 +92,7 @@ module "cxc.cobro.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("exportacion","tx",@null)
+        @"selected": fd("exportacion","tx",@null)
     }
     if @@(sel_exportacion,"$selected") == "" { sel_exportacion<"selected"> : "01" }
 
@@ -108,7 +108,7 @@ module "cxc.cobro.dk"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": lib.form("tipo_relacion","tx",@null)
+        @"selected": fd("tipo_relacion","tx",@null)
     }
     if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "02" }
 

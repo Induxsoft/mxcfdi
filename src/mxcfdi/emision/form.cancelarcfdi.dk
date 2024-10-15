@@ -11,7 +11,7 @@ module "form.sendmail.dk"
     do @context.begin(@crud_context)
 
     ref documento = ifnull(@("&./entity"),record.create())
-    ref http_query = split(lib.curr_url(),"?")
+    ref http_query = split(curr_url(),"?")
     
     url_args = ""
 
