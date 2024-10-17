@@ -6,13 +6,17 @@ module "POS Services"
     #include "serialize.dkh"
     #include "webcl.dkh"
     #include "dbr.dkh"
+    #include "dbr.vars.dkl"
+    #include "dbr.folios.dkl"
     #include "website.dkl"
+    #include "mxcfdi/_lib/config.dk"
     #include "mxcfdi/_lib/lib.dk"
 
     go api_base_service(method:method, params:params, payload:postData, response:response)
     {
         if method != "POST" { do rise_error(511,"Método proporcionado no admitido") }
         ref db = get_db()
+        // do rise_error(0,to.json(@@(@http_context,"&session/idp")))
 
         switch @@(postData,"$operacion")
         {
@@ -26,15 +30,21 @@ module "POS Services"
                 response<"data*"> : pos.ticket.facturar(db,postData)
                 break
             }
+            default { do rise_error(500,"Operación no implementada.") }
         }
 
         exception
         {
             do errordet(@false)
+            if isset("db"){ if not(isnull(db)){ if dbr.in_transaction(db){ do dbr.rollback(db) } } }
+
+            code = last_error_code()
+            error = last_error()
+
             using response
             {
                 @"success": @false
-                @"message": last_error()
+                @"message": error
             }
         }
     }

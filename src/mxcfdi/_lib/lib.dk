@@ -64,6 +64,55 @@ module "Funciones de propósito general"
         do _map_function(-1,"System.Math","Round","RoundTo","System.Decimal, System.Int32, System.MidpointRounding","#")
     }
 
+    module "Funciones para manejo de comprobantes (CFDI) :cfdi"
+    {
+        SpecialChars::string
+        {
+            string = replace(string,"&","&amp;")
+            string = replace(string,"'","&apos;")
+            string = replace(string,'"',"&quot;")
+            string = replace(string,"<","&lt;")
+            string = replace(string,">","&gt;")
+
+            return string
+        }
+
+        prefix::&elemento
+        {
+            return list.str(split(@@(elemento,"name"),":"),0)
+        }
+
+        attr::&elemento,attrname
+        {
+            return @@(@@(elemento,"&attributes"),attrname)
+        }
+
+        nodes::&elemento
+        {
+            return @@(elemento,"&nodes")
+        }
+
+        attributes::&elemento
+        {
+            return @@(elemento,"&attributes")
+        }
+
+        getElementByTagName::&elemento,tagname
+        {
+            ref nodes = @@(elemento,"&nodes")
+            if isnull(nodes) { return @null }
+
+            for i = 0; i < @count(nodes); i+1
+            {
+                ref el = @item(nodes,i)
+
+                if @@(el,"name") == tagname { return el }
+            }
+
+            return @null
+        }
+    }
+
     function FixTo(value,precision)
     {
         number = parse.num(value)
@@ -212,22 +261,22 @@ module "Funciones de propósito general"
         return path.concat(v12_path,http_args)
     }
 
-    function replace_path_macros(path)
+    function replace_path_macros(path,&params)
     {
-        ref _GET = ifnull(@@(@http_context,"&request/get"),record.create())
+        ref _params = record.copyexin(ifnull(params,record.create()),ifnull(@@(@http_context,"&request/get"),record.create()),"*",",","",":")
 
-        _prt = ifstr(parse.bool(@@(@http_context,"$request/headers/HTTPS")),"https","http")
-        _hst = @@(@http_context, "$request/headers/HTTP_HOST")
-        _cnn = @@(@http_context,"$session/idp/qname")
-        _pkt = @@(_GET, "$_pack")
-        _prg = @@(_GET, "$_program")
-        _etp = @@(_GET, "$_entities_type")
-        _eid = @@(_GET, "$_entity_id")
-        _vst = @@(_GET, "$_view")
+        prot = ifstr(parse.bool(@@(@http_context,"$request/headers/HTTPS")),"https","http")
+        host = @@(@http_context, "$request/headers/HTTP_HOST")
+        port = @@(@http_context, "$request/headers/SERVER_PORT")
+        qname = @@(@http_context,"$session/idp/qname")
 
-        path = replace(path, "@protocol", _prt)
-        path = replace(path, "@host", _hst)
-        path = replace(path, "@qname", _cnn)
+        path = replace(path, "@prot", prot)
+        path = replace(path, "@host", host)
+        path = replace(path, "@port", port)
+        path = replace(path, "@qname", qname)
+        go foreach.fstr(key:key, value:val) with(_params) {
+            path = replace(path,"@"+key,val)
+        }
 
         return path
     }

@@ -5,60 +5,11 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     @table_name = "ut_cfd"
     @keyfield = "sys_pk"
 
-    module ":cfdi"
-    {
-        prefix::&elemento
-        {
-            return list.str(split(@@(elemento,"name"),":"),0)
-        }
-
-        attr::&elemento,attrname
-        {
-            return @@(@@(elemento,"&attributes"),attrname)
-        }
-
-        nodes::&elemento
-        {
-            return @@(elemento,"&nodes")
-        }
-
-        attributes::&elemento
-        {
-            return @@(elemento,"&attributes")
-        }
-
-        getElementByTagName::&elemento,tagname
-        {
-            ref nodes = @@(elemento,"&nodes")
-            if isnull(nodes) { return @null }
-
-            for i = 0; i < @count(nodes); i+1
-            {
-                ref el = @item(nodes,i)
-
-                if @@(el,"name") == tagname { return el }
-            }
-
-            return @null
-        }
-    }
-
     getJsonData::name
     {
         file_path = path.concat(@json_path,str(name))
         if file.exists(file_path){ return from.json(file.rtext(file_path)) }
         return @null
-    }
-
-    cfdiSpecialChars::string
-    {
-        string = replace(string,"&","&amp;")
-        string = replace(string,"'","&apos;")
-        string = replace(string,'"',"&quot;")
-        string = replace(string,"<","&lt;")
-        string = replace(string,">","&gt;")
-
-        return string
     }
 
     getEntity::&db,&params
@@ -80,6 +31,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         
         return dbr.rec(db,@qry_get_receptor,p)
     }
+
     getEmisorFactudesk::&data
     {
         new h{@"content-type":"application/json; charset=utf-8"}
@@ -91,6 +43,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         return @@(result,"&data")
     }
+
     getEmisor::&db,&params,&cliente
     {
         ref emisor = @null
@@ -113,7 +66,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         if isnull(emisor) { ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null) }
 
-        if not(isnull(emisor))
+        if not(isnull(emisor)) { do rise_error(511,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica`.") }
+        else
         {
             ref result=getEmisorFactudesk(emisor)
             using emisor
@@ -122,10 +76,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"rfc": @@(result,"$rfc")
                 @"reg_fiscal": @@(result,"$reg_fiscal")
             }
-        }
-        else 
-        {
-            do rise_error(500,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica` ")
         }
 
         return emisor
@@ -459,6 +409,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref cliente = getCliente(db,params)
         ref emisor = getEmisor(db,params,cliente)
         
+        rfc_emisor = toupper(@@(emisor,"$rfc"))
         cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
 
         using data
@@ -474,7 +425,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         comprobante = generarCFDI(db,params,data)
         
         ref response = sellarYTimbrar(emisor,comprobante)
-        do saveResponse(db,response,comprobante,cfdi_id)
+        do saveResponse(db,response,comprobante,rfc_emisor,cfdi_id)
         do aplicarFactura(db,params,response)
 
         do dbr.apps.action.pos(response)
@@ -585,14 +536,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             
             member @"Emisor"
             {
-                @"Nombre": cfdiSpecialChars(field.str(emisor,"nombre"))
+                @"Nombre": cfdi.SpecialChars(field.str(emisor,"nombre"))
                 @"Rfc": field.str(emisor,"rfc")
                 @"RegimenFiscal": field.str(emisor,"reg_fiscal")
             }
 
             member @"Receptor"
             {
-                @"Nombre": cfdiSpecialChars(field.str(cliente,"nombre"))
+                @"Nombre": cfdi.SpecialChars(field.str(cliente,"nombre"))
                 @"DomicilioFiscalReceptor": field.str(data,"codpos")
                 @"Rfc": field.str(cliente,"rfc")
                 @"UsoCFDI": field.str(data,"uso_cfdi")
@@ -1516,28 +1467,34 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return @@(response,"&data")
     }
 
-    saveResponse::&db,&response,comprobante,cfdi_id
+    saveResponse::&db,&response,comprobante,rfc_emisor,cfdi_id
     {
         //#region saveResponse()
         if not(parse.bool(@@(response,"$success"))) {
             message = @@(response,"$message")
-            do emision.saveLog(db,@false,cfdi_id,comprobante,message)
+
+            do emision.saveLog(db, @false, rfc_emisor, cfdi_id, comprobante, message)
             do rise_error(500,message)
         }
         else {
-            do emision.saveLog(db,@true,@@(response,"$data/uuid"),@@(response,"$data/xml"),"")
-            do emision.removeLog(db,cfdi_id)
+            do emision.saveLog(db, @true, rfc_emisor, @@(response,"$data/uuid"), @@(response,"$data/xml"), "")
+            do emision.removeLog(db, rfc_emisor, cfdi_id)
         }
     }
 
-    saveLog::&db,success,cfdi_id,cfdi,log
+    saveLog::&db,success,rfc_emisor,cfdi_id,cfdi,log
     {
         //#region saveLog()
+        new parameters
+        {
+            @"emisor": rfc_emisor
+        }
+
         success_cfdi_path = dbr.vars.getd(db,"mxcfdi_success_cfdi_path",@default_scfdi_path)
         failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
 
         log_path = ifstr(success, success_cfdi_path, failure_cfdi_path)
-        log_path = replace_path_macros(log_path)
+        log_path = replace_path_macros(log_path,parameters)
         do dir.ensure(log_path)
 
         file_path = path.concat(log_path,cfdi_id)
@@ -1545,12 +1502,17 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if not(success) { do file.wtext(file_path+".txt",log) }
     }
 
-    removeLog::&db,cfdi_id
+    removeLog::&db,rfc_emisor,cfdi_id
     {
         //#region removeLog()
+        new parameters
+        {
+            @"emisor": rfc_emisor
+        }
+
         failure_cfdi_path = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
         
-        log_path = replace_path_macros(failure_cfdi_path)
+        log_path = replace_path_macros(failure_cfdi_path,parameters)
         file_path = path.concat(log_path,cfdi_id)
 
         if file.exists(file_path+".xml") { do file.delete(file_path+".xml") }
