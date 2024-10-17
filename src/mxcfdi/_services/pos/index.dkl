@@ -33,10 +33,17 @@ module "POS Services"
             default { do rise_error(500,"Operación no implementada.") }
         }
 
+        if isset("@open_connection"){
+            if @open_connection { do dbr.close(db) }
+        }
+
         exception
         {
             do errordet(@false)
-            if isset("db"){ if not(isnull(db)){ if dbr.in_transaction(db){ do dbr.rollback(db) } } }
+            if isset("@open_connection"){
+                if dbr.in_transaction(db){ do dbr.rollback(db) }
+                if @open_connection { do dbr.close(db) }
+            }
 
             code = last_error_code()
             error = last_error()

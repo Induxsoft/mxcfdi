@@ -142,19 +142,19 @@ module ":pos"
         do dbr.execute(db,"UPDATE venta SET aplicadoa = @ifactura WHERE sys_pk = @iticket",params)
 
         if @@(factura,"#formapago") == @fp_contado { do erp.ventas.procesos.setStatus(db,ifactura,@fp_contado) }
-        else if @@(factura) == @fp_credito
-        {
-            using params
-            {
-                @"iventa": ifactura
-                @"icliente": @@(factura,"#icliente")
-                @"flimite": date_str(@@(factura,"&vencimiento"),"yyyy-MM-dd")
-                @"referencia": @@(factura,"$referencia")
-                @"documento": @@(factura,"#documento")
-                @"concepto": "Venta a crédito"
-            }
-            do erp.ventas.procesos.liquidacionCredito(db,params)
-        }
+        // else if @@(factura) == @fp_credito
+        // {
+        //     using params
+        //     {
+        //         @"iventa": ifactura
+        //         @"icliente": @@(factura,"#icliente")
+        //         @"flimite": date_str(@@(factura,"&vencimiento"),"yyyy-MM-dd")
+        //         @"referencia": @@(factura,"$referencia")
+        //         @"documento": @@(factura,"#documento")
+        //         @"concepto": "Venta a crédito"
+        //     }
+        //     do erp.ventas.procesos.liquidacionCredito(db,params)
+        // }
 
         // Aplicar factura (ticket) timbrado
         ref comprobante = parse.xmlStr(tkt_xml)

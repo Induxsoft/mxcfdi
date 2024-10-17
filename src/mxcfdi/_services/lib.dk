@@ -4,16 +4,21 @@ module "Funciones para los servicios"
 {
     function get_db()
     {
+        @open_connection = @false
         qname = trim(@@(@http_context,"$session/idp/qname"))
         ref db = @@(@http_context,"&session/idp/database")
         
-        if isnull(db) || not(dbr.is_open(db)) { ref db:dbr.open(qname) }
+        if isnull(db) || not(dbr.is_open(db)) {
+            ref db:dbr.open(qname)
+            @open_connection = @true
+        }
         do dbr.rec(db,"select 1 as success;",@null)
         
         exception
         {
             do pop_exception()
             ref db:dbr.open(qname)
+            @open_connection = @true
         }
 
         return db
