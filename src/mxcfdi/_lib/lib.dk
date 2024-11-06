@@ -111,6 +111,15 @@ module "Funciones de propósito general"
 
             return @null
         }
+        find::&lobj,key,value
+        {
+            for i = 0; i < @count(lobj)
+            {
+                ref obj=@item(lobj,i)
+                if @@(obj,key)==value{return obj}
+            }
+            return @null
+        }
     }
 
     function FixTo(value,precision)

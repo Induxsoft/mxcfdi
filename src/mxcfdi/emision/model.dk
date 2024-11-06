@@ -61,20 +61,24 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             "
             ref emisor:dbr.rec(db,query,params)
         }
-
+        
         if isnull(emisor) && @@(cliente,"#cfdi_emisor") > 0 { ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE sys_pk = @cfdi_emisor",cliente) }
-
+        
         if isnull(emisor) { ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null) }
 
-        if not(isnull(emisor)) { do rise_error(511,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica`.") }
+        if isnull(emisor) { do rise_error(511,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica`.") }
         else
         {
             ref result=getEmisorFactudesk(emisor)
+            
+            //codigo postal de emisor
             using emisor
             {
                 @"nombre":@@(result,"$razon_social")
                 @"rfc": @@(result,"$rfc")
                 @"reg_fiscal": @@(result,"$reg_fiscal")
+                @"domicilios*":@@(result,"&domicilios")
+                @"certificados*":@@(result,"&certificados")
             }
         }
 
@@ -404,11 +408,11 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         @use_transaction = @false
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
-
+        
         ref documento = getEntity(db,params)
         ref cliente = getCliente(db,params)
         ref emisor = getEmisor(db,params,cliente)
-        
+
         rfc_emisor = toupper(@@(emisor,"$rfc"))
         cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
 
@@ -498,7 +502,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         return ""
     }
-
+    getDomicilioEmisor::&emisor
+    {
+        ref domicilio=cfdi.find(@@(emisor,"&domicilios"),"#fiscal",1)
+        if isnull(domicilio)
+        {
+            do rise_error(500,"No se encontró el domicilio fiscal del emisor")
+        }
+        return domicilio
+    }
     generarCFDI::&db,&params,&data
     {
         //#region generarCFDI()
@@ -506,6 +518,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         ref documento = field.obj(data,"documento")
         ref emisor = field.obj(data,"emisor")
+
+        ref domicilio=getDomicilioEmisor(emisor)
         ref cliente = field.obj(data,"cliente")
 
         program_path = "mxcfdi/emision"
@@ -522,7 +536,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"TipoDeComprobante": tipoComprobante(params)
             @"Moneda": field.str(documento,"cdivisa")
             @"TipoCambio": field.dnum(documento,"tipocambio",1)
-            @"LugarExpedicion": "29039"
+            @"LugarExpedicion": @@(domicilio,"$codpos")
             @"Exportacion": field.dstr(data,"exportacion","01")
             @"SubTotal": 0.00 //field.dnum(documento,"subtotal",0)
             @"Descuento": 0.00 //field.dnum(documento,"descuentos",0)
@@ -559,7 +573,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         else { do setConceptos(db,params,data,cfdi) }
 
-        do setAddenda(db,cliente,cfdi)
+        do setAddenda(db,cliente,cfdi,emisor)
 
         comprobante = to.base64(replace(runscript(path.concat(program_path,program_name),"cfdi",cfdi)," = ","="))
         return comprobante
@@ -1102,12 +1116,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         // do rise_error(0,to.json(cfdi))
     }
 
-    setAddenda::&db,&cliente,&cfdi
+    setAddenda::&db,&cliente,&cfdi,&emisor
     {
         //#region setAddenda()
         if not(@@(cliente,"#uf_addenda")) { return }
 
         ref dir_receptor = dbr.rec(db,@qry_dir_receptor,cliente)
+        ref domicilio=getDomicilioEmisor(emisor)
+
         using cfdi
         {
             member @"Addenda"
@@ -1129,8 +1145,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 member @"DirEmisor"
                 {
                     @"titulo": "Domicilio de expedición"
-                    @"valor1": "Central nte 123, centro 1" //@emisor.Direccion + " " + @emisor.Colonia
-                    @"valor2": "Tuxtla Gutiérrez, Chiapas, México" //@emisor.Municipio + ", " + @emisor.Estado + ", " + @emisor.Pais
+                    @"valor1": @@(domicilio,"$direccion")+" "+@@(domicilio,"$colonia") //@emisor.Direccion + " " + @emisor.Colonia
+                    @"valor2": @@(domicilio,"$municipio")+", "+@@(domicilio,"$estado")+", "+@@(domicilio,"$pais") //@emisor.Municipio + ", " + @emisor.Estado + ", " + @emisor.Pais
                     @"valor3": ""
                 }
                 member @"NumLetraTotalDocumento"
