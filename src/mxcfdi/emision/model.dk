@@ -796,73 +796,73 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if @@(params,"$_entity_id") == "cxc" { do emision.conceptosCxC(db,data,cfdi) }
     }
 
+    // _getDoctoRelacionado::&db,irecibo
+    // {
+    //     //#region getDoctoRelacionado()
+    //     new params { @"irecibo": irecibo }
+    
+    //     mxcfdi_nventa = parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
+    //     if mxcfdi_nventa
+    //     {
+    //         return getDoctoRelacionadoCXC(db,irecibo)
+    //     }
+
+    //     sql_facturas_aplicadas = "
+    //     SELECT fac.referencia, IFNULL(fac.iventa,0) AS iventa
+    //     FROM aplcxc AS apl
+    //         INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
+    //     WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
+    //     GROUP BY fac.iventa;
+    //     "
+    //     ref facturas_aplicadas = dbr.list(db,sql_facturas_aplicadas,params)
+    //     ref relacionados = list.create()
+
+    //     for i = 0; i < list.count(facturas_aplicadas)
+    //     {
+    //         params<"iventa"> : field.num(list.obj(facturas_aplicadas,i),"iventa")
+
+    //         sql_facturas_saldadas = "
+    //         SELECT
+    //             @parcis:=(@parcis + 1) AS NumParcialidad,
+    //             f.debe,
+    //             ROUND(f.debe - @rownum:=(@rownum + a.importe),2) AS ImpSaldoInsoluto,
+    //             ROUND(a.importe,2) AS ImpPagado,
+    //             ROUND(f.debe - @rownum + a.importe,2) AS ImpSaldoAnt,
+    //             (SELECT uf_foliosat FROM ut_cfd WHERE uf_iventa = @iventa LIMIT 1) AS IdDocumento,
+    //             bd.serie AS Serie,
+    //             fd.folio AS Folio,
+    //             dv.codigo AS MonedaDR,
+    //             v.tipocambio AS EquivalenciaDR,
+    //             '' AS ObjetoImpDR,
+    //             a.sys_pk AS pk_aplcxc, -- Registro de aplicación de pago
+    //             a.fk_dcxc_aplicadoa, -- Doc del pago (Recibo)
+    //             a.aplicadoa AS fk_aplicadoa, -- Doc al que se aplico el pago (Factura)
+    //             IFNULL(a.uf_cfdi,'') AS uf_cfdi
+    //         FROM (SELECT @parcis:=0) q, (SELECT @rownum:=0) r, aplcxc AS a
+    //             INNER JOIN dcxc AS p ON a.fk_dcxc_aplicadoa = p.sys_pk
+    //             INNER JOIN dcxc AS f ON a.aplicadoa = f.sys_pk
+    //             INNER JOIN venta AS v ON f.iventa = v.sys_pk
+    //             INNER JOIN foliosdocumentos AS fd ON v.ifolio = fd.sys_pk
+    //             INNER JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
+    //             INNER JOIN divisa AS dv ON v.idivisa = dv.sys_pk
+    //         WHERE v.sys_pk = @iventa AND v.statusadministrativo != 99
+    //         "
+    //         ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
+
+    //         for j = 0; j < list.count(facturas_saldadas)
+    //         {
+    //             do list.add(relacionados,list.obj(facturas_saldadas,j))
+    //         }
+    //     }
+
+    //     return relacionados
+    // }
     getDoctoRelacionado::&db,irecibo
     {
-        //#region getDoctoRelacionado()
-        new params { @"irecibo": irecibo }
-
-        mxcfdi_nventa = parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
-        if mxcfdi_nventa
-        {
-            return getDoctoRelacionadoCXC(db,irecibo)
-        }
-
-        sql_facturas_aplicadas = "
-        SELECT fac.referencia, IFNULL(fac.iventa,0) AS iventa
-        FROM aplcxc AS apl
-            INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
-        WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
-        GROUP BY fac.iventa;
-        "
-        ref facturas_aplicadas = dbr.list(db,sql_facturas_aplicadas,params)
-        ref relacionados = list.create()
-
-        for i = 0; i < list.count(facturas_aplicadas)
-        {
-            params<"iventa"> : field.num(list.obj(facturas_aplicadas,i),"iventa")
-
-            sql_facturas_saldadas = "
-            SELECT
-                @parcis:=(@parcis + 1) AS NumParcialidad,
-                f.debe,
-                ROUND(f.debe - @rownum:=(@rownum + a.importe),2) AS ImpSaldoInsoluto,
-                ROUND(a.importe,2) AS ImpPagado,
-                ROUND(f.debe - @rownum + a.importe,2) AS ImpSaldoAnt,
-                (SELECT uf_foliosat FROM ut_cfd WHERE uf_iventa = @iventa LIMIT 1) AS IdDocumento,
-                bd.serie AS Serie,
-                fd.folio AS Folio,
-                dv.codigo AS MonedaDR,
-                v.tipocambio AS EquivalenciaDR,
-                '' AS ObjetoImpDR,
-                a.sys_pk AS pk_aplcxc, -- Registro de aplicación de pago
-                a.fk_dcxc_aplicadoa, -- Doc del pago (Recibo)
-                a.aplicadoa AS fk_aplicadoa, -- Doc al que se aplico el pago (Factura)
-                IFNULL(a.uf_cfdi,'') AS uf_cfdi
-            FROM (SELECT @parcis:=0) q, (SELECT @rownum:=0) r, aplcxc AS a
-                INNER JOIN dcxc AS p ON a.fk_dcxc_aplicadoa = p.sys_pk
-                INNER JOIN dcxc AS f ON a.aplicadoa = f.sys_pk
-                INNER JOIN venta AS v ON f.iventa = v.sys_pk
-                INNER JOIN foliosdocumentos AS fd ON v.ifolio = fd.sys_pk
-                INNER JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
-                INNER JOIN divisa AS dv ON v.idivisa = dv.sys_pk
-            WHERE v.sys_pk = @iventa AND v.statusadministrativo != 99
-            "
-            ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
-
-            for j = 0; j < list.count(facturas_saldadas)
-            {
-                do list.add(relacionados,list.obj(facturas_saldadas,j))
-            }
-        }
-
-        return relacionados
-    }
-    getDoctoRelacionadoCXC::&db,irecibo
-    {
         new params { @"irecibo": irecibo }
 
         sql_facturas_aplicadas = "
-        SELECT fac.referencia,fac.sys_pk ifactura
+        SELECT fac.referencia,fac.sys_pk idcxc,fac.iventa
         FROM aplcxc AS apl
             INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
         WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
@@ -873,7 +873,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         for i = 0; i < list.count(facturas_aplicadas)
         {
-            params<"ifactura"> : field.num(list.obj(facturas_aplicadas,i),"ifactura")
+            params<"idcxc"> : field.num(list.obj(facturas_aplicadas,i),"idcxc")
+            params<"iventa"> : field.num(list.obj(facturas_aplicadas,i),"iventa")
 
             sql_facturas_saldadas = "
             SELECT
@@ -882,7 +883,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 ROUND(f.debe - @rownum:=(@rownum + a.importe),2) AS ImpSaldoInsoluto,
                 ROUND(a.importe,2) AS ImpPagado,
                 ROUND(f.debe - @rownum + a.importe,2) AS ImpSaldoAnt,
-                (SELECT uf_foliosat FROM ut_cfd WHERE uf_idcxc=@ifactura LIMIT 1) AS IdDocumento,
+                (SELECT uf_foliosat FROM ut_cfd WHERE uf_idcxc=@idcxc or uf_iventa =@iventa  LIMIT 1) AS IdDocumento,
                 bd.serie AS Serie,
                 fd.folio AS Folio,
                 dv.codigo AS MonedaDR,
@@ -899,7 +900,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 LEFT JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
                 INNER JOIN cliente cl on f.icliente=cl.sys_pk
                 INNER JOIN divisa AS dv ON cl.idivisa = dv.sys_pk
-            WHERE f.sys_pk = @ifactura
+            WHERE f.sys_pk = @idcxc
             "
             ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
 

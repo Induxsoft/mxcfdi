@@ -136,8 +136,8 @@ program "Generar comprobante xml"
                         #$
                         DoctoRelacionado(
                             IdDocumento="#<@@(docto,'IdDocumento')>"
-                            Serie="#<@@(docto,'Serie')>"
-                            Folio="#<@@(docto,'Folio')>"
+                            "#<ifstr(@@(docto,'$Serie')!='','Serie','')>"="#<@@(docto,'Serie')>"
+                            "#<ifstr(@@(docto,'$Folio')!='','Folio','')>"="#<@@(docto,'Folio')>"
                             MonedaDR="#<@@(docto,'MonedaDR')>"
                             EquivalenciaDR="#<@@(docto,'EquivalenciaDR')>"
                             NumParcialidad="#<@@(docto,'NumParcialidad')>"
