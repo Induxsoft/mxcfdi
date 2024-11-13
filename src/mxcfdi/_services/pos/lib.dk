@@ -5,7 +5,7 @@ module ":pos"
     #include "mxcfdi/emision/model.dk"
     // #include "inventario/movimientos.dkh"
 	// #include "efectivo/movimientos.dkh"
-	// #include "cxc/movimientos.dkh"
+	#include "cxc/movimientos.dkh"
 	#include "ventas/_lib/config.dk"
     // #include "ventas/_lib/list.queries.dk"
     #include "ventas/procesos.dkh"
@@ -102,7 +102,7 @@ module ":pos"
         ifactura = dbr.num(db,"SELECT LAST_INSERT_ID();",@null)
         params<"ifactura"> : ifactura
 
-        codeblock "Verificar 'doc_compra' en dventa"
+        codeblock "Verificar 'doc_partida' en dventa"
         {
             do dbr.str(db,"SELECT doc_partida FROM dventa LIMIT 1",@null)
             exception
@@ -143,19 +143,19 @@ module ":pos"
         do dbr.execute(db,"UPDATE venta SET aplicadoa = @ifactura WHERE sys_pk = @iticket",params)
 
         if @@(factura,"#formapago") == @fp_contado { do erp.ventas.procesos.setStatus(db,ifactura,@fp_contado) }
-        // else if @@(factura) == @fp_credito
-        // {
-        //     using params
-        //     {
-        //         @"iventa": ifactura
-        //         @"icliente": @@(factura,"#icliente")
-        //         @"flimite": date_str(@@(factura,"&vencimiento"),"yyyy-MM-dd")
-        //         @"referencia": @@(factura,"$referencia")
-        //         @"documento": @@(factura,"#documento")
-        //         @"concepto": "Venta a crédito"
-        //     }
-        //     do erp.ventas.procesos.liquidacionCredito(db,params)
-        // }
+        else if @@(factura,"#formapago") == @fp_credito
+        {
+            using params
+            {
+                @"iventa": ifactura
+                @"icliente": @@(factura,"#icliente")
+                @"flimite": date_str(@@(factura,"&vencimiento"),"yyyy-MM-dd")
+                @"referencia": @@(factura,"$referencia")
+                @"documento": @@(factura,"#documento")
+                @"concepto": "Venta a crédito"
+            }
+            do erp.ventas.procesos.liquidacionCredito(db,params)
+        }
 
         // Aplicar factura (ticket) timbrado
         ref comprobante = parse.xmlStr(tkt_xml)

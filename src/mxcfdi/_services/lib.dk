@@ -21,6 +21,7 @@ module "Funciones para los servicios"
             @open_connection = @true
         }
 
+        if @open_connection { @http_context<"session/idp/database*"> : db }
         return db
     }
     

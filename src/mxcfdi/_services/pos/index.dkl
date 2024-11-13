@@ -8,6 +8,7 @@ module "POS Services"
     #include "dbr.dkh"
     #include "dbr.vars.dkl"
     #include "dbr.folios.dkl"
+    #include "dbr.security.dkl"
     #include "website.dkl"
     #include "mxcfdi/_lib/config.dk"
     #include "mxcfdi/_lib/lib.dk"
@@ -34,7 +35,10 @@ module "POS Services"
         }
 
         if isset("@open_connection"){
-            if @open_connection { do dbr.close(db) }
+            if @open_connection {
+                do dbr.close(db)
+                @http_context<"session/idp/database*"> : db
+            }
         }
 
         exception
@@ -42,7 +46,10 @@ module "POS Services"
             do errordet(@false)
             if isset("@open_connection"){
                 if dbr.in_transaction(db){ do dbr.rollback(db) }
-                if @open_connection { do dbr.close(db) }
+                if @open_connection {
+                    do dbr.close(db)
+                    @http_context<"session/idp/database*"> : db
+                }
             }
 
             code = last_error_code()
