@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module "list.dk"
+module "Emisión de CFDI"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -11,6 +11,7 @@ module "list.dk"
     do @context.begin(@crud_context)
 
     ref data = ifnull(@("&./data"),list.create())
+    ref titles = ifnull(@("&./titles"),record.create())
     ref itemactions = ifnull(@("&./itemactions"),list.create())
     ref itemreports = ifnull(@("&./itemreports"),list.create())
 
@@ -216,14 +217,17 @@ module "list.dk"
         @"jscurrentcontext": "list.getCurrentContext"
     }
 
-    #$ div(class="container-fluid p-0")
+    #$
+    div(class="container-fluid" id="view")
     {
-        link(href="#<@CSS_MAIN>" rel="stylesheet")
-
-        #! do uie.printV12FormBar(nav_config)
-
-        #$ div(id="work_area" class="container-section mt-1 p-2 pt-0")
+        link(href="#<@CSS_MAIN>" rel="stylesheet"){$""}
+        // Filtros y acciones
+        section(id="top_area")
         {
+            #!
+            do uie.printV12FormBar(nav_config)
+            #$
+
             form(action="./" method="GET" id="form_filter" class="no-print mb-1")
             {
                 div(class="d-flex align-items-center")
@@ -293,41 +297,70 @@ module "list.dk"
                     }
                 }
             }
-
-            /* nav
+        }
+        // Contenido principal
+        section(id="work_area")
+        {
+            div(class="show-on-print")
             {
-                div(class="nav nav-tabs mb-2" id="nav-tab" role="tablist")
+                p(class="text-center my-0"){$"#<@@(titles,'$title')>"}
+                p(class="text-center my-0"){$"#<@@(titles,'$subtitle')>"}
+                p(class="text-center my-0"){$"#<@@(titles,'$subtitle_2')>"}
+
+                div(class="row")
                 {
-                    button(class="nav-link #<ifstr(show_tab=='ingresos','active','')>" id="nav-ingresos-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-ingresos" type="button" role="tab" "aria-controls"="nav-ingresos" "aria-selected"="#<ifstr(show_tab=='ingresos','true','false')>"){$"Ingresos"}
-                    button(class="nav-link #<ifstr(show_tab=='egresos','active','')>" id="nav-egresos-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-egresos" type="button" role="tab" "aria-controls"="nav-egresos" "aria-selected"="#<ifstr(show_tab=='egresos','true','false')>"){$"Egresos"}
-                    button(class="nav-link #<ifstr(show_tab=='pagos','active','')>" id="nav-pagos-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-pagos" type="button" role="tab" "aria-controls"="nav-pagos" "aria-selected"="#<ifstr(show_tab=='pagos','true','false')>"){$"Pagos"}
+                    div(class="col-3 text-start")
+                    {
+                        small(class="d-block"){ $"#<cut(@('$http/session/user/name'),25)>" }
+                        small(class="d-block"){ $"#<date_str(now(),'dd/MMM/yyyy')>" }
+                    }
+                    div(class="col-6 text-center")
+                    {
+                        h4(class=""){$"Informe general de #<show_tab>"}
+                    }
+                    div(class="col-3 text-end")
+                    {
+                        small(class="d-block" id="lbl_filter_1"){$""}
+                        small(class="d-block" id="lbl_filter_2"){$""}
+                        small(class="d-block" id="lbl_filter_3"){$""}
+                    }
                 }
             }
-            div(class="tab-content")
-            {
-                div(class="tab-pane fade #<ifstr(show_tab=='ingresos','show active','')>" id="nav-ingresos" role="tabpanel" "aria-labelledby"="nav-ingresos-tab"){$""}
-                div(class="tab-pane fade #<ifstr(show_tab=='egresos','show active','')>" id="nav-egresos" role="tabpanel" "aria-labelledby"="nav-egresos-tab"){$""}
-                div(class="tab-pane fade #<ifstr(show_tab=='pagos','show active','')>" id="nav-pagos" role="tabpanel" "aria-labelledby"="nav-pagos-tab"){$""}
-            } */
 
-            #! do uie.dbeditable(table_definition,table_id)
+            #!
+            do uie.dbeditable(table_definition,table_id)
+            #$
+
+            div(class="show-on-print"){p(class="fixed-bottom text-center my-1"){$"#<@@(titles,'$footer')>"}}
         }
+        // Resúmenes y datos al pie
+        section(id="bottom_area")
+        {
+            //////////////////////////////////////////////////////////////////
+            div(id="_custom_area")
+            {
+                script(src="#<@JS_MAIN>"){$""}
+                script(src="#<@JS_EMISION_LIST>"){$""}
+                script(type="text/javascript")
+                {$'
+                    function filter(rf) { rf.form.submit(); }
+                    function between(val,min,max) { return (val >= min && val <= max); }
+                    
+                    document.addEventListener("DOMContentLoaded", () => {
+                        list.tableId = "#<table_id>";
+                        list.url_preview = "#<@url_cfdi_preview>";
+                        list.url_download = "#<@url_download_cfdi>";
+                        list.parameters = #<to.json(@("&parameters"))>;
+                        list.init()
 
-		#$
-        script(src="#<@JS_MAIN>"){$""}
-        script(src="#<@JS_EMISION_LIST>"){$""}
-        script(type="text/javascript")
-        {$'
-            function filter(rf) { rf.form.submit(); }
-            function between(val,min,max) { return (val >= min && val <= max); }
-
-            document.addEventListener("DOMContentLoaded", () => {
-                list.tableId = "#<table_id>";
-                list.url_preview = "#<@url_cfdi_preview>";
-                list.url_download = "#<@url_download_cfdi>";
-                list.parameters = #<to.json(@("&parameters"))>;
-                list.init()
-            });
-        '}
+                        // Script injection
+                        #<@@(@crud_context,"script")>
+                    });
+                '}
+            }
+        }
     }
+    #!
+
+    do @context.end()
 }

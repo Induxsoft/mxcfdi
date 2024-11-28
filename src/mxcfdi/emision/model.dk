@@ -131,6 +131,20 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return filtered
     }
 
+    setPrintTitles::&db,&data
+    {
+        using data
+        {
+            member @"titles"
+            {
+                @"title": dbr.vars.getd(db,"FXCA108","")
+                @"subtitle": dbr.vars.getd(db,"FXCA109","")
+                @"subtitle_2": dbr.vars.getd(db,"FXCA110","")
+                @"footer": dbr.vars.getd(db,"FXCA111","")
+            }
+        }
+    }
+
     prepareView::&db,&params,&data
     {
         //#region prepareView()
@@ -369,6 +383,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"itemreports*": dbr.apps.itemactions(db,"DET084","report","",0)
             @"mxcfdi_nventa": parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
         }
+        do setPrintTitles(db,data)
+        
         return data
 
         exception
@@ -857,6 +873,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     //     return relacionados
     // }
+
     getDoctoRelacionado::&db,irecibo
     {
         new params { @"irecibo": irecibo }
