@@ -48,7 +48,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         ref emisor = @null
 
-        if @@(params,"$_entity_id") == "ventas" {
+        if @@(params,"$_entity_id") == "ventas" 
+        {
             query = "
             SELECT
                 cfg.nic,
@@ -77,14 +78,25 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"nombre":@@(result,"$razon_social")
                 @"rfc": @@(result,"$rfc")
                 @"reg_fiscal": @@(result,"$reg_fiscal")
-                @"domicilios*":@@(result,"&domicilios")
+                @"domicilios*":filterDomicilios(@@(result,"&domicilios"),@true)
                 @"certificados*":@@(result,"&certificados")
             }
         }
 
         return emisor
     }
+    filterDomicilios::&domicilios,fiscal
+    {
+        ref l=list.create()
 
+        for i = 0; i < @count(domicilios)
+        {
+            ref domicilio=@item(domicilios,i)
+            if fiscal && @@(domicilio,"#fiscal"){do list.add(l,domicilio)}
+            else if not(@@(domicilio,"#fiscal")){do list.add(l,domicilio)}
+        }
+        return l
+    }
     getFilUsoCfdi::&db,&params,&data
     {
         ref uso_cfdi = emision.getJsonData(@sat_uso_cfdi)
@@ -169,6 +181,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"list_exportacion*": getJsonData(@sat_exportacion)
                 @"list_tipo_relacion*": getJsonData(@sat_tipo_relacion)
                 @"list_objeto_imp*": getJsonData(@sat_objeto_imp)
+                @"emisor_fsdk*":getEmisor(db,params,@@(data,"&cliente"))
             }
         }
         else if _view == "cancelar-cfdi"
@@ -535,7 +548,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref documento = field.obj(data,"documento")
         ref emisor = field.obj(data,"emisor")
 
-        ref domicilio=getDomicilioEmisor(emisor)
+        ref domicilio=cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
+        
+        if isnull(domicilio){ref domicilio=getDomicilioEmisor(emisor)}
         ref cliente = field.obj(data,"cliente")
 
         program_path = "mxcfdi/emision"
@@ -589,7 +604,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         else { do setConceptos(db,params,data,cfdi) }
 
-        do setAddenda(db,cliente,cfdi,emisor)
+        do setAddenda(db,cliente,cfdi,domicilio)
 
         comprobante = to.base64(replace(runscript(path.concat(program_path,program_name),"cfdi",cfdi)," = ","="))
         return comprobante
@@ -1134,13 +1149,12 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         // do rise_error(0,to.json(cfdi))
     }
 
-    setAddenda::&db,&cliente,&cfdi,&emisor
+    setAddenda::&db,&cliente,&cfdi,&domicilio
     {
         //#region setAddenda()
         if not(@@(cliente,"#uf_addenda")) { return }
 
         ref dir_receptor = dbr.rec(db,@qry_dir_receptor,cliente)
-        ref domicilio=getDomicilioEmisor(emisor)
 
         using cfdi
         {

@@ -34,22 +34,13 @@ program "Generar comprobante xml"
     #include "serialize.dkh"
 
     do @context.begin(@cfdi)
-
+    
     #$
     Comprobante(
         Version="4.0"
         "xmlns:xsi"="http://www.w3.org/2001/XMLSchema-instance"
         "xmlns:cfdi"="http://www.sat.gob.mx/cfd/4"
-        "xmlns:divisas"="http://www.sat.gob.mx/divisas"
-        "xmlns:donat"="http://www.sat.gob.mx/donat"
-        "xmlns:notariospublicos"="http://www.sat.gob.mx/notariospublicos"
-        "xmlns:implocal"="http://www.sat.gob.mx/implocal"
-        "xmlns:ine"="http://www.sat.gob.mx/ine"
-        "xmlns:cartaporte20"="http://www.sat.gob.mx/CartaPorte20"
-        "xmlns:nomina12"="http://www.sat.gob.mx/nomina12"
-        "xmlns:iedu"="http://www.sat.gob.mx/iedu"
-        "xmlns:terceros"="http://www.sat.gob.mx/terceros"
-        "xsi:schemaLocation"="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/divisas http://www.sat.gob.mx/sitio_internet/cfd/divisas/divisas.xsd http://www.sat.gob.mx/donat http://www.sat.gob.mx/sitio_internet/cfd/donat/donat11.xsd http://www.sat.gob.mx/notariospublicos http://www.sat.gob.mx/sitio_internet/cfd/notariospublicos/notariospublicos.xsd http://www.sat.gob.mx/implocal http://www.sat.gob.mx/sitio_internet/cfd/implocal/implocal.xsd http://www.sat.gob.mx/ine http://www.sat.gob.mx/sitio_internet/cfd/ine/ine11.xsd http://www.sat.gob.mx/CartaPorte20 http://www.sat.gob.mx/sitio_internet/cfd/CartaPorte/CartaPorte20.xsd http://www.sat.gob.mx/nomina12 http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd http://www.sat.gob.mx/iedu http://www.sat.gob.mx/sitio_internet/cfd/iedu/iedu.xsd http://www.sat.gob.mx/terceros http://www.sat.gob.mx/sitio_internet/cfd/terceros/terceros11.xsd"
+        "xsi:schemaLocation"="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd "
         Certificado=""
         NoCertificado=""
         Sello=""

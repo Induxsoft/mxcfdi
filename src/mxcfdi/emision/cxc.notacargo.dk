@@ -177,7 +177,7 @@ module "cxc.notacargo.dk"
         @"urlexit": "/!/cxc/clientes/"+@@(entity,"$icliente")+"/balance/"
         member @"hidden" { @"print": @true }
     }
-
+    ref emisor_fsdk=@("&./emisor_fsdk")
     #$
     div(class="container")
     {
@@ -219,26 +219,49 @@ module "cxc.notacargo.dk"
 
                         div(class="row")
                         {
-                            div(class="col-8")
+                            div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_reg_fiscal"){$"Régimen fiscal:"}
                                 ##
                                 do uie.dbSelect(sel_reg_fiscal)
                                 ##
                             }
+                            
                             div(class="col-4")
                             {
-                                label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
+                                label(class="form-label fw-bold" "for"="txt_codpos"){$"Código postal del receptor:"}
                                 input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
-                            div(class="col-6")
+                            div(class="col-4")
+                            {
+                                label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
+                                ##
+                                do uie.dbSelect(sel_uso_cfdi)
+                                ##
+                            }
+                            div(class="col-md-12 col-lg-4")
+                            {
+                                label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
+                                select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
+                                {$""
+                                    #!
+                                    for i = 0; i < @count(@@(emisor_fsdk,"&domicilios"))
+                                    {
+                                        ref domicilio=@item(@@(emisor_fsdk,"&domicilios"),i)
+                                        text=@@(domicilio,"$direccion") + ", "+@@(domicilio,"$colonia")+" C.P. "+@@(domicilio,"$codpos")+" "+@@(domicilio,"$municipio")+" "+@@(domicilio,"$estado")+" "+@@(domicilio,"$pais")
+                                        #$
+                                        option(value="#<@@(domicilio,'$codpos')>"){"#<text>"}
+                                    }
+                                }
+                            }
+                            div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
                                 ##
                                 do uie.dbSelect(sel_forma_pago)
                                 ##
                             }
-                            div(class="col-6")
+                            div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_metodo_pago"){$"Método de Pago:"}
                                 ##
@@ -250,13 +273,7 @@ module "cxc.notacargo.dk"
                                 label(class="form-label" "for"="txt_cond_pago"){$"Condiciones de pago:"}
                                 input(class="form-control rounded-0" type="text" name="cond_pago" value="NO APLICA" id="txt_cond_pago" required="")
                             }
-                            div(class="col-12")
-                            {
-                                label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
-                                ##
-                                do uie.dbSelect(sel_uso_cfdi)
-                                ##
-                            }
+                            
                             div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_exportacion"){$"Exportación:"}

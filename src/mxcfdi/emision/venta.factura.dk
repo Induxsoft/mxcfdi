@@ -14,6 +14,7 @@ module "venta.factura.dk"
     ref @_GET = ifnull(@("&parameters"),record.create())
     ref entity = ifnull(@("&./entity"),record.create())
     ref cliente = ifnull(@("&./cliente"),record.create())
+    ref emisor_fsdk=@("&./emisor_fsdk")
 
 	@_entities_type = @("$parameters/_entities_type")
 	@_entity_id = @("$parameters/_entity_id")
@@ -128,6 +129,8 @@ module "venta.factura.dk"
         @"text_field": "valor"
         @"selected": fd("tipo_relacion","tx",@null)
     }
+    
+
     if @@(sel_tipo_relacion,"$selected") == "" { sel_tipo_relacion<"selected"> : "02" }
 
     fn_print_buttons::
@@ -146,7 +149,7 @@ module "venta.factura.dk"
         @"urlexit": "/!/ventas/venta/"
         member @"hidden" { @"print": @true }
     }
-
+    
     #$
     div(class="container")
     {
@@ -219,7 +222,7 @@ module "venta.factura.dk"
                                 label(class="form-label" "for"="txt_cond_pago"){$"Condiciones de pago:"}
                                 input(class="form-control rounded-0" type="text" name="cond_pago" value="" id="txt_cond_pago" maxlength="1000" required="")
                             }
-                            div(class="col-8")
+                            div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
                                 ##
@@ -232,6 +235,21 @@ module "venta.factura.dk"
                                 ##
                                 do uie.dbSelect(sel_exportacion)
                                 ##
+                            }
+                            div(class="col-md-12 col-lg-4")
+                            {
+                                label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
+                                select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
+                                {$""
+                                    #!
+                                    for i = 0; i < @count(@@(emisor_fsdk,"&domicilios"))
+                                    {
+                                        ref domicilio=@item(@@(emisor_fsdk,"&domicilios"),i)
+                                        text=@@(domicilio,"$direccion") + ", "+@@(domicilio,"$colonia")+" C.P. "+@@(domicilio,"$codpos")+" "+@@(domicilio,"$municipio")+" "+@@(domicilio,"$estado")+" "+@@(domicilio,"$pais")
+                                        #$
+                                        option(value="#<@@(domicilio,'$codpos')>"){"#<text>"}
+                                    }
+                                }
                             }
                         }
                     }

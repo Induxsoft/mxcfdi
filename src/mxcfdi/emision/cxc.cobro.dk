@@ -128,7 +128,7 @@ module "cxc.cobro.dk"
         @"urlexit": "/!/cxc/clientes/"+@@(entity,"$icliente")+"/balance/"
         member @"hidden" { @"print": @true }
     }
-
+    ref emisor_fsdk=@("&./emisor_fsdk")
     #$
     div(class="container")
     {
@@ -189,18 +189,34 @@ module "cxc.cobro.dk"
                                 label(class="form-label" "for"="txt_codpos"){$"C. P Receptor:"}
                                 input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
-                            div(class="col-lg-6 col-md-6")
+                            div(class="col-lg-4 col-md-6")
                             {
                                 label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
                                 ##
                                 do uie.dbSelect(sel_forma_pago)
                                 ##
                             }
-                            div(class="col-lg-6 col-md-3")
+                            div(class="col-md-12 col-lg-4")
+                            {
+                                label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
+                                select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
+                                {$""
+                                    #!
+                                    for i = 0; i < @count(@@(emisor_fsdk,"&domicilios"))
+                                    {
+                                        ref domicilio=@item(@@(emisor_fsdk,"&domicilios"),i)
+                                        text=@@(domicilio,"$direccion") + ", "+@@(domicilio,"$colonia")+" C.P. "+@@(domicilio,"$codpos")+" "+@@(domicilio,"$municipio")+" "+@@(domicilio,"$estado")+" "+@@(domicilio,"$pais")
+                                        #$
+                                        option(value="#<@@(domicilio,'$codpos')>"){"#<text>"}
+                                    }
+                                }
+                            }
+                            div(class="col-lg-4 col-md-6")
                             {
                                 label(class="form-label" "for"="txt_no_operacion"){$"No. Operación:"}
                                 input(class="form-control rounded-0" type="text" name="no_operacion" value="" id="txt_no_operacion" required="")
                             }
+                            
                         }
                     }
 
