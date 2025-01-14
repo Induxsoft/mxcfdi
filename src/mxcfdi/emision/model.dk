@@ -990,9 +990,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         for i = 0; i < list.count(doctosrel)
         {
             ref docto = list.obj(doctosrel,i)
-            if field.str(docto,"IdDocumento") == "" { do rise_error(500,"Es necesario timbrar todos los documentos relacionados.") }
+            
+            if @@(docto,"$IdDocumento") == "" { do rise_error(500,"Es necesario timbrar todos los documentos relacionados.") }
             ref DoctoRelacionado = record.copy(docto,"IdDocumento,Serie,Folio,MonedaDR,EquivalenciaDR,NumParcialidad,ImpSaldoAnt,ImpPagado,ImpSaldoInsoluto,ObjetoImpDR")
-
+            
             if field.str(docto,"ObjetoImpDR") == "02"
             {
                 ref response = emision.descargar(db,@@(docto,"$IdDocumento"),"xmlb64")
@@ -1005,7 +1006,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 ref retenciones_dr = list.create()
 
                 Proporcion = (Pagado / cfdi.attr(comprobante,"#Total"))
-
+    
                 for j = 0; j < list.count(cfdi.nodes(traslados))
                 {
                     ref traslado = cfdi.attributes(list.obj(cfdi.nodes(traslados),j))
@@ -1080,7 +1081,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
             do list.add(relacionados,DoctoRelacionado)
         }
-
+    
         go foreach.fobj(value:tras_dr) with(_traslados_dr)
         {
             using tras_dr
@@ -1143,10 +1144,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 }
             }
         }
+        
         if @@(cfdi,"$Complemento/Pago/MonedaP") == "MXN" { cfdi<"Complemento/Pago/TipoCambioP"> : 1 }
 
         do emision.setDoctoRelacionado(db,data,cfdi)
-        // do rise_error(0,to.json(cfdi))
     }
 
     setAddenda::&db,&cliente,&cfdi,&domicilio
@@ -1358,11 +1359,12 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 break
             }
         }
+        
         params<"_view"> : view
         
         cfdi_id = md5(@@(params,"$_entity_id")+@@(params,"$_view")+@@(documento,"$referencia"))
         comprobante = generarCFDI(db,params,data)
-
+        
         new payload
         {
             @"cti": field.str(emisor,"cti")
