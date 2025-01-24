@@ -238,6 +238,21 @@ module "cxc.bonificacion.dk"
                                 do uie.dbSelect(sel_uso_cfdi)
                                 ##
                             }
+                            div(class="col-md-12 col-lg-4")
+                            {
+                                label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
+                                select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
+                                {$""
+                                    #!
+                                    for i = 0; i < @count(@@(emisor_fsdk,"&domicilios"))
+                                    {
+                                        ref domicilio=@item(@@(emisor_fsdk,"&domicilios"),i)
+                                        text=@@(domicilio,"$direccion") + ", "+@@(domicilio,"$colonia")+" C.P. "+@@(domicilio,"$codpos")+" "+@@(domicilio,"$municipio")+" "+@@(domicilio,"$estado")+" "+@@(domicilio,"$pais")
+                                        #$
+                                        option(value="#<@@(domicilio,'$codpos')>"){"#<text>"}
+                                    }
+                                }
+                            }
                             div(class="col-4")
                             {
                                 label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
@@ -264,21 +279,6 @@ module "cxc.bonificacion.dk"
                                 ##
                                 do uie.dbSelect(sel_exportacion)
                                 ##
-                            }
-                            div(class="col-md-12 col-lg-4")
-                            {
-                                label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
-                                select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
-                                {$""
-                                    #!
-                                    for i = 0; i < @count(@@(emisor_fsdk,"&domicilios"))
-                                    {
-                                        ref domicilio=@item(@@(emisor_fsdk,"&domicilios"),i)
-                                        text=@@(domicilio,"$direccion") + ", "+@@(domicilio,"$colonia")+" C.P. "+@@(domicilio,"$codpos")+" "+@@(domicilio,"$municipio")+" "+@@(domicilio,"$estado")+" "+@@(domicilio,"$pais")
-                                        #$
-                                        option(value="#<@@(domicilio,'$codpos')>"){"#<text>"}
-                                    }
-                                }
                             }
                             div(class="col-4")
                             {
