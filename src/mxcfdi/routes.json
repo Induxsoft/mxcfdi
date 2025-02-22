@@ -1,1 +1,19 @@
-[{"pattern":"/_program/","routes":[{"route":"/config/","entity_type":"config"},{"route":"/emision/","entity_type":"emision"}]}]
+[
+    {
+        "pattern": "/_program/",
+        "routes": [
+            {
+                "route": "/config/",
+                "entity_type": "config"
+            },
+            {
+                "route": "/emision/",
+                "entity_type": "emision"
+            },
+            {
+                "route": "/load-cfdi/",
+                "entity_type": "loadcfdi"
+            }
+        ]
+    }
+]

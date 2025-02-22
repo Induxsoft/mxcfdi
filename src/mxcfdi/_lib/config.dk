@@ -37,6 +37,8 @@ module "Variables globales"
 	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
 	@default_scfdi_path = "data/@qname/mxcfdi/success_cfdi/@emisor/"
 	@default_fcfdi_path = "data/@qname/mxcfdi/failure_cfdi/@emisor/"
+	@default_path_cfdi_loaded="data/@qname/mxcfdi/cfdis-loaded/" //crear compras desde un cfdi
+
 	@json_path = "mxcfdi/_static/json"
 	
 	@sat_exportacion = "sat.c_Exportacion.json"
@@ -72,6 +74,7 @@ module "Variables globales"
 	@JS_EMISION = "/$/mxcfdi/js/emision.js"
 	@JS_EMISION_LIST = "/$/mxcfdi/js/emision.list.js"
 	@JS_FORM_SENDMAIL = "/$/mxcfdi/js/form.sendmail.js"
+	@JS_LOAD_CFDI = "/$/mxcfdi/js/load-cfdi.js"
 
 	//* ======================================== [ _PACKAGE ]
 	@url_cfdi_preview = "/!/mxcfdi/emision/@_entity_id/cfdi-preview/?doc=@doc"

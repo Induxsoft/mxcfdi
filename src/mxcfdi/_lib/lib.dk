@@ -121,7 +121,16 @@ module "Funciones de propósito general"
             return @null
         }
     }
-
+    function RecFromList(&list,key,value)
+    {
+        ref rec=record.create()
+        for i = 0; i < @count(list)
+        {
+            ref itm=@item(list,i)
+            rec<@@(itm,key)>:@@(itm,value)
+        }
+        return rec
+    }
     function FixTo(value,precision)
     {
         number = parse.num(value)

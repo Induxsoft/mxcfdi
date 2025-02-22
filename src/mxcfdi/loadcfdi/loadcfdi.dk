@@ -1,0 +1,47 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+
+    do @context.begin(@crud_context)
+
+    new nav_config
+    {
+        @"title": "Cargar CFDI"
+        @"buttons*": @null
+        @"urlexit": "/" //"javascript:window.history.back();"
+        @"jscurrentcontext": "list.getCurrentContext"
+    }
+
+    #$
+    div(class="container v12-list-view" id="view")
+    {
+        section(id="top_area")
+        {
+            #!
+            do uie.printV12FormBar(nav_config)
+            #$
+        }
+        section(id="work_area")
+        {
+            form(method="POST" enctype="multipart/form-data" id="form-load-cfdi")
+            {
+                div(class="row")
+                {
+                    input(type="hidden" id="load-cfdi" name="load-cfdi" value="true")
+                    div(class="col-md-6")
+                    {
+                        input(type="file" required="true" class="induxsoft-form-control induxsoft-form-control-sm" id="cfdi" name="cfdi" accept=".xml" )
+                    }
+                    div(class="col-md-6")
+                    {
+                        button(type="button" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" onclick="InduxsoftCrudlModel.Submit('form-load-cfdi')"){"SUBIR"}
+                    }
+                }
+            }
+        }
+    }
+}

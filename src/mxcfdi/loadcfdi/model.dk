@@ -1,0 +1,208 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+   list::&db,&params
+   {
+      path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
+      path_file=path.concat(path_dir,@@(params,"$file-cfdi")+".xml")
+
+      if not(file.exists(path_file)){do rise_error(500,"Archivo no encontrado ")}
+
+      ref entity=CreateDataFromCFDI(db,params,path_file)
+
+      return entity
+   }
+   read::&db,&params
+   {
+      ref entity= entity.read(db,params)
+      return entity
+   }
+   create::&db,&params,&data
+   {
+      if parse.bool(@@(data,"$load-cfdi"))
+      {
+         ref entity=SaveCfdiLoaded(db,params,data)
+      }
+      else 
+      {
+         ref entity= entity.create(db,params,data)    
+      }
+      
+      return entity
+   }
+  
+   //load xml
+   Load_cfdi::&db,&params
+   {
+      return list.create()
+   }
+   SaveCfdiLoaded::&db,&params,&data
+   {
+      ref files=@@(@http_context,"&request/files")
+      if isnull(files) || @count(files)< 1{do rise_error(500,"No se recibío un CFDI")}
+      if @count(files)> 1{do rise_error(500,"Solo puede subir un archivo")}
+
+      ref file=@item(files,0)
+      if not(file.exists(@@(file,"$temp_file"))) || @@(file,"#size")<1{do rise_error(500,"El archivo no es válido")}
+
+      ref cfdi=parse.xmlStr(file.rtext(@@(file,"$temp_file")))
+
+      if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es válido")}
+
+      path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
+      do dir.ensure(path_dir)
+
+      uuid=uuid()
+      path_file=path.concat(path_dir,uuid+".xml")
+
+      do file.copy(@@(file,"$temp_file"),path_file)
+
+      new rec
+      {
+         @"url_redir":"./?file-cfdi="+uuid
+      }
+      return rec
+   }
+   CreateDataFromCFDI::&db,&params,path_file
+   {
+      ref cfdi=parse.xmlStr(file.rtext(path_file))
+      if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es víalido")}
+
+      ref proveedor=cfdi.getElementByTagName(cfdi,"cfdi:Emisor")
+
+      params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
+      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre from proveedor where rfc=@proveedor",params)
+
+      ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
+      ref conceptos=cfdi.nodes(node_conceptos)
+
+      new rec
+      {
+         @"proveedor*":ifnull(dt_proveedor,record.create())
+      }
+
+      sql="select 
+      p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
+      p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion 
+      from producto p 
+      where p.codigo=@codigo
+      or p.codbar1=@codigo
+      or p.codbar2=@codigo
+      or p.codbar3=@codigo
+      or p.uf_codigoparaproveedor1=@codigo
+      or p.uf_codigoparaproveedor2=@codigo
+      or p.uf_codigoparaproveedor3=@codigo"
+
+      ref array_productos_noexist=list.create()
+      ref array_productos_exist=list.create()
+      
+      for i = 0; i < @count(conceptos)
+      {
+         ref concepto=@item(conceptos,i)
+         params<"codigo">:cfdi.attr(concepto,"$NoIdentificacion")
+
+         ref producto=dbr.rec(db,sql,params)
+         if isnull(producto)
+         {
+            ref p=NewRec()
+            using p
+            {
+               @"codigoprod1":ifstr(isnull(dt_proveedor),@@(params,"$codigo"),@@(dt_proveedor,"$codigo"))
+               @"codigo":@@(params,"$codigo")
+               @"descripcion":cfdi.attr(concepto,"$Descripcion")
+               @"ultimocosto": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
+               @"precio1": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
+            }
+            do list.add(array_productos_noexist,p)
+         }
+         else 
+         {
+            new p
+            {
+               @"sys_pk":@@(producto,"#sys_pk")
+            }
+            do list.add(array_productos_exist,p)
+         }
+      }
+
+      if @count(array_productos_noexist) < 1 && not(isnull(dt_proveedor))
+      {
+         //crear la compra y redirigir
+         do rise_error(500,"Crear compra y redirigir")
+      }
+      
+      ref linea=@null
+      ref divisa=@null
+      ref impuestos=@null
+      ref clase=@null
+      ref tipo=@null
+      ref metodovaluacion=@null
+      ref marca=@null
+      ref departamento=@null
+      ref proveedores=@null
+
+      if @count(array_productos_noexist)> 0
+      {
+         ref linea=dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from linea",@null)
+         ref divisa=dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa",@null)
+         ref impuestos=dbr.list(db,"select sys_pk,nombre from cfgimpuesto",@null)
+
+         ref clase=dbr.list(db,"select id sys_pk,const nombre from cclaseproducto where id in(1,2,3,4)",@null)
+         ref tipo=dbr.list(db,"select id sys_pk,const nombre from ctipoproducto",@null)
+         ref metodovaluacion=dbr.list(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
+         ref marca=dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from marca",@null)
+         ref departamento=dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from departamento",@null)
+         ref proveedores=dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,nombre)nombre from proveedor",@null)
+      }
+
+      using rec
+      {
+         @"productos_exist*":array_productos_exist
+         @"productos_noexist*":array_productos_noexist
+         @"lineas*":RecFromList(linea,"$sys_pk","$descripcion")
+         @"divisas*": RecFromList(divisa,"$sys_pk","$descripcion")
+         @"impuestos*": RecFromList(impuestos,"$sys_pk","$nombre")
+         @"clases*":  RecFromList(clase,"$sys_pk","$nombre")
+         @"tipos*": RecFromList(tipo,"$sys_pk","$nombre")
+         @"metodovaluacion*": RecFromList(metodovaluacion,"$sys_pk","$nombre")
+         @"marcas*": RecFromList(marca,"$sys_pk","$descripcion")
+         @"departamentos*": RecFromList(departamento,"$sys_pk","$descripcion")
+         @"proveedores*": RecFromList(proveedores,"$sys_pk","$nombre")
+      }
+      return rec
+   }
+
+   NewRec::
+   {
+      new rec
+      {
+         @"codigoprod1":""
+         @"codigo":""
+         @"descripcion":""
+         @"codbar1":""
+         @"codbar2":""
+         @"codbar3":""
+         @"unidad":"PZA"
+         @"factor": 1
+         @"unidadcompra":"PZA"
+         @"ultimocosto": 0
+         @"precio1": 0
+         @"precio2": 0
+         @"precio3": 0
+         @"precio4": 0
+         @"precio5": 0
+         @"preciopuntos": 0
+         @"maximo": 0
+         @"mainimo": 0
+         @"puntoreorden": 0 
+         @"diasentrega": 0 
+         @"lote":"No"
+         @"serie":"No"
+         @"visible":"Sí"
+         @"nota":""
+      }
+
+      return rec
+   }
+}

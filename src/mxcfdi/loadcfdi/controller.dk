@@ -1,0 +1,16 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+   point @create to create
+   point @list to Load_cfdi
+
+    _view=@@(params,"$_view")
+    @list_view="loadcfdi.dk"
+    
+    if @@(params,"$file-cfdi")!=""
+    {
+        @list_view="list.dk"
+        point @list to list
+    }
+}

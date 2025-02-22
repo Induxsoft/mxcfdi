@@ -1,0 +1,110 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "mxcfdi/_lib/config.dk"
+
+    do @context.begin(@crud_context)
+
+    new nav_config
+    {
+        @"title": "Registro de nuevos productos"
+        @"buttons*": @null
+        @"urlexit": "." //"javascript:window.history.back();"
+        @"jscurrentcontext": "list.getCurrentContext"
+    }
+
+    #$
+    div(class="container v12-list-view" id="view")
+    {
+        script(src="#<@JS_LOAD_CFDI>"){""}
+        section(id="top_area")
+        {
+            #!
+            do uie.printV12FormBar(nav_config)
+            #$
+        }
+        section(id="work_area")
+        {
+            #! if @("$error/message")!=""
+            {
+                #$
+                div(class="alert alert-danger"){"#<@('$error/message')>"}
+            }
+            div(class="d-flex justify-content-end")
+            {
+                button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" onclick="load_cfdi.Procesar();"){"Guardar"}
+            }
+
+            form(method="POST" id="form-detalle")
+            {
+                input(type="hidden" class="induxsoft-form-control" id="productos_exist" name="productos_exist" value="#<to.json(@('&./productos_exist'))>")
+
+                div
+                {
+                    label(class="form-label" "for"="proveedor"){$"Proveedor:"}
+                    "input-key"(name="proveedor" id="proveedor" "data-key"="sys_pk" required="true" "data-search"="codigo" "data-text"="nombre" "data-source"="" "data-value"="#<to.json(@('&./proveedor'))>" columns="codigo,nombre" colcaptions="Código,Nombre" "control-styles"="#<ik_sm_style>"){$""}
+                }
+                div
+                {
+                    hr{}
+                    
+                    h6{"Los siguientes productos no se encuentran en el sistema. Complete la información para realizar el registro."}
+
+                    "edit-table"(id="tbl_datail" data="#<to.json(@('&./productos_noexist'))>" "auto-confirm"="true" style="width:100%;"
+                    "row-height"="1.2rem"
+                    "control-styles"="
+                        tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+                        tr td { font-size:.8rem; }
+                        #__table_input { font-size:unset !important; }
+                    ")
+                    {
+                        "edit-thead"
+                        {
+                            "edit-tr"
+                            {
+                                "edit-th"(type="NoEditable" field="codigoprod1"){$"CodigoProveedor1"}
+                                "edit-th"(type="Text"   field="codigo" ){$"Código"}
+                                "edit-th"(type="Text"   field="descripcion"){$"Descripción"}
+                                "edit-th"(type="Select" field="linea" keyfield="pklinea" options="#<to.json(@('&./lineas'))>"){$"Línea"}
+                                "edit-th"(type="Select" field="divisa" options="#<to.json(@('&./divisas'))>"){$"Divisa"}
+                                "edit-th"(type="Select" field="impuesto" options="#<to.json(@('&./impuestos'))>"){$"Impuestos"}
+                                "edit-th"(type="Select" field="clase"    options="#<to.json(@('&./clases'))>"){$"Clase"}
+                                "edit-th"(type="Select" field="tipo"     options="#<to.json(@('&./tipos'))>"){$"Tipo"}
+                                "edit-th"(type="Select" field="metodovaluacion" options="#<to.json(@('&./metodovaluacion'))>"){$"MetodoValuación"}
+                                "edit-th"(type="Text"   field="codbar1" ){$"CódigoBarras1"}
+                                "edit-th"(type="Text"   field="codbar2" ){$"CódigoBarras2"}
+                                "edit-th"(type="Text"   field="codbar3" ){$"CódigoBarras3"}
+                                "edit-th"(type="Text"   field="unidad" ){$"UnidadEstandar"}
+                                "edit-th"(type="Text"   field="factor" ){$"Factor"}
+                                "edit-th"(type="Text"   field="unidadcompra" ){$"UnidadCompra"}
+                                "edit-th"(type="Number" field="ultimocosto" ){$"UltimoCosto"}
+                                "edit-th"(type="Number" field="precio1" ){$"Precio1"}
+                                "edit-th"(type="Number" field="precio2" ){$"Precio2"}
+                                "edit-th"(type="Number" field="precio3" ){$"Precio3"}
+                                "edit-th"(type="Number" field="precio4" ){$"Precio4"}
+                                "edit-th"(type="Number" field="precio5" ){$"Precio5"}
+                                "edit-th"(type="Number" field="preciopuntos" ){$"PrecioPuntos"}
+                                "edit-th"(type="Select" field="marca"           options="#<to.json(@('&./marcas'))>"){$"Marca"}
+                                "edit-th"(type="Select" field="departamento"    options="#<to.json(@('&./departamentos'))>"){$"Departamento"}
+                                "edit-th"(type="Select" field="proveedor1"      options="#<to.json(@('&./proveedores'))>"){$"Proveedor1"}
+                                "edit-th"(type="Number" field="maximo" ){$"Máximo"}
+                                "edit-th"(type="Number" field="mainimo" ){$"Mínimo"}
+                                "edit-th"(type="Number" field="puntoreorden" ){$"PuntoReorden"}
+                                "edit-th"(type="Number" field="diasentrega" ){$"DíasEntrega"}
+                                "edit-th"(type="Check" field="lote" ){$"Lote"}
+                                "edit-th"(type="Check" field="serie" ){$"Serie"}
+                                "edit-th"(type="Check" field="visible" ){$"Visible"}
+                                "edit-th"(type="Memo" field="nota"){$"Notas"}
+                            }
+                        }
+                    }
+                }
+                
+            }
+        }
+    }
+}
