@@ -121,6 +121,11 @@ module "Funciones de propósito general"
             return @null
         }
     }
+
+    function CleanText(text)
+    {
+       return trim(replace(ranychars(text,'\\/:*?"<>|(-)[+]#$%&=,'," ")," ","_"))
+    }
     function RecFromList(&list,key,value)
     {
         ref rec=record.create()

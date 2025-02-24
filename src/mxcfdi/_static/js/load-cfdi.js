@@ -24,7 +24,7 @@ var load_cfdi=
 
         if (!this.form_detalle.reportValidity()) return;
 
-        var proveedor=this.proveedor.getData();
+        var proveedor=this.proveedor.getValue();
         if(proveedor==null || Object.keys(proveedor)<1)
         {
             alert("Debe seleccionar un proveedor");
@@ -33,38 +33,46 @@ var load_cfdi=
 
         for (let i = 0; i < this.tbl_datail.DataArray.length; i++) 
         {
-            var item = array[i];
+            var item = this.tbl_datail.DataArray[i];
             if((item.codigo??"").trim()=="")
             {
                 alert(`Debe colocar un código del producto, fila ${i+1}`);
+                return;
             }
             if((item.descripcion??"").trim()=="")
             {
                 alert(`Debe colocar una descripción del producto, fila ${i+1}`);
+                return;
             }
-            if(Number(item.linea)<1)
+            if(typeof item.linea === "undefined" || Number(item.linea)<1)
             {
                 alert(`Debe seleccionar una línea, fila ${i+1}`);
+                return;
             }
-            if(Number(item.divisa)<1)
+            if(typeof item.divisa === "undefined" || Number(item.divisa)<1)
             {
                 alert(`Debe seleccionar una divisa, fila ${i+1}`);
+                return;
             }
-            if(Number(item.impuesto)<1)
+            if(typeof item.impuesto === "undefined" || Number(item.impuesto)<1)
             {
-                alert(`Debe seleccionar una divisa, fila ${i+1}`);
+                alert(`Debe seleccionar un impuesto, fila ${i+1}`);
+                return;
             }
-            if(Number(item.clase)<1)
+            if(typeof item.clase === "undefined" || Number(item.clase)<1)
             {
                 alert(`Debe seleccionar una clase, fila ${i+1}`);
+                return;
             }
-            if(Number(item.tipo)<1)
+            if(typeof item.tipo === "undefined" || Number(item.tipo)<1)
             {
                 alert(`Debe seleccionar un tipo, fila ${i+1}`);
+                return;
             }
-            if(Number(item.metodovaluacion)<1)
+            if(typeof item.metodovaluacion === "undefined" || Number(item.metodovaluacion)<1)
             {
                 alert(`Debe seleccionar un método de valuación, fila ${i+1}`);
+                return;
             }
         }
 

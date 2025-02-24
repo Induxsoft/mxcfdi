@@ -2,13 +2,27 @@
 #!
 module ""
 {
-   list::&db,&params
+   #include "compras/_lib/query_list.dk"
+   #include "compras/_lib/config.dk"
+   #include "compras/doc_compra/model.dk"
+   #include "webshell.dkh"
+
+   GetPathFile::idfile
    {
+      if file.exists(idfile){return idfile}
+
       path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
-      path_file=path.concat(path_dir,@@(params,"$file-cfdi")+".xml")
+      path_file=path.concat(path_dir,idfile+".xml")
 
       if not(file.exists(path_file)){do rise_error(500,"Archivo no encontrado ")}
 
+      return path_file
+   }
+
+   list::&db,&params
+   {
+      path_file=GetPathFile(@@(params,"$file-cfdi"))
+      
       ref entity=CreateDataFromCFDI(db,params,path_file)
 
       return entity
@@ -26,7 +40,7 @@ module ""
       }
       else 
       {
-         ref entity= entity.create(db,params,data)    
+         ref entity= CreateCompra(db,params,data)    
       }
       
       return entity
@@ -53,10 +67,16 @@ module ""
       path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
       do dir.ensure(path_dir)
 
-      uuid=uuid()
+      uuid=CleanText(file.justname(@@(file,"$filename")))
       path_file=path.concat(path_dir,uuid+".xml")
 
       do file.copy(@@(file,"$temp_file"),path_file)
+
+      params<"validate">:@true
+      
+      ref compra=CreateDataFromCFDI(db,params,path_file)
+      
+      if not(isnull(compra)){return compra}
 
       new rec
       {
@@ -106,6 +126,13 @@ module ""
          if isnull(producto)
          {
             ref p=NewRec()
+
+            ref def_divisa=dbr.rec(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where codigo='mxn'",@null)
+            ref def_impuesto=dbr.rec(db,"select sys_pk,nombre from cfgimpuesto ORDER BY sys_pk",@null)
+            ref def_clase=dbr.rec(db,"select id sys_pk,const nombre from cclaseproducto where id =4",@null)
+            ref def_tipo=dbr.rec(db,"select id sys_pk,const nombre from ctipoproducto where id=2",@null)
+            ref def_metodovaluacion=dbr.rec(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
+
             using p
             {
                @"codigoprod1":ifstr(isnull(dt_proveedor),@@(params,"$codigo"),@@(dt_proveedor,"$codigo"))
@@ -113,6 +140,52 @@ module ""
                @"descripcion":cfdi.attr(concepto,"$Descripcion")
                @"ultimocosto": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
                @"precio1": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
+               @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
+            }
+            //divisa
+            if not(isnull(def_divisa))
+            {
+               using p
+               {
+                  @"iddivisa": @@(def_divisa,"#sys_pk")
+                  @"divisa": @@(def_divisa,"$descripcion")
+               }
+            }
+            //impuesto
+            if not(isnull(def_impuesto))
+            {
+               using p
+               {
+                  @"idimpuesto":@@(def_impuesto,"#sys_pk")
+                  @"impuesto":@@(def_impuesto,"$nombre")
+               }
+            }
+            //clase
+            if not(isnull(def_clase))
+            {
+               using p
+               {
+                  @"idclase":@@(def_clase,"#sys_pk")
+                  @"clase":@@(def_clase,"$nombre")
+               }
+            }
+            //tipo
+            if not(isnull(def_tipo))
+            {
+               using p
+               {
+                  @"idtipo":@@(def_tipo,"#sys_pk")
+                  @"tipo":@@(def_tipo,"$nombre")
+               }
+            }
+            //valuacion
+            if not(isnull(def_metodovaluacion))
+            {
+               using p
+               {
+                  @"idmetodovaluacion":@@(def_metodovaluacion,"#sys_pk")
+                  @"metodovaluacion":@@(def_metodovaluacion,"$nombre")
+               }
             }
             do list.add(array_productos_noexist,p)
          }
@@ -121,17 +194,27 @@ module ""
             new p
             {
                @"sys_pk":@@(producto,"#sys_pk")
+               @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
             }
             do list.add(array_productos_exist,p)
          }
       }
 
-      if @count(array_productos_noexist) < 1 && not(isnull(dt_proveedor))
+      if @count(array_productos_noexist) < 1 && @count(array_productos_exist)> 0 && not(isnull(dt_proveedor))
       {
          //crear la compra y redirigir
-         do rise_error(500,"Crear compra y redirigir")
+         new data
+         {
+            @"productos_exist":to.json(array_productos_exist)
+            @"detalle":"[]"
+            @"proveedor":@@(dt_proveedor,"#sys_pk")
+            @"file-cfdi":path_file
+         }
+         return CreateCompra(db,params,data)
       }
       
+      if parse.bool(@@(params,"$validate")){return @null}
+
       ref linea=@null
       ref divisa=@null
       ref impuestos=@null
@@ -173,6 +256,128 @@ module ""
       return rec
    }
 
+   CreateCompra::&db,&params,&data
+   {
+      do errordet(@false)
+
+      ref productos_exist=from.json(@@(data,"$productos_exist"))
+      ref detalle=from.json(@@(data,"$detalle"))
+      proveedor=@@(data,"#proveedor")
+
+      // ref nuevabd
+      do dbr.begin(db)
+
+      //recorrer detalle para insertar productos
+      sql="SELECT sys_pk,codigo,
+               descripcion,
+               ilinea,
+               idivisa,
+               impuestos,
+               iclase,
+               itipo,
+               metodovaluacion,
+               codbar1,
+               codbar2,
+               codbar3,
+               unidad,
+               factorb,
+               unidadb,
+               costoultimo,
+               precio1,
+               precio2,
+               precio3,
+               precio4,
+               precio5,
+               ppuntos,
+               maximo,
+               minimo,
+               puntoro,
+               diasentrega,
+               reqlote,
+               reqserie,
+               uf_sat_proser,
+               uf_sat_uniproser 
+               FROM producto where sys_pk=@sys_pk or sys_guid=@sys_guid"
+
+      ref dcompra=list.create()
+      for i = 0; i < @count(detalle)
+      {
+         ref dt=@item(detalle,i)
+         ref producto=NewProd(dt)
+         
+         if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+
+         do dbr.insert(db,"producto",producto)
+
+         producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
+         if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
+
+         producto<"notas">:@@(dt,"$nota")
+         do list.add(dcompra,NewDcompra(db,producto))
+      }
+      
+
+      for j = 0; j < @count(productos_exist)
+      {
+         ref dt=@item(productos_exist,j)
+         ref producto=dbr.rec(db,sql,dt)
+
+         if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
+
+         producto<"notas">:@@(dt,"$nota")
+         do list.add(dcompra,NewDcompra(db,producto))
+      }
+      if @count(dcompra)< 1{do rise_error(500,"No hay detalle de la compra")}
+      // compras.crear(db)
+      ref compra=NewCompra(db,data)
+      compra<"_detalle*">:dcompra
+
+      ref _compra=doc.agregar(db,params,compra)
+      compra<"sys_pk">:@@(_compra,"#sys_pk")
+
+      do dbr.commit(db)
+      
+      module "crear log"
+      {
+         do CreateLog(@@(data,"$file-cfdi"),@@(_compra,"$sys_guid"))
+      }
+
+      compra<"url_redir">: replace(@COMPRA_CONSULTAR,"{_doc}",@@(compra,"$sys_pk"))+"?_from_url_e="+url_encode(@VIEW_LOAD_CFDI)
+
+      return compra
+
+      exception
+      {
+         // if trans njuevabd rooll
+         if isset("db")
+         {
+            if dbr.in_transaction(db){do dbr.rollback(db)}
+            // dbr.close nuevabd
+            do dbr.close(db)
+         }
+         
+         do rise_error(last_error_code(),last_error())
+      }
+      
+   }
+   CreateLog::idfile,guid
+   {
+      path_file=GetPathFile(idfile)
+      
+      ref files=list.create()
+      new file
+      {
+         @"temp_file":path_file
+         @"filename": file.name(path_file)
+         @"size": 1024
+      }
+
+      do list.add(files,file)
+
+      @http_context<"request/files*">:files
+      do webshell.detlog.files.save(@DET_LOG_COMPRA,guid)
+      // exception{}
+   }
    NewRec::
    {
       new rec
@@ -205,4 +410,144 @@ module ""
 
       return rec
    }
+   NewProd::&data
+   {
+      ref now=dbr.sql("now()")
+
+      new prod
+      {
+         @"sys_dtcreated*":now
+         @"sys_timestamp*":now
+         @"sys_guid":uuid()
+         @"sys_recver":0
+         @"codigo":@@(data,"$codigo")
+         @"descripcion":@@(data,"$descripcion")
+         @"ilinea":@@(data,"#idlinea")
+         @"idivisa":@@(data,"#iddivisa")
+         @"impuestos":@@(data,"#idimpuesto")
+         @"iclase":@@(data,"#idclase")
+         @"itipo":@@(data,"#idtipo")
+         @"metodovaluacion":@@(data,"#idmetodovaluacion")
+         @"codbar1":@@(data,"$codbar1")
+         @"codbar2":@@(data,"$codbar2")
+         @"codbar3":@@(data,"$codbar3")
+         @"unidad":@@(data,"$unidad")
+         @"factorb":@@(data,"#factor")
+         @"unidadb":@@(data,"$unidadcompra")
+         @"costoultimo":@@(data,"#ultimocosto")
+         @"precio1":@@(data,"#precio1")
+         @"precio2":@@(data,"#precio2")
+         @"precio3":@@(data,"#precio3")
+         @"precio4":@@(data,"#precio4")
+         @"precio5":@@(data,"#precio5")
+         @"ppuntos":@@(data,"#preciopuntos")
+         @"maximo":@@(data,"#maximo")
+         @"minimo":@@(data,"#mainimo")
+         @"puntoro":@@(data,"#puntoreorden")
+         @"diasentrega":@@(data,"#diasentrega")
+         @"reqlote":if(parse.bool(@@(data,"$lote")),1,0)
+         @"reqserie":if(parse.bool(@@(data,"$serie")),1,0)
+         @"visible":if(parse.bool(@@(data,"$visible")),1,0)
+         @"uf_sat_proser":"01010101"
+         @"uf_sat_uniproser":"H87"
+      }
+
+      if @@(data,"#idmarca")> 0{prod<"imarca">:@@(data,"#idmarca")}
+      if @@(data,"#iddepartamento")> 0{prod<"idepartamento">:@@(data,"#iddepartamento")}
+      if @@(data,"#idproveedor1")> 0{prod<"proveedor1">:@@(data,"#idproveedor1")}
+
+      if trim(@@(prod,"$codbar1"))==""{do field.remove(prod,"codbar1")}
+      if trim(@@(prod,"$codbar2"))==""{do field.remove(prod,"codbar2")}
+      if trim(@@(prod,"$codbar3"))==""{do field.remove(prod,"codbar3")}
+
+      return prod
+   }
+   NewCompra::&db,&data
+   {
+      now=dbr.str(db,"select trim(DATE(NOW()))",@null)
+
+      new compra
+      {
+         @"iproveedor": @@(data,"#proveedor")
+         @"documento": @cFactura
+         @"referencia": toupper("C"+cut(uuid(),20))
+         @"fecha":now
+         @"fentrega":now
+         @"vencimiento": now
+         @"idivisa": dbr.num(db,"select sys_pk from divisa where codigo='mxn'",@null)
+         @"tipocambio": 1
+         @"ialmacen": dbr.num(db,"select sys_pk from almacen limit 1",@null)
+         @"indirectos": 0
+         @"fembarque": now
+         @"notas": ""
+         @"sys_pk": 0
+         @"sys_recver": 0
+         @"statusadministrativo": @statusadministrativo
+         @"_detalle": "[]"
+      }
+      return compra
+   }
+   NewDcompra::&db,&data
+   {
+      ref imp=dbr.rec(db,"select sys_pk,i1compra,i2compra,i3compra from cfgimpuesto where sys_pk=@impuestos",data)
+      cantidad=if(field.exist(data,"cantidad"),@@(data,"#cantidad"),1)
+      ref impuestos=get_impuesto_info(imp,@@(data,"#precio1"),cantidad,"i3compra")
+
+      new dcompra
+      {
+         @"cantidad": cantidad
+         @"precio":@@(data,"#precio1")
+         @"iproducto":@@(data,"#sys_pk")
+         @"descuento1": 0
+         @"descuento2": 0
+         @"factor":@@(data,"#factorb")
+         @"status": 1 //por recibir
+         @"tipocambio":dbr.num(db,"select ifnull(tcambio,0) from divisa where sys_pk=@idvisa",data)
+         @"unidad":@@(data,"$unidad")
+         @"xfacturar": 1
+         @"doc_partida*":@null
+         @"documento*":@null
+         @"impuesto1": @@(impuestos,"#impuesto1")
+         @"impuesto2": @@(impuestos,"#impuesto2")
+         @"impuesto3": @@(impuestos,"#impuesto3")
+         @"impuesto4": @@(impuestos,"#impuesto4")
+         @"notas":@@(data,"$notas")
+      }
+      dcompra<"costototal">:(@@(dcompra,"#cantidad") * @@(dcompra,"#precio")) + (@@(impuestos,"#impuesto1")+@@(impuestos,"#impuesto2")+@@(impuestos,"#impuesto3")+@@(impuestos,"#impuesto4"))
+      
+      return dcompra
+   }
+
+   function get_impuesto_info(&rec, precio, cantidad,field)
+	{
+      @zonaImpuesto = 0 //0-Interior, 1-Frontera configuración
+		importe_adicional=0
+		p_descuento1=0 //Porcentajes de descuento aplicables
+		p_descuento2=0
+
+		desc1=0 //Importes totales a descontar con base en el porcentaje y la cantidad
+		desc2=0
+
+      subtotal=precio * cantidad
+      i3 = (subtotal * (parseImpuesto(field.dstr(rec,field,""),@zonaImpuesto)/100))
+      bruto = subtotal + i3
+
+		new precioInfo
+		{
+         @"impuesto1": 0
+         @"impuesto2": 0
+         @"impuesto3": round(i3, @DecimalesEnImportes)
+         @"impuesto4": 0
+         @"precio_bruto": round(bruto, @DecimalesEnImportes)
+		}
+
+		return precioInfo
+	}
+   function parseImpuesto(cad, zona)
+	{
+		if trim(cad) == "" { return 0 }
+		ref l=split(cad,"|")
+		return val(replace(list.str(l,zona),"%",""))
+		exception{ return 0 }
+	}
 }

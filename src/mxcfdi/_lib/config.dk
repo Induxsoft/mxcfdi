@@ -81,10 +81,17 @@ module "Variables globales"
 	@url_download_cfdi = "/!/mxcfdi/emision/?_view=download-zip&uuid=@uuid"
 	@url_get_impuestos_dr = "/!/mxcfdi/emision/?_view=impuestos-dr&uuid=@uuid"
 
+	@URL_BUSCAR_PROVEEDOR = "/!/compras/compras/?_view=buscar-proveedor&search=@search"
 	@CFD_EMISION = "/!/mxcfdi/emision/"
 	@CFD_VNT_FACTURA = "/!/mxcfdi/emision/ventas/factura/?doc=@doc"
 	@CFD_VNT_DEVOLUCION = "/!/mxcfdi/emision/ventas/devolucion/?doc=@doc"
 	@CFD_CXC_COBRO = "/!/mxcfdi/emision/cxc/cobro/?doc=@doc"
 	@CFD_CXC_BONIFICACION = "/!/mxcfdi/emision/cxc/bonificacion/?doc=@doc"
 	@CFD_CXC_NOTA_CARGO = "/!/mxcfdi/emision/cxc/nota-cargo/?doc=@doc"
+	@VIEW_LOAD_CFDI="/!/mxcfdi/load-cfdi/"
+	//compras
+	@statusadministrativo = 1
+	@DecimalesEnImportes= 6
+	@COMPRA_CONSULTAR = "/!/compras/compras/{_doc}/"
+	@DET_LOG_COMPRA="DET01B"
 }
