@@ -23,7 +23,7 @@ module ""
    {
       path_file=GetPathFile(@@(params,"$file-cfdi"))
       
-      ref entity=CreateDataFromCFDI(db,params,path_file)
+      ref entity=CreateDataFromCFDI(db,params,path_file,@null)
 
       return entity
    }
@@ -64,6 +64,9 @@ module ""
 
       if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es válido")}
 
+      ref nodo_global=cfdi.getElementByTagName(cfdi,"cfdi:InformacionGlobal")
+      if not(isnull(nodo_global)){do rise_error(500,"El tipo de CFDI no es válido")}
+
       path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
       do dir.ensure(path_dir)
 
@@ -74,7 +77,7 @@ module ""
 
       params<"validate">:@true
       
-      ref compra=CreateDataFromCFDI(db,params,path_file)
+      ref compra=CreateDataFromCFDI(db,params,path_file,cfdi)
       
       if not(isnull(compra)){return compra}
 
@@ -84,9 +87,10 @@ module ""
       }
       return rec
    }
-   CreateDataFromCFDI::&db,&params,path_file
+   CreateDataFromCFDI::&db,&params,path_file,&cfdi
    {
-      ref cfdi=parse.xmlStr(file.rtext(path_file))
+      if isnull(cfdi){ref cfdi=parse.xmlStr(file.rtext(path_file))}
+      
       if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es víalido")}
 
       ref proveedor=cfdi.getElementByTagName(cfdi,"cfdi:Emisor")
