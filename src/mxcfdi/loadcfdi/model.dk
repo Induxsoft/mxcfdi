@@ -139,7 +139,7 @@ module ""
 
             using p
             {
-               @"codigoprod1":ifstr(isnull(dt_proveedor),@@(params,"$codigo"),@@(dt_proveedor,"$codigo"))
+               @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",@@(params,"$codigo"),@@(producto,"$uf_codigoparaproveedor1"))
                @"codigo":@@(params,"$codigo")
                @"descripcion":cfdi.attr(concepto,"$Descripcion")
                @"ultimocosto": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
@@ -303,13 +303,37 @@ module ""
                uf_sat_uniproser 
                FROM producto where sys_pk=@sys_pk or sys_guid=@sys_guid"
 
+      sql_prod="select 
+      p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
+      p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion 
+      from producto p 
+      where p.codigo=@codigo
+      or p.codbar1=@codbar1
+      or p.codbar2=@codbar2
+      or p.codbar3=@codbar3
+      or p.descripcion=@descripcion
+      "
+
+      // or p.uf_codigoparaproveedor1=@codigo
+      // or p.uf_codigoparaproveedor2=@codigo
+      // or p.uf_codigoparaproveedor3=@codigo
+
       ref dcompra=list.create()
       for i = 0; i < @count(detalle)
       {
          ref dt=@item(detalle,i)
          ref producto=NewProd(dt)
          
-         if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+         ref prd=dbr.rec(db,sql_prod,dt)
+         if not(isnull(prd))
+         {
+            if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
+            else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
+            else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
+            else if trim(@@(prd,"$codbar3"))!="" && trim(@@(prd,"$codbar3"))==trim(@@(dt,"$codbar3")){do rise_error(500,"Ya existe un producto con el mismo código de barra 3: "+@@(dt,"$codbar3"))}
+            else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+         }
+         //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
 
          do dbr.insert(db,"producto",producto)
 
@@ -454,6 +478,7 @@ module ""
          @"visible":if(parse.bool(@@(data,"$visible")),1,0)
          @"uf_sat_proser":"01010101"
          @"uf_sat_uniproser":"H87"
+         @"uf_codigoparaproveedor1":@@(data,"$codigoprod1")
       }
 
       if @@(data,"#idmarca")> 0{prod<"imarca">:@@(data,"#idmarca")}
