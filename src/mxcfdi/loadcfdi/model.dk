@@ -27,11 +27,7 @@ module ""
 
       return entity
    }
-   read::&db,&params
-   {
-      ref entity= entity.read(db,params)
-      return entity
-   }
+
    create::&db,&params,&data
    {
       if parse.bool(@@(data,"$load-cfdi"))
@@ -53,6 +49,8 @@ module ""
    }
    SaveCfdiLoaded::&db,&params,&data
    {
+      do dbr.apps.action.grant("GX34")
+
       ref files=@@(@http_context,"&request/files")
       if isnull(files) || @count(files)< 1{do rise_error(500,"No se recibío un CFDI")}
       if @count(files)> 1{do rise_error(500,"Solo puede subir un archivo")}
@@ -89,6 +87,8 @@ module ""
    }
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
    {
+      do dbr.apps.action.grant("GX34")
+      
       if isnull(cfdi){ref cfdi=parse.xmlStr(file.rtext(path_file))}
       
       if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es víalido")}

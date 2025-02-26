@@ -80,9 +80,11 @@ module ""
                             "edit-tr"
                             {
                                 "edit-th"(type="NoEditable" field="codigoprod1"){$"CodigoProveedor1"}
-                                "edit-th"(type="Text"   field="codigo" ){$"Código"}
+                                "edit-th"(type="Text"   field="codigo" "minwidth"="8rem"){$"Código"}
                                 "edit-th"(type="Text"   field="descripcion" "minwidth"="10rem"){$"Descripción"}
                                 "edit-th"(type="Select" field="linea" keyfield="idlinea" options="#<to.json(@('&./lineas'))>" "minwidth"="10rem"){$"Línea"}
+                                "edit-th"(type="Select" field="marca" keyfield="idmarca" options="#<to.json(@('&./marcas'))>" "minwidth"="10rem"){$"Marca"}
+                                "edit-th"(type="Select" field="departamento" keyfield="iddepartamento"  options="#<to.json(@('&./departamentos'))>" "minwidth"="10rem"){$"Departamento"}
                                 "edit-th"(type="Select" field="divisa" keyfield="iddivisa" options="#<to.json(@('&./divisas'))>" "minwidth"="10rem"){$"Divisa"}
                                 "edit-th"(type="Select" field="impuesto" keyfield="idimpuesto" options="#<to.json(@('&./impuestos'))>" "minwidth"="10rem"){$"Impuestos"}
                                 "edit-th"(type="Select" field="clase" keyfield="idclase"    options="#<to.json(@('&./clases'))>" "minwidth"="10rem" ){$"Clase"}
@@ -101,8 +103,6 @@ module ""
                                 "edit-th"(type="Number" field="precio4" ){$"Precio4"}
                                 "edit-th"(type="Number" field="precio5" ){$"Precio5"}
                                 "edit-th"(type="Number" field="preciopuntos" ){$"PrecioPuntos"}
-                                "edit-th"(type="Select" field="marca" keyfield="idmarca" options="#<to.json(@('&./marcas'))>" "minwidth"="10rem"){$"Marca"}
-                                "edit-th"(type="Select" field="departamento" keyfield="iddepartamento"  options="#<to.json(@('&./departamentos'))>" "minwidth"="10rem"){$"Departamento"}
                                 "edit-th"(type="Select" field="proveedor1" keyfield="idproveedor1"      options="#<to.json(@('&./proveedores'))>" "minwidth"="10rem"){$"Proveedor1"}
                                 "edit-th"(type="Number" field="maximo" ){$"Máximo"}
                                 "edit-th"(type="Number" field="mainimo" ){$"Mínimo"}
@@ -111,7 +111,7 @@ module ""
                                 "edit-th"(type="Check" field="lote" ){$"Lote"}
                                 "edit-th"(type="Check" field="serie" ){$"Serie"}
                                 "edit-th"(type="Check" field="visible" ){$"Visible"}
-                                "edit-th"(type="Memo" field="nota"){$"Notas"}
+                                "edit-th"(type="Memo" field="nota" "minwidth"="20rem"){$"Notas"}
                             }
                         }
                     }

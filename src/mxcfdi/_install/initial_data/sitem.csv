@@ -12,3 +12,4 @@ GX22,Emitir CFDI por nota de devolución de venta,mxcfdi.emision
 GX31,Emitir CFDI por notas de cargo,mxcfdi.emision
 GX32,Emitir CFDI por cobros,mxcfdi.emision
 GX33,Emitir CFDI por bonificaciones,mxcfdi.emision
+GX34,Importar CFDI de compra,mxcfdi.emision
