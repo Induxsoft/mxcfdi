@@ -1,0 +1,126 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "uielements.dkl"
+    
+    do @context.begin(@crud_context)
+
+    new table_definition
+    {
+        @"datatable*": @("&./data")
+        member @"columns"
+        {
+            member @"cdocumento" { @"caption": "Documento" }
+            member @"referencia" { @"caption": "Referencia" }
+            member @"cliente" { @"caption": "Cliente" }
+            member @"fecha"
+            {
+                @"caption": "Emisión"
+                @"align": "center"
+            }
+            member @"vencimiento"
+            {
+                @"caption": "Vencimiento"
+                @"align": "center"
+            }
+            member @"cdivisa"
+            {
+                @"caption": "Divisa"
+                @"align": "center"
+            }
+            member @"tipocambio"
+            {
+                @"caption": "T. Cambio"
+                @"align": "end"
+                @"format": @true
+                @"thousandssep": @true
+                @"decs": 6
+            }
+            member @"total"
+            {
+                @"caption": "Total"
+                @"align": "end"
+                @"format": @true
+                @"thousandssep": @true
+                @"decs": 2
+            }
+        }
+        @"table_footer": "Mostrando los primeros # registros"
+    }
+
+    buttons::
+    {
+        #$
+        a(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" href="./_new/"){"Agregar"}
+        #!
+    }
+
+    point buttons to buttons
+    new nav_config
+    {
+        @"title": "Factura global"
+        @"buttons*": buttons
+        @"urlexit": "/" //"javascript:window.history.back();"
+        // @"actions*": itemactions
+        // @"reports*": itemreports
+        @"jscurrentcontext": "list.getCurrentContext"
+    }
+
+    new _status
+    {
+        @"datatable*": @("&./status")
+        @"id": "status"
+        member "attributes"
+        {
+            @"name": "status"
+            @"class": "induxsoft-form-select"
+        }
+        @"value_field": "id"
+        @"text_field": "const"
+        @"first_text":"(*) Todos"
+        @"first_value":"*"
+        @"selected": @("$parameters/status")
+    }
+    #$
+    div(class="v12-list-view" id="view")
+    {
+        section(id="top_area")
+        {
+            #!
+            do uie.printV12FormBar(nav_config)
+            #$
+            form(action="")
+            {
+                div(class="row")
+                {
+                    div(class="col-md-3")
+                    {
+                        #!
+                        do uie.dbSelect(_status)
+                        #$
+                    }
+                    div(class="col-md-8")
+                    {
+                        "date-range"(id="filter_date"
+                        "hidden-input-name-start"="fechaini"
+                        "hidden-input-name-end"="fechafin"
+                        start="#<fechaini>"
+                        "start-label"="Desde:"
+                        end="#<fechafin>"
+                        "end-label"="Hasta:"){""}
+                    }
+                }
+            }
+        }
+        section(id="work_area")
+        {
+            #!
+            do uie.dbeditable(table_definition,"factura_global")
+            #$
+        }
+    }
+}

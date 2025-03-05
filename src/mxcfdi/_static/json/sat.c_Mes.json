@@ -1,0 +1,50 @@
+[
+  {
+    "clave": "01",
+    "valor": "Enero"
+  },
+  {
+    "clave": "02",
+    "valor": "Febrero"
+  },
+  {
+    "clave": "03",
+    "valor": "Marzo"
+  },
+  {
+    "clave": "04",
+    "valor": "Abril"
+  },
+  {
+    "clave": "05",
+    "valor": "Mayo"
+  },
+  {
+    "clave": "06",
+    "valor": "Junio"
+  },
+  {
+    "clave": "07",
+    "valor": "Julio"
+  },
+  {
+    "clave": "08",
+    "valor": "Agosto"
+  },
+  {
+    "clave": "09",
+    "valor": "Septiembre"
+  },
+  {
+    "clave": 10,
+    "valor": "Octubre"
+  },
+  {
+    "clave": 11,
+    "valor": "Noviembre"
+  },
+  {
+    "clave": 12,
+    "valor": "Diciembre"
+  }
+]

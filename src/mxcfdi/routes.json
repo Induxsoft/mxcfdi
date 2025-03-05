@@ -13,6 +13,10 @@
             {
                 "route": "/load-cfdi/",
                 "entity_type": "loadcfdi"
+            },
+            {
+                "route": "/fact-global/",
+                "entity_type": "factglobal"
             }
         ]
     }

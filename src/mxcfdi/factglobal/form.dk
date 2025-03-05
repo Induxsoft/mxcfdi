@@ -1,0 +1,369 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "uielements.dkl"
+    #include "../_lib/config.dk"
+    
+    do @context.begin(@crud_context)
+
+    ref data=@("&./data")
+    ref ventas=@("&./ventas")
+    ref divisas=@("&./divisas")
+    ref objimpuestos=@("&./objimpuestos")
+    ref series=@("&./series")
+    ref regimenes=@("&./regimenes")
+    ref periocidades=@("&./periocidades")
+    ref meses=@("&./meses")
+    ref anios=@("&./anios")
+    ref cconsumos=@("&./cconsumos")
+
+    buttons::
+    {
+        #$
+        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden"){"Guardar"}
+        #!
+    }
+
+    point buttons to buttons
+    new nav_config
+    {
+        @"title": "Orden factura global"
+        @"buttons*": buttons
+        @"urlexit": "/" //"javascript:window.history.back();"
+        // @"actions*": itemactions
+        // @"reports*": itemreports
+        @"jscurrentcontext": "list.getCurrentContext"
+    }
+    //selects
+    new _divisas
+    {
+        @"datatable*": divisas
+        @"id": "divisa"
+        member "attributes"
+        {
+            @"name": "divisa"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "sys_pk"
+        @"text_field": "descripcion"
+        @"selected": @("#parameters/divisa")
+    }
+    new _obj_impuestos
+    {
+        @"datatable*": objimpuestos
+        @"id": "objimp"
+        member "attributes"
+        {
+            @"name": "objimp"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("#parameters/objimp")
+    }
+    new _series
+    {
+        @"datatable*": series
+        @"id": "serie"
+        member "attributes"
+        {
+            @"name": "serie"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "sys_pk"
+        @"text_field": "serie"
+        @"selected": @("#parameters/serie")
+    }
+    new _regimen
+    {
+        @"datatable*": regimenes
+        @"id": "regfiscal"
+        member "attributes"
+        {
+            @"name": "regfiscal"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("#parameters/regfiscal")
+    }
+    new _periocidad
+    {
+        @"datatable*": periocidades
+        @"id": "periodicidad"
+        member "attributes"
+        {
+            @"name": "periodicidad"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("#parameters/periodicidad")
+    }
+    new _meses
+    {
+        @"datatable*": meses
+        @"id": "mes"
+        member "attributes"
+        {
+            @"name": "mes"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/mes")
+    }
+    new _anio
+    {
+        @"datatable*": anios
+        @"id": "anio"
+        member "attributes"
+        {
+            @"name": "anio"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/anio")
+    }
+    new _cconsumos
+    {
+        @"datatable*": cconsumos
+        @"id": "cconsumo"
+        member "attributes"
+        {
+            @"name": "cconsumo"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+            @"disabled":"true"
+        }
+        @"value_field": "sys_pk"
+        @"text_field": "descripcion"
+        @"first_text":"(*) Todos"
+        @"first_value":"*"
+        @"selected": @("$parameters/cconsumo")
+    }
+    //tabla detalle
+    new table_definition
+    {
+        @"datatable*": ventas
+        member @"columns"
+        {
+            member @"field_check" 
+            { 
+                @"caption": "" 
+                @"template":'No'
+            }
+            member @"referencia" { @"caption": "Ticket/Remision" }
+            member @"fecha"
+            {
+                @"caption": "Fecha"
+                @"align": "center"
+            }
+            member @"total"
+            {
+                @"caption": "Importe"
+                @"align": "end"
+                @"format": @true
+                @"thousandssep": @true
+                @"decs": 6
+                @"prefix":"$ "
+            }
+        }
+        @"table_footer": "Mostrando los primeros # registros"
+    }
+
+    fechaini=ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
+    fechafin=ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
+    text_notas="Factura Global por Ventas del"
+    #$
+    div(class="container v12-list-view" id="view")
+    {
+        script(src="#<@JS_FACT_GLOBAL>"){""}
+
+        section(id="top_area")
+        {
+            #!
+            do uie.printV12FormBar(nav_config)
+            #$
+        }
+        section(id="work_area")
+        {
+            form(id="form_factura_global" action=".")
+            {
+                input(type="hidden" id="sys_pk" name="sys_pk" value="#<@@(data,'$sys_pk')>")
+
+                div(class="row")
+                {
+                    div(class="col-md-3")
+                    {
+                        label{"Divisa:"}
+                        #!
+                        do uie.dbSelect(_divisas)
+                        #$
+                    }
+                    div(class="col-md-1")
+                    {
+                        label{"Serie:"}
+                        #!
+                        do uie.dbSelect(_series)
+                        #$
+                    }
+                    div(class="col-md-3")
+                    {
+                        label{"C. Consumo:"}
+                        #!
+                        do uie.dbSelect(_cconsumos)
+                        #$
+                    }
+                    div(class="col-md-4")
+                    {
+                        label{"Fecha:"}
+                        "date-range"(id="fecha_range"
+                        "hidden-input-name-start"="fechaini"
+                        "hidden-input-name-end"="fechafin"
+                        start="#<fechaini>"
+                        "start-label"="Inicial:"
+                        end="#<fechafin>"
+                        required="true"
+                        "end-label"="Final:"){""}
+                    }
+                    div(class="col-md-1 mt-4")
+                    {
+                        button(type="button" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_change"){"Cambiar"}
+                    }
+                }
+                //conceptos y notas
+                div(class="row")
+                {
+                    div(class="col-md-3")
+                    {
+                        label{"Objeto de impuesto:"}
+                        #!
+                        do uie.dbSelect(_obj_impuestos)
+                        #$
+                    }
+                    div(class="col-md-3")
+                    {
+                        label{"Concepto:"}
+                        input(type="text" class="induxsoft-form-control" id="concepto" name="concepto" value="Venta" disabled="true")
+                    }
+                    div(class="col-md-6")
+                    {
+                        label{"Notas:"}
+                        textarea(class="induxsoft-form-control" rows="1" id="notas" name="notas"){"#<text_notas> #<fechaini> al #<fechafin>."}
+                    }
+                }
+                ///////
+
+                fieldset(class="mt-2")
+                {
+                    legend(class="d-flex")
+                    {
+                        div(class="row w-100")
+                        {
+                            div(class="col-md-4")
+                            {
+                                $"Información global (CFDI 4.0)"
+                            }
+                            div(class="col-md-4")
+                            {
+                                div(class="form-check d-flex justify-content-center")
+                                {
+                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(parse.bool(@('$parameters/check_ticket')),'checked','')>"="true" class="form-check-input" id="check_ticket" name="check_ticket") " Tickets"}
+                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(parse.bool(@('$parameters/check_remision')),'checked','')>"="true" class="form-check-input" id="check_remision" name="check_remision") " Remisiones"}
+                                }
+                            }
+                            div(class="col-md-4"){$""}
+                        }
+                        
+                    }
+                    div(class="row pe-2 ps-2")
+                    {
+                        div(class="col-md-3")
+                        {
+                            label{"Régimen fiscal:"}
+                            #!
+                            do uie.dbSelect(_regimen)
+                            #$
+                        }
+                        div(class="col-md-3")
+                        {
+                            label{"Periocidad:"}
+                            #!
+                            do uie.dbSelect(_periocidad)
+                            #$
+                        }
+                        div(class="col-md-3")
+                        {
+                            label{"Mes:"}
+                            #!
+                            do uie.dbSelect(_meses)
+                            #$
+                        }
+                        div(class="col-md-3")
+                        {
+                            label{"Año:"}
+                            #!
+                            do uie.dbSelect(_anio)
+                            #$
+                        }
+                    }
+                }
+                section(class="mt-2")
+                {
+                    label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
+                    #!
+                    do uie.dbeditable(table_definition,"factura_global_detalle")
+                    #$
+                }
+            }
+        }
+
+        style
+        {
+            $'
+            fieldset 
+            {
+                background-color: #eeeeee;
+                padding-bottom:1rem;
+                // padding-left:1rem;
+                // padding-right:1rem;
+            }
+
+            legend 
+            {
+                background-color: gray;
+                color: white;
+                padding: 5px 5px;
+                height: 2.5rem;
+                font-size: large;
+            }
+            '
+        }
+
+        script
+        {
+            $'
+            fglobal.text_notas="#<text_notas>";
+
+            if(#<@@(data,"#data/data")> > 0)
+            {
+                fglobal.Enable(#<@@(data,"#data/enable")> > 0);
+            }
+            '
+        }
+    }
+
+}

@@ -78,4 +78,50 @@ model ""
             field "cti"
         }
     }
+    entity "blockdocumentos" : "TableModel"{}
+    /// FACTURA GLOBAL.
+ 
+    entity "mxcfdi_ordenfac_status": "EnumModel"
+    {
+        //0-Creada
+        //1-Generando XML
+        //2-Solicitando timbre
+        //3-Timbrada
+        //98-Error
+        //99-Cancelada
+    }
+
+    entity "mxcfdi_ordenfac" : "TableModel"	
+    {
+        @"status" ref :"mxcfdi_ordenfac_status" required
+        @"serie" ref:"blockdocumentos" required
+        @"cconsumo" ref:"cconsumo"
+        @"finicial" datetime
+        @"ffinal" datetime
+        @"objeto_impuesto" string(2) required
+        @"tickets" bool
+        @"remisiones" bool
+        @"regimen" string(5)
+        @"periodicidad" string(5)
+        @"mes" string(3)
+        @"anio" int
+        @"nic" string(10)
+        @"dom_expedicion" string(10)
+        @"concepto" string(255)
+        @"notas" memo
+        @"token_solicitud" string(64)
+        @"last_error" memo
+    }
+
+    entity "mxcfdi_ordenfac_det" : "TableModel"	
+    {
+        @"venta" ref:"venta" required
+        @"orden" ref: "mxcfdi_ordenfac" required
+        
+        index "mxcfdi_ordenfac_det_uq1" unique
+        {
+            field "venta"
+            field "orden"
+        }
+    }
 }

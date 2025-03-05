@@ -1,0 +1,158 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    #include "list_query.dk"
+
+    list::&db,&params
+    {
+       new entity
+       {
+            @"data*":entity.list(db,params)
+            @"status*":dbr.list(db,"select id,const from mxcfdi_ordenfac_status",@null)
+       }
+       return entity
+    }
+    read::&db,&params
+    {
+        ref data=entity.read(db,params)
+        
+        new entity
+        {
+            @"data*":data
+            @"enable":@false
+        }
+        
+        if @@(data,"#status")==@status_creada || @@(data,"#status")==@status_error
+        {
+            entity.enable:=@true
+        }
+
+        do PrepareView(db,params,entity)
+
+        entity<"ventas*">:list.create()
+
+       return entity
+    }
+
+    PrepareView::&db,&params,&entity
+    {
+        entity<"ventas*">:list.create()
+
+        if field.exist(params,"sys_pk")
+        {
+            if parse.bool(@@(params,"$check_ticket")) && parse.bool(@@(params,"$check_remision")){sql=@list_query_tic_rem}
+            else if parse.bool(@@(params,"$check_ticket")){sql=@list_query_tic}
+            else if parse.bool(@@(params,"$check_remision")){sql=@list_query_rem}
+            else {do rise_error(500,"Es necesario indique al menos un tipo de documento Ticket y/o Remisión.")}
+
+            
+            entity<"ventas*">:dbr.list(db,sql,params)
+        }
+        
+        using entity
+        {
+            @"divisas*":dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where ifnull(sys_deleted,0)=0",params)
+            @"objimpuestos*":from.json(file.rtext(path.concat(@json_path,@sat_objeto_imp)))
+            @"series*":dbr.list(db,"select sys_pk,serie from blockdocumentos where not uf_CFDI_Info is null and documento=4 and fiscal=true",params)
+            @"regimenes*":from.json(file.rtext(path.concat(@json_path,@sat_regimen_fiscal)))
+            @"periocidades*":from.json(file.rtext(path.concat(@json_path,@sat_peridicidad)))
+            @"meses*":from.json(file.rtext(path.concat(@json_path,@sat_meses)))
+            @"anios*":ListYear()
+            @"cconsumos*":dbr.list(db,"SELECT sys_pk, concat_ws(' - ',codigo, descripcion)descripcion FROM cconsumo ORDER BY sys_pk;",params)
+        }
+
+        return entity
+    }
+    ListYear::
+    {
+        ref l=list.create()
+        current_year=date_str(now(),"yyyy")
+
+        new a
+        {
+            @"clave":current_year
+            @"valor":current_year
+        }
+        do list.add(l,a)
+
+        for i = 1; i < 3
+        {
+            year=parse.num(current_year) - i
+            new a
+            {
+                @"clave":year
+                @"valor":year
+            }
+            do list.add(l,a)
+        }
+        
+
+        return l
+    }
+    blank::&db,&params
+    {
+      new entity{}
+
+      do PrepareView(db,params,entity)
+
+      return entity
+    }
+    GenOrdenFact::&data
+    {
+        new orden_fact
+        {
+            @"status":@status_creada
+            @"serie":@@(data,"#serie")
+            @"finicial":@@(data,"$fechaini")
+            @"ffinal":@@(data,"$fechafin")
+            @"objeto_impuesto":@@(data,"$objimp")
+            @"tickets": if(parse.bool(@@(data,"$check_ticket")),1,0)
+            @"remisiones": if(parse.bool(@@(data,"$check_remision")),1,0)
+            @"regimen":@@(data,"$regfiscal")
+            @"periodicidad":@@(data,"$periodicidad")
+            @"mes": @@(data,"$mes")
+            @"anio": @@(data,"#anio")
+            @"nic": @@(data,"$nic")
+            @"dom_expedicion": @@(data,"$domfiscal")
+            @"concepto":"Venta"
+            @"notas":@@(data,"$notas")
+        }
+        
+        if @@(data,"#cconsumo") > 0{orden_fact<"cconsumo">:@@(data,"#cconsumo")}
+
+        if trim(@@(data,"$detalle"))!=""
+        {
+            using @childs
+            {
+                member "_detalle"
+                {
+                    @"joinfield": "orden"
+                    @"keyfield": "sys_pk"
+                    @"table": "mxcfdi_ordenfac_det"
+                    @"select_query": "SELECT NULL"
+                    @"fields": "venta"
+                }
+            }
+
+            orden_fact<"_detalle*">:from.json(@@(data,"$detalle"))
+        }
+        
+
+        return orden_fact
+    }
+    create::&db,&params,&data
+    {
+        return entity.create(db,params,GenOrdenFact(data))
+    }
+    update::&db,&params,&data
+    {
+       return entity.update(db,params,GenOrdenFact(data))
+    }
+    
+    point @update to update
+    point @create to create
+    point @blank to blank
+    point @read to read
+    point @list to list
+}

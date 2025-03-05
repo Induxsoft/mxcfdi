@@ -1,0 +1,32 @@
+﻿[
+  {
+    "clave": "01",
+    "valor": "Diario",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "02",
+    "valor": "Semanal",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "03",
+    "valor": "Quincenal",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "04",
+    "valor": "Mensual",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  },
+  {
+    "clave": "05",
+    "valor": "Bimestral",
+    "finicio": "2022-01-01",
+    "ffin": ""
+  }
+]
