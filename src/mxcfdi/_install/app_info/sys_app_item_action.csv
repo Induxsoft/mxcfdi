@@ -3,3 +3,4 @@ GX91,Agregar configuración de emisor,Agregar,,/!/mxcfdi/config/_new/,0,mxcfdi.c
 GX92,Editar configuración de emisor,Editar,,/!/mxcfdi/config/@_src_context_item_id/,0,mxcfdi.config,DET083,1,action
 GX93,Eliminar configuración de emisor,Eliminar,,javascript:InduxsoftCrudlModel.Delete(@_src_context_item_id);,0,mxcfdi.config,DET083,1,action
 GX34,Importar CFDI de compra,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
+GX40,Orden de factura global,Orden fact-global,,/!/mxcfdi/fact-global/,0,mxcfdi.factglobal,DET084,0,action

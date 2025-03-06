@@ -15,8 +15,13 @@ var fglobal=
         this.notas=document.getElementById("notas");
         this.btn_save_orden=document.getElementById("btn_save_orden");
         this.check_all=document.getElementById("check_all");
-    
+        this.btn_cancel_orden=document.getElementById("btn_cancel_orden");
         this.factura_global_detalle=document.getElementById("factura_global_detalle");
+        this.lbl_total=document.getElementById("lbl_total");
+        this.divisa=document.getElementById("divisa");
+        this._container_pages=document.getElementById("_container_pages");
+        this.container_page=document.getElementById("container_page");
+        this.btn_get_data=document.getElementById("btn_get_data");
 
         if(this.check_ticket)this.check_ticket.addEventListener("change",()=>
         {
@@ -40,7 +45,8 @@ var fglobal=
         if(this.btn_save_orden)this.btn_save_orden.addEventListener("click",()=>{this.SaveDetalle();});
 
         if(this.check_all)this.check_all.addEventListener("change",()=>{this.CheckedAll();});
-
+        if(this.btn_cancel_orden)this.btn_cancel_orden.addEventListener("click",()=>{this.CancelOrden();});
+        if(this.btn_get_data)this.btn_get_data.addEventListener("click",()=>{this.GetData();});
         setTimeout(() => 
         {
             if(this.fecha_range._btnEdit)this.fecha_range._btnEdit.style.cssText="display:none";    
@@ -49,16 +55,27 @@ var fglobal=
             this.fechafin=document.getElementById("input[name='fechafin']");
 
             this.factura_global_detalle.Columns[0]={type:this.factura_global_detalle.EdiTable.Const.Columns.Types.Check, field:"field_check",default:"No"};
-
+            
+            this.SetTotales();
         }, 100);
         
+        this.SetEvent();
+    },
+    SetEvent()
+    {
+        const events=this.factura_global_detalle.EdiTable.Const.Events;
+
+        this.factura_global_detalle.Events[events.FieldUpdated]=(e)=>
+        {
+            this.SetTotales();
+        }
     },
     Enable(enable=true,elements=null)
     {
         if(!this.form_factura_global)return;
 
-        if(!elements) elements=this.form_factura_global.querySelector("input,select,textarea");
-
+        if(!elements) elements=this.form_factura_global.querySelectorAll("input,select,textarea");
+        
         for (let i = 0; i < elements.length; i++) 
         {
             const element = elements[i];
@@ -158,5 +175,45 @@ var fglobal=
             element["field_check"]=checked?"Sí":"No";
         }
         this.factura_global_detalle._printRows();
+        console.log("12121212")
+        this.SetTotales();
+    },
+    CancelOrden()
+    {
+        res=confirm("¿Esta seguro de cancelar la orden?");
+        if(!res)return;
+
+        InduxsoftCrudlModel.InvokeService("./cancelar/",{},
+        (data)=>
+        {
+            window.location.reload();
+        },
+        (failure)=>
+        {
+            alert(failure.message??JSON.stringify(failure));
+        },"PATCH",false);
+    },
+    SetTotales()
+    {
+        if(!this.lbl_total)return;
+        
+        let total=0;
+        for (let i = 0; i < this.factura_global_detalle.DataArray.length; i++) 
+        {
+            const element = this.factura_global_detalle.DataArray[i];
+            if(tools.ParseBool(element?.field_check??false))total+=Number(element.total??0);
+        }
+        
+        let data="";
+        if(this.divisa)
+        {
+            let option=this.divisa.options[this.divisa.selectedIndex];
+            data=option.getAttribute("data")??"";
+        }
+        this.lbl_total.textContent=data+" $"+tools.format(total,2);
+    },
+    GetData()
+    {
+        
     }
 }

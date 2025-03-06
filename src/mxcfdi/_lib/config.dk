@@ -34,6 +34,7 @@ module "Variables globales"
     @ToPositiveInfinity = 4
 
 	@default_max_rows = 250 // limite de registros para las vistas de lista
+	@default_max_rows_fact_global = 100
 	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
 	@default_scfdi_path = "data/@qname/mxcfdi/success_cfdi/@emisor/"
 	@default_fcfdi_path = "data/@qname/mxcfdi/failure_cfdi/@emisor/"

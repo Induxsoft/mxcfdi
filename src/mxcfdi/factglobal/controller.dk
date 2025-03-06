@@ -1,0 +1,20 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    point @delete to delete
+    point @update to update
+    point @create to create
+    point @blank to blank
+    point @read to read
+    point @list to list
+
+    switch @@(params,"$_view")
+    {
+        case "cancelar"
+        {
+            point @update to cancelar
+            break
+        }
+    }
+}

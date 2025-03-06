@@ -1,3 +1,4 @@
 "pack_id","app_id","app_title","created","app_info"
 "mxcfdi","mxcfdi.config","Configuración de emisores","2024-05-27T23:59:59","Configuración de emisores y cuentas de timbrado"
 "mxcfdi","mxcfdi.emision","Emisión de CFDI","2024-05-27T23:59:59","Emisión de comprabantes fiscales por tipo de operacion"
+"mxcfdi","mxcfdi.factglobal","Orden de factura global","2025-03-05T23:59:59","Orden de factura global"

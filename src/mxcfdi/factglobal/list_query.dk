@@ -2,13 +2,14 @@
 #!
 module ""
 {
-   @table_name="mxcfdi_ordenfac"
+        @table_name="mxcfdi_ordenfac"
 
-    @list_query="SELECT
+        @list_query="SELECT
                         o.sys_pk,
                         DATE_FORMAT(o.sys_dtcreated, '%Y-%m-%d %H:%i:%s') creacion,
-                        DATE_FORMAT(o.finicial, '%Y-%m-%d %H:%i:%s') finicial,
-                        DATE_FORMAT(o.ffinal, '%Y-%m-%d %H:%i:%s') ffinal,
+                        DATE_FORMAT(o.finicial, '%Y-%m-%d') finicial,
+                        DATE_FORMAT(o.ffinal, '%Y-%m-%d') ffinal,
+                        DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
                         so.const estado,
                         concat(cc.codigo, ' - ', cc.descripcion) cconsumo,
                         o.token_solicitud,
@@ -27,9 +28,37 @@ module ""
                                 date(o.sys_dtcreated) between date(@fechaini)
                                 and date(@fechafin)
                         )
+                LIMIT #<@default_max_rows>
         "
-        
-    @list_query_tic_rem="select
+
+        @read_query="SELECT o.sys_pk,
+                o.sys_recver,
+                DATE_FORMAT(o.finicial,'%Y-%m-%d') finicial,
+                DATE_FORMAT(o.ffinal,'%Y-%m-%d')ffinal,
+                DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
+                o.`status`,
+                o.cconsumo,
+                o.objeto_impuesto,
+                o.tickets,
+                o.remisiones,
+                o.regimen,
+                o.periodicidad,
+                o.mes,
+                o.anio,
+                o.nic,
+                o.concepto,
+                o.notas,
+                o.token_solicitud,
+                o.last_error,
+                o.serie,
+                o.divisa,
+                s.const text_status
+        from mxcfdi_ordenfac o
+        INNER JOIN mxcfdi_ordenfac_status s ON o.`status`=s.id
+        WHERE IFNULL(o.sys_deleted,0)=0
+        AND o.sys_pk=@_entity_id"
+
+        @list_query_tic_rem="select
                             distinct v.sys_pk,
                             v.referencia,
                             v.documento,
@@ -77,9 +106,10 @@ module ""
                             and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
                     order by
                             v.fecha,
-                            v.documento;"
+                            v.documento
+                        limit #<@default_max_rows_fact_global>;"
 
-    @list_query_tic="select
+        @list_query_tic="select
                             distinct v.sys_pk,
                             v.referencia,
                             v.documento,
@@ -118,9 +148,10 @@ module ""
                             and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
                     order by
                             v.fecha,
-                            v.documento;"
+                            v.documento
+                        limit #<@default_max_rows_fact_global>;"
 
-    @list_query_rem="select
+        @list_query_rem="select
                         distinct v.sys_pk,
                         v.referencia,
                         v.documento,
@@ -159,9 +190,30 @@ module ""
                         and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
                 order by
                         v.fecha,
-                        v.documento;"
+                        v.documento
+                limit #<@default_max_rows_fact_global>;"
 
-    @list_query_cancelados="select
+        @list_query_detalle_orden="select v.sys_pk,v.referencia,
+                                trim(date(v.fecha)) fecha,
+                                @subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
+                                                        @descuento := (round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)) as descuento,
+                                                        @totalimpuesto := (
+                                                                round(
+                                                                        (
+                                                                                v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
+                                                                        ) / mc.tipocambio,
+                                                                        2
+                                                                )
+                                                        ) as totalimpuesto,
+                                                        (@subtotal - @descuento + @totalimpuesto) total,
+                                'Sí' field_check
+                                from mxcfdi_ordenfac_det od
+                                inner join venta v on od.venta=v.sys_pk
+                                inner join movcaja mc on v.imovcaja = mc.sys_pk
+                                WHERE od.orden=@_entity_id
+                                limit #<@default_max_rows_fact_global>"
+
+        @list_query_cancelados="select
                                 distinct v.referencia,
                                 ifnull(
                                         (

@@ -14,39 +14,19 @@ module ""
         @"datatable*": @("&./data")
         member @"columns"
         {
-            member @"cdocumento" { @"caption": "Documento" }
-            member @"referencia" { @"caption": "Referencia" }
-            member @"cliente" { @"caption": "Cliente" }
-            member @"fecha"
+            member @"creacion" { @"caption": "Creación" }
+            member @"estado" { @"caption": "Estado" }
+            member @"fecha_cfdi" { @"caption": "Fecha CFDI" }
+            member @"finicial" { @"caption": "Fecha inicial" }
+            member @"ffinal" { @"caption": "Fecha final" }
+            member @"cconsumo" { @"caption": "Centro de consumo" }
+            member @"token_solicitud" { @"caption": "Token de timbrado" }
+            member @"last_error" { @"caption": "últ. error" }
+            member @"_actions"
             {
-                @"caption": "Emisión"
-                @"align": "center"
-            }
-            member @"vencimiento"
-            {
-                @"caption": "Vencimiento"
-                @"align": "center"
-            }
-            member @"cdivisa"
-            {
-                @"caption": "Divisa"
-                @"align": "center"
-            }
-            member @"tipocambio"
-            {
-                @"caption": "T. Cambio"
-                @"align": "end"
-                @"format": @true
-                @"thousandssep": @true
-                @"decs": 6
-            }
-            member @"total"
-            {
-                @"caption": "Total"
-                @"align": "end"
-                @"format": @true
-                @"thousandssep": @true
-                @"decs": 2
+                @"no-print":@true
+                @"template":'<a href="./${DataRow.sys_pk}/" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;">Detalles</a>
+                            <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;    border: none;height: 23px;margin-left: 2px;">Eliminar</button>'
             }
         }
         @"table_footer": "Mostrando los primeros # registros"
@@ -64,9 +44,7 @@ module ""
     {
         @"title": "Factura global"
         @"buttons*": buttons
-        @"urlexit": "/" //"javascript:window.history.back();"
-        // @"actions*": itemactions
-        // @"reports*": itemreports
+        @"urlexit": "/"
         @"jscurrentcontext": "list.getCurrentContext"
     }
 
@@ -78,40 +56,44 @@ module ""
         {
             @"name": "status"
             @"class": "induxsoft-form-select"
+            @"onchange":"document.getElementById('form_filter').submit()"
         }
         @"value_field": "id"
         @"text_field": "const"
-        @"first_text":"(*) Todos"
+        @"first_text":"(*) Todos los estados"
         @"first_value":"*"
         @"selected": @("$parameters/status")
     }
     #$
-    div(class="v12-list-view" id="view")
+    div(class="container-fluid v12-list-view" id="view")
     {
         section(id="top_area")
         {
-            #!
-            do uie.printV12FormBar(nav_config)
-            #$
-            form(action="")
+            div(class="mb-2")
             {
-                div(class="row")
+                #!
+                do uie.printV12FormBar(nav_config)
+                #$
+                form(action="" id="form_filter")
                 {
-                    div(class="col-md-3")
+                    div(class="row")
                     {
-                        #!
-                        do uie.dbSelect(_status)
-                        #$
-                    }
-                    div(class="col-md-8")
-                    {
-                        "date-range"(id="filter_date"
-                        "hidden-input-name-start"="fechaini"
-                        "hidden-input-name-end"="fechafin"
-                        start="#<fechaini>"
-                        "start-label"="Desde:"
-                        end="#<fechafin>"
-                        "end-label"="Hasta:"){""}
+                        div(class="col-md-3")
+                        {
+                            #!
+                            do uie.dbSelect(_status)
+                            #$
+                        }
+                        div(class="col-md-8")
+                        {
+                            "date-range"(id="filter_date"
+                            "hidden-input-name-start"="fechaini"
+                            "hidden-input-name-end"="fechafin"
+                            start="#<@('$parameters/fechaini')>"
+                            "start-label"="Desde:"
+                            end="#<@('$parameters/fechafin')>"
+                            "end-label"="Hasta:"){""}
+                        }
                     }
                 }
             }
@@ -121,6 +103,18 @@ module ""
             #!
             do uie.dbeditable(table_definition,"factura_global")
             #$
+        }
+
+        script
+        {
+            $'
+            document.addEventListener("DOMContentLoaded",(e)=>
+            {
+                var filter_date=document.getElementById("filter_date");
+                if(filter_date)filter_date._btnDone.addEventListener("click",(e)=>{document.getElementById("form_filter").submit();});
+
+            });
+            '
         }
     }
 }

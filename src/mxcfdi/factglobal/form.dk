@@ -20,22 +20,53 @@ module ""
     ref meses=@("&./meses")
     ref anios=@("&./anios")
     ref cconsumos=@("&./cconsumos")
+    
+    text_notas="Factura Global por Ventas del"
+
+    fechaini=ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
+    fechafin=ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
+
+    _text_notas_=text_notas + " "+ fechaini +" al " + fechafin
+    
+    if not(field.exist(@("&parameters"),"fechaini"))
+    {
+        check_remision=@true
+        check_ticket=@true
+        fecha_cfdi=date_str(now(),"yyyy-MM-dd")
+    }
+    else 
+    {
+        check_remision=parse.bool(@('$parameters/check_remision'))
+        check_ticket=parse.bool(@('$parameters/check_ticket'))
+
+        if @("$parameters/fecha_cfdi")!=""{fecha_cfdi=@("$parameters/fecha_cfdi")}
+        else if @@(data,"$fecha_cfdi")!=""{fecha_cfdi=@@(data,"$fecha_cfdi")}
+        else{fecha_cfdi=date_str(now(),"yyyy-MM-dd")}
+    }
 
     buttons::
     {
-        #$
-        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden"){"Guardar"}
-        #!
-    }
+        if @("#./data/sys_pk") > 0
+        {
+            #$
+            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_cancel_orden"){"Cancelar"}
+            #!
+        }
 
+        if parse.bool(@('#./enable'))
+        {
+            #$
+            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden"){"Guardar"}
+            #!
+        }
+    }
+    
     point buttons to buttons
     new nav_config
     {
-        @"title": "Orden factura global"
+        @"title": "Orden factura global"+ifstr(@@(data,"$text_status")!="","[ "+@@(data,"$text_status")+" ]","")
         @"buttons*": buttons
-        @"urlexit": "/" //"javascript:window.history.back();"
-        // @"actions*": itemactions
-        // @"reports*": itemreports
+        @"urlexit": ".." 
         @"jscurrentcontext": "list.getCurrentContext"
     }
     //selects
@@ -48,10 +79,15 @@ module ""
             @"name": "divisa"
             @"class": "induxsoft-form-select"
             @"required":"true"
+            @"onchange":"if(fglobal.form_factura_global)form_factura_global.submit();"
         }
         @"value_field": "sys_pk"
         @"text_field": "descripcion"
         @"selected": @("#parameters/divisa")
+        member @"attr_options"
+        {
+            @"data":"#<@@(row,'$codigo')>"
+        }
     }
     new _obj_impuestos
     {
@@ -65,7 +101,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("#parameters/objimp")
+        @"selected": @("$parameters/objimp")
     }
     new _series
     {
@@ -93,7 +129,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("#parameters/regfiscal")
+        @"selected": @("$parameters/regfiscal")
     }
     new _periocidad
     {
@@ -107,7 +143,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("#parameters/periodicidad")
+        @"selected": @("$parameters/periodicidad")
     }
     new _meses
     {
@@ -163,7 +199,7 @@ module ""
             member @"field_check" 
             { 
                 @"caption": "" 
-                @"template":'No'
+                if isnull(data) || parse.bool(@("#./from_filter")){@"template":'No'}
             }
             member @"referencia" { @"caption": "Ticket/Remision" }
             member @"fecha"
@@ -183,14 +219,13 @@ module ""
         }
         @"table_footer": "Mostrando los primeros # registros"
     }
-
-    fechaini=ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
-    fechafin=ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
-    text_notas="Factura Global por Ventas del"
+    
+    
     #$
     div(class="container v12-list-view" id="view")
     {
         script(src="#<@JS_FACT_GLOBAL>"){""}
+        link(href="#<@CSS_MAIN>" rel="stylesheet"){""}
 
         section(id="top_area")
         {
@@ -200,9 +235,10 @@ module ""
         }
         section(id="work_area")
         {
-            form(id="form_factura_global" action=".")
+            form(id="form_factura_global" action="." class="#<ifstr(not(parse.bool(@('#./enable'))),'disabled-all','')>")
             {
-                input(type="hidden" id="sys_pk" name="sys_pk" value="#<@@(data,'$sys_pk')>")
+                input(type="hidden" id="sys_pk" name="sys_pk" value="#<@@(data,'#sys_pk')>")
+                input(type="hidden" id="sys_recver" name="sys_recver" value="#<@@(data,'#sys_recver')>")
 
                 div(class="row")
                 {
@@ -247,6 +283,11 @@ module ""
                 //conceptos y notas
                 div(class="row")
                 {
+                    div(class="col-md-2")
+                    {
+                        label{"Fecha(CFDI):"}
+                        input(type="date" class="induxsoft-form-control" id="fecha_cfdi" name="fecha_cfdi" value="#<fecha_cfdi>")
+                    }
                     div(class="col-md-3")
                     {
                         label{"Objeto de impuesto:"}
@@ -254,15 +295,15 @@ module ""
                         do uie.dbSelect(_obj_impuestos)
                         #$
                     }
-                    div(class="col-md-3")
+                    div(class="col-md-2")
                     {
                         label{"Concepto:"}
                         input(type="text" class="induxsoft-form-control" id="concepto" name="concepto" value="Venta" disabled="true")
                     }
-                    div(class="col-md-6")
+                    div(class="col-md-5")
                     {
                         label{"Notas:"}
-                        textarea(class="induxsoft-form-control" rows="1" id="notas" name="notas"){"#<text_notas> #<fechaini> al #<fechafin>."}
+                        textarea(class="induxsoft-form-control" rows="1" id="notas" name="notas"){"#<_text_notas_>"}
                     }
                 }
                 ///////
@@ -281,11 +322,14 @@ module ""
                             {
                                 div(class="form-check d-flex justify-content-center")
                                 {
-                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(parse.bool(@('$parameters/check_ticket')),'checked','')>"="true" class="form-check-input" id="check_ticket" name="check_ticket") " Tickets"}
-                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(parse.bool(@('$parameters/check_remision')),'checked','')>"="true" class="form-check-input" id="check_remision" name="check_remision") " Remisiones"}
+                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_ticket,'checked','')>"="true" class="form-check-input" id="check_ticket" name="check_ticket") " Tickets"}
+                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_remision,'checked','')>"="true" class="form-check-input" id="check_remision" name="check_remision") " Remisiones"}
                                 }
                             }
-                            div(class="col-md-4"){$""}
+                            div(class="col-md-4 d-flex justify-content-end")
+                            {
+                                h5(id="lbl_total"){""}
+                            }
                         }
                         
                     }
@@ -323,7 +367,27 @@ module ""
                 }
                 section(class="mt-2")
                 {
-                    label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
+                    div(class="d-flex")
+                    {
+                        label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
+                        span(class="flex-grow-1"){""}
+                        div(id="_container_pages" class="d-flex")
+                        {
+                            div(id="container_page")
+                            {
+                                button{"1"}
+                                button{"1"}
+                                button{"1"}
+                            }
+                            button(id="btn_get_data")
+                            {
+                                $'<svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+                                    </svg>'
+                            }
+                        }
+                    }
+                    
                     #!
                     do uie.dbeditable(table_definition,"factura_global_detalle")
                     #$
@@ -350,6 +414,11 @@ module ""
                 height: 2.5rem;
                 font-size: large;
             }
+
+            #v12FormBar_title
+            {
+                overflow: visible !important;
+            }
             '
         }
 
@@ -357,11 +426,6 @@ module ""
         {
             $'
             fglobal.text_notas="#<text_notas>";
-
-            if(#<@@(data,"#data/data")> > 0)
-            {
-                fglobal.Enable(#<@@(data,"#data/enable")> > 0);
-            }
             '
         }
     }

@@ -79,6 +79,7 @@ model ""
         }
     }
     entity "blockdocumentos" : "TableModel"{}
+    entity "divisa":"TableModel"{}
     /// FACTURA GLOBAL.
  
     entity "mxcfdi_ordenfac_status": "EnumModel"
@@ -95,7 +96,9 @@ model ""
     {
         @"status" ref :"mxcfdi_ordenfac_status" required
         @"serie" ref:"blockdocumentos" required
+        @"divisa" ref:"divisa" required
         @"cconsumo" ref:"cconsumo"
+        @"fecha_cfdi" datetime
         @"finicial" datetime
         @"ffinal" datetime
         @"objeto_impuesto" string(2) required

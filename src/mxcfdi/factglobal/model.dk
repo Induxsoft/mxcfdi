@@ -6,6 +6,8 @@ module ""
 
     list::&db,&params
     {
+        do dbr.apps.action.grant("GX40")
+
        new entity
        {
             @"data*":entity.list(db,params)
@@ -15,6 +17,8 @@ module ""
     }
     read::&db,&params
     {
+        do dbr.apps.action.grant("GX40")
+
         ref data=entity.read(db,params)
         
         new entity
@@ -23,16 +27,33 @@ module ""
             @"enable":@false
         }
         
-        if @@(data,"#status")==@status_creada || @@(data,"#status")==@status_error
-        {
-            entity.enable:=@true
-        }
+        entity.enable:= @@(data,"#status")==@status_creada || @@(data,"#status")==@status_error
 
         do PrepareView(db,params,entity)
 
-        entity<"ventas*">:list.create()
+        if not(parse.bool(@@(entity,"$from_filter")))
+        {
+            entity<"ventas*">:dbr.list(db,ftext(@list_query_detalle_orden),params)
+        }
+        
+        using params
+        {
+            fechaini := @@(data,"$finicial")
+            fechafin := @@(data,"$ffinal")
+            objimp := @@(data,"$objeto_impuesto")
+            serie := @@(data,"$serie")
+            regfiscal := @@(data,"$regimen")
+            periodicidad := @@(data,"$periodicidad")
+            mes := @@(data,"$mes")
+            anio := @@(data,"$anio")
+            check_ticket := @@(data,"$tickets")
+            check_remision := @@(data,"$remisiones")
+        }
 
-       return entity
+        if @@(params,"$divisa")==""{params<"divisa">: @@(data,"$divisa")}
+        if @@(data,"$")!=""{params<"cconsumo">:@@(data,"$")}
+
+        return entity
     }
 
     PrepareView::&db,&params,&entity
@@ -47,12 +68,13 @@ module ""
             else {do rise_error(500,"Es necesario indique al menos un tipo de documento Ticket y/o Remisión.")}
 
             
-            entity<"ventas*">:dbr.list(db,sql,params)
+            entity<"ventas*">:dbr.list(db,ftext(sql),params)
+            entity<"from_filter">:@true
         }
         
         using entity
         {
-            @"divisas*":dbr.list(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where ifnull(sys_deleted,0)=0",params)
+            @"divisas*":dbr.list(db,"select sys_pk,codigo,concat_ws(' - ',codigo,descripcion)descripcion from divisa where ifnull(sys_deleted,0)=0",params)
             @"objimpuestos*":from.json(file.rtext(path.concat(@json_path,@sat_objeto_imp)))
             @"series*":dbr.list(db,"select sys_pk,serie from blockdocumentos where not uf_CFDI_Info is null and documento=4 and fiscal=true",params)
             @"regimenes*":from.json(file.rtext(path.concat(@json_path,@sat_regimen_fiscal)))
@@ -92,11 +114,15 @@ module ""
     }
     blank::&db,&params
     {
-      new entity{}
+        do dbr.apps.action.grant("GX40")
 
-      do PrepareView(db,params,entity)
+        new entity{}
+        
+        entity.enable:=@true
 
-      return entity
+        do PrepareView(db,params,entity)
+
+        return entity
     }
     GenOrdenFact::&data
     {
@@ -117,9 +143,13 @@ module ""
             @"dom_expedicion": @@(data,"$domfiscal")
             @"concepto":"Venta"
             @"notas":@@(data,"$notas")
+            @"divisa":@@(data,"#divisa")
+            @"sys_recver":@@(data,"#sys_recver")
+            @"fecha_cfdi":@@(data,"$fecha_cfdi")
         }
         
         if @@(data,"#cconsumo") > 0{orden_fact<"cconsumo">:@@(data,"#cconsumo")}
+        if trim(@@(orden_fact,"$fecha_cfdi"))==""{orden_fact<"fecha_cfdi">:date_str(now(),"yyyy-MM-dd")}
 
         if trim(@@(data,"$detalle"))!=""
         {
@@ -143,16 +173,103 @@ module ""
     }
     create::&db,&params,&data
     {
-        return entity.create(db,params,GenOrdenFact(data))
+        @use_transaction = @false
+            do dbr.apps.action.pre("GX41")
+        do dbr.begin(db)
+        
+            ref entity=entity.create(db,params,GenOrdenFact(data))
+        
+            do dbr.apps.action.pos(entity)
+        do dbr.commit(db)
+            do dbr.apps.action.ext(entity)
+        
+        return entity
+
+        exception
+        {
+            if dbr.in_transaction(db){ do dbr.rollback(db) }
+            do dbr.apps.action.log()
+            do rise_error(last_error_code(),last_error())
+        }
+        
     }
     update::&db,&params,&data
     {
-       return entity.update(db,params,GenOrdenFact(data))
+        @use_transaction = @false
+            do dbr.apps.action.pre("GX42")
+        
+        ref entity=entity.read(db,params)
+
+        if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error
+        {
+            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error")
+        }
+
+        do dbr.begin(db)
+        
+        do dbr.execute(db,"delete from mxcfdi_ordenfac_det where orden=@_entity_id",params)
+        ref entity=entity.update(db,params,GenOrdenFact(data))
+        
+            do dbr.apps.action.pos(entity)
+        do dbr.commit(db)
+            do dbr.apps.action.ext(entity)
+        
+        return entity
+
+        exception
+        {
+            if dbr.in_transaction(db){ do dbr.rollback(db) }
+            do dbr.apps.action.log()
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+    delete::&db,&params
+    {
+        @use_transaction = @false
+            do dbr.apps.action.pre("GX43")
+
+        ref entity=entity.read(db,params)
+        if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error && @@(entity,"#status")!=@status_cancelada
+        {
+            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada")
+        }
+
+        do dbr.begin(db)
+        
+        do dbr.execute(db,"delete from mxcfdi_ordenfac_det where orden=@_entity_id",params)
+        ref entity= entity.delete(db,params)
+        
+            do dbr.apps.action.pos(entity)
+        do dbr.commit(db)
+            do dbr.apps.action.ext(entity)
+        
+        return entity
+
+        exception
+        {
+            if dbr.in_transaction(db){ do dbr.rollback(db) }
+            do dbr.apps.action.log()
+            do rise_error(last_error_code(),last_error())
+        }
     }
     
-    point @update to update
-    point @create to create
-    point @blank to blank
-    point @read to read
-    point @list to list
+    cancelar::&db,&params,&data
+    {
+        @use_transaction = @false
+            do dbr.apps.action.pre("GX44")
+        do dbr.begin(db)
+        
+        do dbr.execute(db,ftext("update mxcfdi_ordenfac set status=#<@status_cancelada> where sys_pk=@_entity_id"),params)
+        
+            do dbr.apps.action.pos(data)
+        do dbr.commit(db)
+            do dbr.apps.action.ext(data)
+        
+        exception
+        {
+            if dbr.in_transaction(db){ do dbr.rollback(db) }
+            do dbr.apps.action.log()
+            do rise_error(last_error_code(),last_error())
+        }
+    }
 }
