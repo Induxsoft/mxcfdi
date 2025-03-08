@@ -46,28 +46,34 @@ module ""
 
     buttons::
     {
-        if @("#./data/sys_pk") > 0
-        {
+        #$
+        label(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" "for"="nav-general-tab" id="lbl-general-tab" hidden=""){$"< Anterior"}
+        label(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" "for"="nav-preferencias-tab" id="lbl-preferencias-tab"){$"Siguiente >"}
+        #!
+        if parse.bool(@('#./enable')) {
+            #$
+            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden" hidden=""){"Guardar"}
+            #!
+        }
+        if @("#./data/sys_pk") > 0 {
             #$
             button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_cancel_orden"){"Cancelar"}
             #!
         }
-
-        if parse.bool(@('#./enable'))
-        {
-            #$
-            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden"){"Guardar"}
-            #!
-        }
     }
-    
     point buttons to buttons
     new nav_config
     {
-        @"title": "Orden factura global"+ifstr(@@(data,"$text_status")!="","[ "+@@(data,"$text_status")+" ]","")
+        @"title": "Facturación global "+ifstr(@@(data,"$text_status")!="","["+@@(data,"$text_status")+"]","")
         @"buttons*": buttons
         @"urlexit": ".." 
         @"jscurrentcontext": "list.getCurrentContext"
+
+        member @"hidden"
+        {
+            @"print": @true
+            @"send": @true
+        }
     }
     //selects
     new _divisas
@@ -89,20 +95,6 @@ module ""
             @"data":"#<@@(row,'$codigo')>"
         }
     }
-    new _obj_impuestos
-    {
-        @"datatable*": objimpuestos
-        @"id": "objimp"
-        member "attributes"
-        {
-            @"name": "objimp"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-        }
-        @"value_field": "clave"
-        @"text_field": "valor"
-        @"selected": @("$parameters/objimp")
-    }
     new _series
     {
         @"datatable*": series
@@ -116,62 +108,6 @@ module ""
         @"value_field": "sys_pk"
         @"text_field": "serie"
         @"selected": @("#parameters/serie")
-    }
-    new _regimen
-    {
-        @"datatable*": regimenes
-        @"id": "regfiscal"
-        member "attributes"
-        {
-            @"name": "regfiscal"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-        }
-        @"value_field": "clave"
-        @"text_field": "valor"
-        @"selected": @("$parameters/regfiscal")
-    }
-    new _periocidad
-    {
-        @"datatable*": periocidades
-        @"id": "periodicidad"
-        member "attributes"
-        {
-            @"name": "periodicidad"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-        }
-        @"value_field": "clave"
-        @"text_field": "valor"
-        @"selected": @("$parameters/periodicidad")
-    }
-    new _meses
-    {
-        @"datatable*": meses
-        @"id": "mes"
-        member "attributes"
-        {
-            @"name": "mes"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-        }
-        @"value_field": "clave"
-        @"text_field": "valor"
-        @"selected": @("$parameters/mes")
-    }
-    new _anio
-    {
-        @"datatable*": anios
-        @"id": "anio"
-        member "attributes"
-        {
-            @"name": "anio"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-        }
-        @"value_field": "clave"
-        @"text_field": "valor"
-        @"selected": @("$parameters/anio")
     }
     new _cconsumos
     {
@@ -190,6 +126,79 @@ module ""
         @"first_value":"*"
         @"selected": @("$parameters/cconsumo")
     }
+    new _obj_impuestos
+    {
+        @"datatable*": objimpuestos
+        @"id": "objimp"
+        member "attributes"
+        {
+            @"name": "objimp"
+            @"class": "induxsoft-form-select"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"first_value": ""
+        @"first_text": "Ninguno"
+        @"selected": @("$parameters/objimp")
+    }
+    new _regimen
+    {
+        @"datatable*": regimenes
+        @"id": "regfiscal"
+        member "attributes"
+        {
+            @"name": "regfiscal"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/regfiscal")
+    }
+    new _periocidad
+    {
+        @"datatable*": periocidades
+        @"id": "periodicidad"
+        member "attributes"
+        {
+            @"name": "periodicidad"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/periodicidad")
+    }
+    new _meses
+    {
+        @"datatable*": meses
+        @"id": "mes"
+        member "attributes"
+        {
+            @"name": "mes"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/mes")
+    }
+    new _anio
+    {
+        @"datatable*": anios
+        @"id": "anio"
+        member "attributes"
+        {
+            @"name": "anio"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": @("$parameters/anio")
+    }
+    
     //tabla detalle
     new table_definition
     {
@@ -220,7 +229,6 @@ module ""
         @"table_footer": "Mostrando los primeros # registros"
     }
     
-    
     #$
     div(class="container v12-list-view" id="view")
     {
@@ -232,6 +240,14 @@ module ""
             #!
             do uie.printV12FormBar(nav_config)
             #$
+            nav(hidden="")
+            {
+                div(class="nav nav-tabs mb-2" id="nav-tab" role="tablist")
+                {
+                    button(class="nav-link py-1 active" type="button" role="tab" id="nav-general-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-general" "aria-controls"="nav-general" "aria-selected"="true"){$"General"}
+                    button(class="nav-link py-1" type="button" role="tab" id="nav-preferencias-tab" "data-bs-toggle"="tab" "data-bs-target"="#nav-preferencias" "aria-controls"="nav-preferencias" "aria-selected"="false"){$"Preferencias"}
+                }
+            }
         }
         section(id="work_area")
         {
@@ -240,157 +256,158 @@ module ""
                 input(type="hidden" id="sys_pk" name="sys_pk" value="#<@@(data,'#sys_pk')>")
                 input(type="hidden" id="sys_recver" name="sys_recver" value="#<@@(data,'#sys_recver')>")
 
-                div(class="row")
+                div(class="tab-content")
                 {
-                    div(class="col-md-3")
+                    div(class="tab-pane fade show active" id="nav-general" role="tabpanel" "aria-labelledby"="nav-general-tab")
                     {
-                        label{"Divisa:"}
-                        #!
-                        do uie.dbSelect(_divisas)
-                        #$
-                    }
-                    div(class="col-md-1")
-                    {
-                        label{"Serie:"}
-                        #!
-                        do uie.dbSelect(_series)
-                        #$
-                    }
-                    div(class="col-md-3")
-                    {
-                        label{"C. Consumo:"}
-                        #!
-                        do uie.dbSelect(_cconsumos)
-                        #$
-                    }
-                    div(class="col-md-4")
-                    {
-                        label{"Fecha:"}
-                        "date-range"(id="fecha_range"
-                        "hidden-input-name-start"="fechaini"
-                        "hidden-input-name-end"="fechafin"
-                        start="#<fechaini>"
-                        "start-label"="Inicial:"
-                        end="#<fechafin>"
-                        required="true"
-                        "end-label"="Final:"){""}
-                    }
-                    div(class="col-md-1 mt-4")
-                    {
-                        button(type="button" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_change"){"Cambiar"}
-                    }
-                }
-                //conceptos y notas
-                div(class="row")
-                {
-                    div(class="col-md-2")
-                    {
-                        label{"Fecha(CFDI):"}
-                        input(type="date" class="induxsoft-form-control" id="fecha_cfdi" name="fecha_cfdi" value="#<fecha_cfdi>")
-                    }
-                    div(class="col-md-3")
-                    {
-                        label{"Objeto de impuesto:"}
-                        #!
-                        do uie.dbSelect(_obj_impuestos)
-                        #$
-                    }
-                    div(class="col-md-2")
-                    {
-                        label{"Concepto:"}
-                        input(type="text" class="induxsoft-form-control" id="concepto" name="concepto" value="Venta" disabled="true")
-                    }
-                    div(class="col-md-5")
-                    {
-                        label{"Notas:"}
-                        textarea(class="induxsoft-form-control" rows="1" id="notas" name="notas"){"#<_text_notas_>"}
-                    }
-                }
-                ///////
-
-                fieldset(class="mt-2")
-                {
-                    legend(class="d-flex")
-                    {
-                        div(class="row w-100")
+                        div(class="text-center"){ span(class="fw-bolder"){"Selección de ventas"} }
+                        // Filtros
+                        div(class="row gx-2")
                         {
-                            div(class="col-md-4")
+                            div(class="col-md-3")
                             {
-                                $"Información global (CFDI 4.0)"
+                                label{"Divisa:"}
+                                #!
+                                do uie.dbSelect(_divisas)
+                                #$
+                            }
+                            div(class="col-md-1")
+                            {
+                                label{"Serie:"}
+                                #!
+                                do uie.dbSelect(_series)
+                                #$
+                            }
+                            div(class="col-md-3")
+                            {
+                                label{"C. Consumo:"}
+                                #!
+                                do uie.dbSelect(_cconsumos)
+                                #$
                             }
                             div(class="col-md-4")
                             {
-                                div(class="form-check d-flex justify-content-center")
+                                label{"Fecha:"}
+                                "date-range"(id="fecha_range"
+                                "hidden-input-name-start"="fechaini"
+                                "hidden-input-name-end"="fechafin"
+                                start="#<fechaini>"
+                                "start-label"="Inicial:"
+                                end="#<fechafin>"
+                                required="true"
+                                "end-label"="Final:"){""}
+                            }
+                            div(class="col-md-1 align-self-end")
+                            {
+                                button(type="button" class="btn border-secondary induxsoft-corners btn-main-action no-print" id="btn_change"){"Cambiar"}
+                            }
+                        }
+                        // Preferencias
+                        div(class="row gx-2")
+                        {
+                            div(class="col-md-2")
+                            {
+                                label("for"="fecha_cfdi"){"Fecha(CFDI):"}
+                                input(type="date" class="induxsoft-form-control" id="fecha_cfdi" name="fecha_cfdi" value="#<fecha_cfdi>")
+                            }
+                            div(class="col-md-3")
+                            {
+                                label("for"="objimp"){"Objeto de impuesto:"}
+                                #!
+                                do uie.dbSelect(_obj_impuestos)
+                                #$
+                            }
+                        }
+                        // Información global
+                        fieldset(class="mt-2")
+                        {
+                            legend(class="d-flex")
+                            {
+                                div(class="row w-100")
                                 {
-                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_ticket,'checked','')>"="true" class="form-check-input" id="check_ticket" name="check_ticket") " Tickets"}
-                                    label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_remision,'checked','')>"="true" class="form-check-input" id="check_remision" name="check_remision") " Remisiones"}
+                                    div(class="col-md-4")
+                                    {
+                                        $"Información global (CFDI 4.0)"
+                                    }
+                                    div(class="col-md-4")
+                                    {
+                                        div(class="form-check d-flex justify-content-center")
+                                        {
+                                            label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_ticket,'checked','')>"="true" class="form-check-input" id="check_ticket" name="check_ticket") " Tickets"}
+                                            label(class="form-check-label" style="width: 30%;"){input(type="checkbox" "#<ifstr(check_remision,'checked','')>"="true" class="form-check-input" id="check_remision" name="check_remision") " Remisiones"}
+                                        }
+                                    }
+                                    div(class="col-md-4 d-flex justify-content-end")
+                                    {
+                                        h5(id="lbl_total"){""}
+                                    }
+                                }
+                                
+                            }
+                            div(class="row gx-2 pe-2 ps-2")
+                            {
+                                div(class="col-md-3")
+                                {
+                                    label("for"="regfiscal"){"Régimen fiscal:"}
+                                    #!
+                                    do uie.dbSelect(_regimen)
+                                    #$
+                                }
+                                div(class="col-md-3")
+                                {
+                                    label("for"="periodicidad"){"Periocidad:"}
+                                    #!
+                                    do uie.dbSelect(_periocidad)
+                                    #$
+                                }
+                                div(class="col-md-3")
+                                {
+                                    label("for"="mes"){"Mes:"}
+                                    #!
+                                    do uie.dbSelect(_meses)
+                                    #$
+                                }
+                                div(class="col-md-3")
+                                {
+                                    label("for"="anio"){"Año:"}
+                                    #!
+                                    do uie.dbSelect(_anio)
+                                    #$
                                 }
                             }
-                            div(class="col-md-4 d-flex justify-content-end")
-                            {
-                                h5(id="lbl_total"){""}
-                            }
                         }
-                        
+                        section(class="mt-2")
+                        {
+                            div(class="d-flex")
+                            {
+                                label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
+                                span(class="flex-grow-1"){""}
+                            }
+                            
+                            #!
+                            do uie.dbeditable(table_definition,"factura_global_detalle")
+                            #$
+                        }
                     }
-                    div(class="row pe-2 ps-2")
+
+                    div(class="tab-pane fade" id="nav-preferencias" role="tabpanel" "aria-labelledby"="nav-mrdata-tab")
                     {
-                        div(class="col-md-3")
+                        div(class="text-center"){ span(class="fw-bolder"){"Preferencias de la factura"} }
+
+                        div(class="row gx-2")
                         {
-                            label{"Régimen fiscal:"}
-                            #!
-                            do uie.dbSelect(_regimen)
-                            #$
-                        }
-                        div(class="col-md-3")
-                        {
-                            label{"Periocidad:"}
-                            #!
-                            do uie.dbSelect(_periocidad)
-                            #$
-                        }
-                        div(class="col-md-3")
-                        {
-                            label{"Mes:"}
-                            #!
-                            do uie.dbSelect(_meses)
-                            #$
-                        }
-                        div(class="col-md-3")
-                        {
-                            label{"Año:"}
-                            #!
-                            do uie.dbSelect(_anio)
-                            #$
-                        }
-                    }
-                }
-                section(class="mt-2")
-                {
-                    div(class="d-flex")
-                    {
-                        label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
-                        span(class="flex-grow-1"){""}
-                        div(id="_container_pages" class="d-flex")
-                        {
-                            div(id="container_page")
+                            div(class="col-12")
                             {
-                                button{"1"}
-                                button{"1"}
-                                button{"1"}
+                                label("for"="concepto"){"Concepto:"}
+                                input(type="text" class="induxsoft-form-control" id="concepto" name="concepto" value="Venta" disabled="true")
                             }
-                            button(id="btn_get_data")
+                            div(class="col-12")
                             {
-                                $'<svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
-                                    <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
-                                    </svg>'
+                                label("for"="notas"){"Notas:"}
+                                textarea(class="induxsoft-form-control" rows="5" id="notas" name="notas"){"#<_text_notas_>"}
                             }
                         }
                     }
-                    
-                    #!
-                    do uie.dbeditable(table_definition,"factura_global_detalle")
-                    #$
                 }
             }
         }
@@ -429,5 +446,4 @@ module ""
             '
         }
     }
-
 }

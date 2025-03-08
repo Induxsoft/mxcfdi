@@ -2,18 +2,18 @@
 #!
 module ""
 {
-    point @delete to delete
-    point @update to update
-    point @create to create
-    point @blank to blank
-    point @read to read
-    point @list to list
+    point @delete to factglobal.delete
+    point @update to factglobal.update
+    point @create to factglobal.create
+    point @blank to factglobal.blank
+    point @read to factglobal.read
+    point @list to factglobal.list
 
     switch @@(params,"$_view")
     {
         case "cancelar"
         {
-            point @update to cancelar
+            point @update to factglobal.cancelar
             break
         }
     }

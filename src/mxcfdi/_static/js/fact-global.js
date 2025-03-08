@@ -6,6 +6,8 @@ var fglobal=
     text_notas:"",
     init()
     {
+        this.lbl_general_tab = document.getElementById("lbl-general-tab");
+        this.lbl_preferencias_tab = document.getElementById("lbl-preferencias-tab");
         this.check_ticket=document.getElementById("check_ticket");
         this.check_remision=document.getElementById("check_remision");
         this.btn_change=document.getElementById("btn_change");
@@ -22,6 +24,17 @@ var fglobal=
         this._container_pages=document.getElementById("_container_pages");
         this.container_page=document.getElementById("container_page");
         this.btn_get_data=document.getElementById("btn_get_data");
+
+        this.lbl_general_tab.addEventListener("click", () => {
+            this.lbl_general_tab.hidden = true;
+            this.lbl_preferencias_tab.hidden = false;
+            if (this.btn_save_orden) this.btn_save_orden.hidden = true;
+        });
+        this.lbl_preferencias_tab.addEventListener("click", () => {
+            this.lbl_general_tab.hidden = false;
+            this.lbl_preferencias_tab.hidden = true;
+            if (this.btn_save_orden) this.btn_save_orden.hidden = false;
+        });
 
         if(this.check_ticket)this.check_ticket.addEventListener("change",()=>
         {

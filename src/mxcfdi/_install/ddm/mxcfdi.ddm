@@ -1,5 +1,5 @@
 #include "ddm.dkh"
-model ""
+model "mxcfdi"
 {
     /**
     * [mxcfdi] Emisión de CFDI
@@ -20,6 +20,8 @@ model ""
     {
         @"cfdi_emisor" ref:"mxcfdi_emisor"
     }
+    entity "blockdocumentos" : "TableModel"{}
+    entity "divisa" : "TableModel"{}
     //* ======================================== [ ENTIDADES PRINCIPALES ]
     entity "ut_cfdinfo" : "TableModel"
     {
@@ -78,10 +80,9 @@ model ""
             field "cti"
         }
     }
-    entity "blockdocumentos" : "TableModel"{}
-    entity "divisa":"TableModel"{}
-    /// FACTURA GLOBAL.
- 
+    
+    // FACTURA GLOBAL.
+    
     entity "mxcfdi_ordenfac_status": "EnumModel"
     {
         //0-Creada

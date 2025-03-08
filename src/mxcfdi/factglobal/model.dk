@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-module ""
+module "Ordenes de timbrado (Facturación Global). :factglobal"
 {
     #include "list_query.dk"
 
@@ -76,7 +76,7 @@ module ""
         {
             @"divisas*":dbr.list(db,"select sys_pk,codigo,concat_ws(' - ',codigo,descripcion)descripcion from divisa where ifnull(sys_deleted,0)=0",params)
             @"objimpuestos*":from.json(file.rtext(path.concat(@json_path,@sat_objeto_imp)))
-            @"series*":dbr.list(db,"select sys_pk,serie from blockdocumentos where not uf_CFDI_Info is null and documento=4 and fiscal=true",params)
+            @"series*":dbr.list(db,"select sys_pk,serie from blockdocumentos where not ifnull(sys_deleted,0) and documento=4 and activo and fiscal",params)
             @"regimenes*":from.json(file.rtext(path.concat(@json_path,@sat_regimen_fiscal)))
             @"periocidades*":from.json(file.rtext(path.concat(@json_path,@sat_peridicidad)))
             @"meses*":from.json(file.rtext(path.concat(@json_path,@sat_meses)))

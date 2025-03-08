@@ -2,250 +2,265 @@
 #!
 module ""
 {
-        @table_name="mxcfdi_ordenfac"
+	@table_name="mxcfdi_ordenfac"
 
-        @list_query="SELECT
-                        o.sys_pk,
-                        DATE_FORMAT(o.sys_dtcreated, '%Y-%m-%d %H:%i:%s') creacion,
-                        DATE_FORMAT(o.finicial, '%Y-%m-%d') finicial,
-                        DATE_FORMAT(o.ffinal, '%Y-%m-%d') ffinal,
-                        DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
-                        so.const estado,
-                        concat(cc.codigo, ' - ', cc.descripcion) cconsumo,
-                        o.token_solicitud,
-                        last_error
-                FROM
-                        mxcfdi_ordenfac o
-                        INNER JOIN mxcfdi_ordenfac_status so ON o.`status` = so.id
-                        LEFT JOIN cconsumo cc ON o.cconsumo = cc.sys_pk
-                WHERE
-                        IFNULL(o.sys_deleted, 0) = 0
-                        and if(ifnull(@status, '*') = '*', true, o.`status` = @status)
-                        and if(
-                                ifnull(@fechaini, '') = ''
-                                or ifnull(@fechafin, '') = '',
-                                true,
-                                date(o.sys_dtcreated) between date(@fechaini)
-                                and date(@fechafin)
-                        )
-                LIMIT #<@default_max_rows>
-        "
+	@list_query = "
+	SELECT
+		o.sys_pk,
+		DATE_FORMAT(o.sys_dtcreated, '%Y-%m-%d %H:%i:%s') creacion,
+		DATE_FORMAT(o.finicial, '%Y-%m-%d') finicial,
+		DATE_FORMAT(o.ffinal, '%Y-%m-%d') ffinal,
+		DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
+		so.const estado,
+		concat(ifnull(cc.codigo,'*'), ' - ', ifnull(cc.descripcion,'Todos')) cconsumo,
+		o.token_solicitud,
+		last_error
+	FROM
+		mxcfdi_ordenfac o
+		INNER JOIN mxcfdi_ordenfac_status so ON o.`status` = so.id
+		LEFT JOIN cconsumo cc ON o.cconsumo = cc.sys_pk
+	WHERE
+		IFNULL(o.sys_deleted, 0) = 0
+		and if(ifnull(@status, '*') = '*', true, o.`status` = @status)
+		and if(
+			ifnull(@fechaini, '') = ''
+			or ifnull(@fechafin, '') = '',
+			true,
+			date(o.sys_dtcreated) between date(@fechaini)
+			and date(@fechafin)
+		)
+	LIMIT #<@default_max_rows>
+	"
 
-        @read_query="SELECT o.sys_pk,
-                o.sys_recver,
-                DATE_FORMAT(o.finicial,'%Y-%m-%d') finicial,
-                DATE_FORMAT(o.ffinal,'%Y-%m-%d')ffinal,
-                DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
-                o.`status`,
-                o.cconsumo,
-                o.objeto_impuesto,
-                o.tickets,
-                o.remisiones,
-                o.regimen,
-                o.periodicidad,
-                o.mes,
-                o.anio,
-                o.nic,
-                o.concepto,
-                o.notas,
-                o.token_solicitud,
-                o.last_error,
-                o.serie,
-                o.divisa,
-                s.const text_status
-        from mxcfdi_ordenfac o
-        INNER JOIN mxcfdi_ordenfac_status s ON o.`status`=s.id
-        WHERE IFNULL(o.sys_deleted,0)=0
-        AND o.sys_pk=@_entity_id"
+	@read_query = "
+	SELECT
+		o.sys_pk,
+		o.sys_recver,
+		DATE_FORMAT(o.finicial,'%Y-%m-%d') finicial,
+		DATE_FORMAT(o.ffinal,'%Y-%m-%d')ffinal,
+		DATE_FORMAT(o.fecha_cfdi,'%Y-%m-%d')fecha_cfdi,
+		o.`status`,
+		o.cconsumo,
+		o.objeto_impuesto,
+		o.tickets,
+		o.remisiones,
+		o.regimen,
+		o.periodicidad,
+		o.mes,
+		o.anio,
+		o.nic,
+		o.concepto,
+		o.notas,
+		o.token_solicitud,
+		o.last_error,
+		o.serie,
+		o.divisa,
+		s.const text_status
+	FROM mxcfdi_ordenfac o
+		INNER JOIN mxcfdi_ordenfac_status s ON o.`status`=s.id
+	WHERE IFNULL(o.sys_deleted,0)=0
+		AND o.sys_pk=@_entity_id
+	"
 
-        @list_query_tic_rem="select
-                            distinct v.sys_pk,
-                            v.referencia,
-                            v.documento,
-                            trim(date(v.fecha)) fecha,
-                            v.sys_dtcreated as created,
-                            @subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
-                            @descuento := (
-                                    round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)
-                            ) as descuento,
-                            @totalimpuesto := (
-                                    round(
-                                            (
-                                                    v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
-                                            ) / mc.tipocambio,
-                                            2
-                                    )
-                            ) as totalimpuesto,
-                            (@subtotal - @descuento + @totalimpuesto) total
-                    from
-                            venta as v
-                            inner join cliente as c on v.icliente = c.sys_pk
-                            inner join movcaja mc on v.imovcaja = mc.sys_pk
-                            inner join dventa d on v.sys_pk = d.fk_venta_detalle
-                            inner join corte ct on mc.icorte = ct.sys_pk
-                            inner join caja cj on ct.icaja = cj.sys_pk
-                            inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-                    where
-                            v.fecha >= date(@fechaini)
-                            and v.fecha <= date(@fechafin)
-                            and (
-                                    v.documento = 6
-                                    or v.documento = 3
-                            )
-                            and c.rfc = 'xaxx010101000'
-                            and v.aplicadoa is null
-                            and v.statusfacturacion = 1
-                            and v.statusadministrativo = 3
-                            and v.statusfinanciero = 2
-                            and mc.idivisa = @divisa
-                            and (
-                                    mc.documento != 34
-                                    and mc.documento != 99
-                            )
-                            and d.xfacturar > 0
-                            and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
-                    order by
-                            v.fecha,
-                            v.documento
-                        limit #<@default_max_rows_fact_global>;"
+	@list_query_tic_rem = "
+	select
+		distinct v.sys_pk,
+		v.referencia,
+		v.documento,
+		trim(date(v.fecha)) fecha,
+		v.sys_dtcreated as created,
+		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
+		@descuento := (
+			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)
+		) as descuento,
+		@totalimpuesto := (
+			round(
+				(
+						v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
+				) / mc.tipocambio,
+				2
+			)
+		) as totalimpuesto,
+		(@subtotal - @descuento + @totalimpuesto) total
+	from
+		venta as v
+		inner join cliente as c on v.icliente = c.sys_pk
+		inner join movcaja mc on v.imovcaja = mc.sys_pk
+		inner join dventa d on v.sys_pk = d.fk_venta_detalle
+		inner join corte ct on mc.icorte = ct.sys_pk
+		inner join caja cj on ct.icaja = cj.sys_pk
+		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+	where
+		v.fecha >= date(@fechaini)
+		and v.fecha <= date(@fechafin)
+		and (
+			v.documento = 6
+			or v.documento = 3
+		)
+		and c.rfc = 'xaxx010101000'
+		and v.aplicadoa is null
+		and v.statusfacturacion = 1
+		and v.statusadministrativo = 3
+		and v.statusfinanciero = 2
+		and mc.idivisa = @divisa
+		and (
+			mc.documento != 34
+			and mc.documento != 99
+		)
+		and d.xfacturar > 0
+		and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
+	order by
+		v.fecha,
+		v.documento
+	limit #<@default_max_rows_fact_global>;
+	"
 
-        @list_query_tic="select
-                            distinct v.sys_pk,
-                            v.referencia,
-                            v.documento,
-                            trim(date(v.fecha)) fecha,
-                            v.sys_dtcreated as created,
-                            @subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
-                            @descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
-                            @totalimpuesto := round(
-                                    (v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
-                                    2
-                            ) as totalimpuesto,
-                            (@subtotal - @descuento + @totalimpuesto) total
-                    from
-                            venta v
-                            inner join cliente as c on v.icliente = c.sys_pk
-                            inner join movcaja mc on v.imovcaja = mc.sys_pk
-                            inner join dventa d on v.sys_pk = d.fk_venta_detalle
-                            inner join corte ct on mc.icorte = ct.sys_pk
-                            inner join caja cj on ct.icaja = cj.sys_pk
-                            inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-                    where
-                            v.fecha >= date(@fechaini)
-                            and v.fecha <= date(@fechafin)
-                            and v.documento = 6
-                            and c.rfc = 'xaxx010101000'
-                            and v.aplicadoa is null
-                            and v.statusfacturacion = 1
-                            and v.statusadministrativo = 3
-                            and v.statusfinanciero = 2
-                            and mc.idivisa = @divisa
-                            and (
-                                    mc.documento != 34
-                                    and mc.documento != 99
-                            )
-                            and d.xfacturar > 0
-                            and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
-                    order by
-                            v.fecha,
-                            v.documento
-                        limit #<@default_max_rows_fact_global>;"
+	@list_query_tic = "
+	select
+		distinct v.sys_pk,
+		v.referencia,
+		v.documento,
+		trim(date(v.fecha)) fecha,
+		v.sys_dtcreated as created,
+		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		@totalimpuesto := round(
+			(v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
+			2
+		) as totalimpuesto,
+		(@subtotal - @descuento + @totalimpuesto) total
+	from
+		venta v
+		inner join cliente as c on v.icliente = c.sys_pk
+		inner join movcaja mc on v.imovcaja = mc.sys_pk
+		inner join dventa d on v.sys_pk = d.fk_venta_detalle
+		inner join corte ct on mc.icorte = ct.sys_pk
+		inner join caja cj on ct.icaja = cj.sys_pk
+		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+	where
+		v.fecha >= date(@fechaini)
+		and v.fecha <= date(@fechafin)
+		and v.documento = 6
+		and c.rfc = 'xaxx010101000'
+		and v.aplicadoa is null
+		and v.statusfacturacion = 1
+		and v.statusadministrativo = 3
+		and v.statusfinanciero = 2
+		and mc.idivisa = @divisa
+		and (
+			mc.documento != 34
+			and mc.documento != 99
+		)
+		and d.xfacturar > 0
+		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+	order by
+		v.fecha,
+		v.documento
+	limit #<@default_max_rows_fact_global>;
+	"
 
-        @list_query_rem="select
-                        distinct v.sys_pk,
-                        v.referencia,
-                        v.documento,
-                        trim(date(v.fecha)) fecha,
-                        v.sys_dtcreated as created,
-                        @subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
-                        @descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
-                        @totalimpuesto := round(
-                                (v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
-                                2
-                        ) as totalimpuesto,
-                        (@subtotal - @descuento + @totalimpuesto) total
-                from
-                        venta as v
-                        inner join cliente as c on v.icliente = c.sys_pk
-                        inner join movcaja mc on v.imovcaja = mc.sys_pk
-                        inner join dventa d on v.sys_pk = d.fk_venta_detalle
-                        inner join corte ct on mc.icorte = ct.sys_pk
-                        inner join caja cj on ct.icaja = cj.sys_pk
-                        inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-                where
-                        v.fecha >= date(@fechaini)
-                        and v.fecha <= date(@fechafin)
-                        and v.documento = 3
-                        and c.rfc = 'xaxx010101000'
-                        and v.aplicadoa is null
-                        and v.statusfacturacion = 1
-                        and v.statusadministrativo = 3
-                        and v.statusfinanciero = 2
-                        and mc.idivisa = @divisa
-                        and (
-                                mc.documento != 34
-                                and mc.documento != 99
-                        )
-                        and d.xfacturar > 0
-                        and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
-                order by
-                        v.fecha,
-                        v.documento
-                limit #<@default_max_rows_fact_global>;"
+	@list_query_rem = "
+	select
+		distinct v.sys_pk,
+		v.referencia,
+		v.documento,
+		trim(date(v.fecha)) fecha,
+		v.sys_dtcreated as created,
+		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		@totalimpuesto := round(
+			(v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
+			2
+		) as totalimpuesto,
+		(@subtotal - @descuento + @totalimpuesto) total
+	from
+		venta as v
+		inner join cliente as c on v.icliente = c.sys_pk
+		inner join movcaja mc on v.imovcaja = mc.sys_pk
+		inner join dventa d on v.sys_pk = d.fk_venta_detalle
+		inner join corte ct on mc.icorte = ct.sys_pk
+		inner join caja cj on ct.icaja = cj.sys_pk
+		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+	where
+		v.fecha >= date(@fechaini)
+		and v.fecha <= date(@fechafin)
+		and v.documento = 3
+		and c.rfc = 'xaxx010101000'
+		and v.aplicadoa is null
+		and v.statusfacturacion = 1
+		and v.statusadministrativo = 3
+		and v.statusfinanciero = 2
+		and mc.idivisa = @divisa
+		and (
+			mc.documento != 34
+			and mc.documento != 99
+		)
+		and d.xfacturar > 0
+		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+	order by
+		v.fecha,
+		v.documento
+	limit #<@default_max_rows_fact_global>;
+	"
 
-        @list_query_detalle_orden="select v.sys_pk,v.referencia,
-                                trim(date(v.fecha)) fecha,
-                                @subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
-                                                        @descuento := (round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)) as descuento,
-                                                        @totalimpuesto := (
-                                                                round(
-                                                                        (
-                                                                                v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
-                                                                        ) / mc.tipocambio,
-                                                                        2
-                                                                )
-                                                        ) as totalimpuesto,
-                                                        (@subtotal - @descuento + @totalimpuesto) total,
-                                'Sí' field_check
-                                from mxcfdi_ordenfac_det od
-                                inner join venta v on od.venta=v.sys_pk
-                                inner join movcaja mc on v.imovcaja = mc.sys_pk
-                                WHERE od.orden=@_entity_id
-                                limit #<@default_max_rows_fact_global>"
+	@list_query_detalle_orden = "
+	select
+		v.sys_pk,
+		v.referencia,
+		trim(date(v.fecha)) fecha,
+		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
+		@descuento := (round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)) as descuento,
+		@totalimpuesto := (
+			round(
+				(
+						v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
+				) / mc.tipocambio,
+				2
+			)
+		) as totalimpuesto,
+		(@subtotal - @descuento + @totalimpuesto) total,
+		'Sí' field_check
+	from mxcfdi_ordenfac_det od
+		inner join venta v on od.venta=v.sys_pk
+		inner join movcaja mc on v.imovcaja = mc.sys_pk
+	WHERE od.orden=@_entity_id
+	limit #<@default_max_rows_fact_global>
+	"
 
-        @list_query_cancelados="select
-                                distinct v.referencia,
-                                ifnull(
-                                        (
-                                                v.subtotal + v.impuesto1 + v.impuesto2 + v.impuesto3
-                                        ),
-                                        0
-                                ) as total,
-                                v.aplicadoa
-                        from
-                                (
-                                        select
-                                                venta.referencia,
-                                                venta.subtotal,
-                                                venta.impuesto1,
-                                                venta.impuesto2,
-                                                venta.impuesto3,
-                                                dventa.notas,
-                                                venta.aplicadoa,
-                                                venta.fecha,
-                                                dventa.fk_venta_detalle
-                                        from
-                                                venta
-                                                inner join dventa on venta.sys_pk = dventa.fk_venta_detalle
-                                ) v
-                                inner join venta v2 on v.aplicadoa = v2.sys_pk
-                                inner join movcaja mc on v2.referencia = mc.referencia
-                                inner join cliente c on v2.icliente = c.sys_pk
-                                and v2.statusfacturacion = 1
-                                and mc.idivisa = @divisa
-                                and c.rfc = 'xaxx010101000'
-                                and v.fecha >= date(@fechaini)
-                                and v.fecha <= date(@fechafin)
-                                and v.notas = '$dp$';"
-
+	@list_query_cancelados = "
+	select
+		distinct v.referencia,
+		ifnull(
+			(
+				v.subtotal + v.impuesto1 + v.impuesto2 + v.impuesto3
+			),
+			0
+		) as total,
+		v.aplicadoa
+	from
+		(
+			select
+				venta.referencia,
+				venta.subtotal,
+				venta.impuesto1,
+				venta.impuesto2,
+				venta.impuesto3,
+				dventa.notas,
+				venta.aplicadoa,
+				venta.fecha,
+				dventa.fk_venta_detalle
+			from
+				venta
+				inner join dventa on venta.sys_pk = dventa.fk_venta_detalle
+		) v
+		inner join venta v2 on v.aplicadoa = v2.sys_pk
+		inner join movcaja mc on v2.referencia = mc.referencia
+		inner join cliente c on v2.icliente = c.sys_pk
+		and v2.statusfacturacion = 1
+		and mc.idivisa = @divisa
+		and c.rfc = 'xaxx010101000'
+		and v.fecha >= date(@fechaini)
+		and v.fecha <= date(@fechafin)
+		and v.notas = '$dp$';
+	"
 }
