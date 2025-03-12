@@ -20,13 +20,17 @@ module ""
     ref meses=@("&./meses")
     ref anios=@("&./anios")
     ref cconsumos=@("&./cconsumos")
+    ref emisor=@("&./emisor")
+    ref domfiscales=@("&./domfiscales")
+
+    @_entities_type = @("$parameters/_entities_type")
+    @_entity_id = @("$parameters/_entity_id")
+    @isnew = (@_entity_id == "_new")
     
     text_notas="Factura Global por Ventas del"
 
     fechaini=ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
     fechafin=ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
-
-    _text_notas_=text_notas + " "+ fechaini +" al " + fechafin
     
     if not(field.exist(@("&parameters"),"fechaini"))
     {
@@ -43,6 +47,19 @@ module ""
         else if @@(data,"$fecha_cfdi")!=""{fecha_cfdi=@@(data,"$fecha_cfdi")}
         else{fecha_cfdi=date_str(now(),"yyyy-MM-dd")}
     }
+
+    if @isnew
+    {
+        nic_emisor = @@(emisor,"$nic")
+        dom_expedicion = ""
+    }
+    else
+    {
+        nic_emisor = @@(data,"$nic")
+        dom_expedicion = @@(data,"$dom_expedicion")
+    }
+
+    _text_notas_=text_notas + " "+ fechaini +" al " + fechafin
 
     buttons::
     {
@@ -118,7 +135,7 @@ module ""
             @"name": "cconsumo"
             @"class": "induxsoft-form-select"
             @"required":"true"
-            @"disabled":"true"
+            @"readonly":"true"
         }
         @"value_field": "sys_pk"
         @"text_field": "descripcion"
@@ -133,12 +150,12 @@ module ""
         member "attributes"
         {
             @"name": "objimp"
-            @"class": "induxsoft-form-select"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
             @"required":"true"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"first_value": ""
+        @"first_value": "00"
         @"first_text": "Ninguno"
         @"selected": @("$parameters/objimp")
     }
@@ -203,12 +220,13 @@ module ""
     new table_definition
     {
         @"datatable*": ventas
+        @"tableheight": "60vh"
         member @"columns"
         {
-            member @"field_check" 
+            member @"incluir"
             { 
-                @"caption": "" 
-                if isnull(data) || parse.bool(@("#./from_filter")){@"template":'No'}
+                @"caption": "Incluir"
+                @"align": "center"
             }
             member @"referencia" { @"caption": "Ticket/Remision" }
             member @"fecha"
@@ -251,10 +269,11 @@ module ""
         }
         section(id="work_area")
         {
-            form(id="form_factura_global" action="." class="#<ifstr(not(parse.bool(@('#./enable'))),'disabled-all','')>")
+            form(id="form_factura_global" action="./" class="#<ifstr(not(parse.bool(@('#./enable'))),'disabled-all','')>")
             {
                 input(type="hidden" id="sys_pk" name="sys_pk" value="#<@@(data,'#sys_pk')>")
                 input(type="hidden" id="sys_recver" name="sys_recver" value="#<@@(data,'#sys_recver')>")
+                input(type="hidden" id="from-filter" name="from-filter" value="false")
 
                 div(class="tab-content")
                 {
@@ -300,22 +319,6 @@ module ""
                             div(class="col-md-1 align-self-end")
                             {
                                 button(type="button" class="btn border-secondary induxsoft-corners btn-main-action no-print" id="btn_change"){"Cambiar"}
-                            }
-                        }
-                        // Preferencias
-                        div(class="row gx-2")
-                        {
-                            div(class="col-md-2")
-                            {
-                                label("for"="fecha_cfdi"){"Fecha(CFDI):"}
-                                input(type="date" class="induxsoft-form-control" id="fecha_cfdi" name="fecha_cfdi" value="#<fecha_cfdi>")
-                            }
-                            div(class="col-md-3")
-                            {
-                                label("for"="objimp"){"Objeto de impuesto:"}
-                                #!
-                                do uie.dbSelect(_obj_impuestos)
-                                #$
                             }
                         }
                         // Información global
@@ -378,10 +381,64 @@ module ""
                         }
                         section(class="mt-2")
                         {
-                            div(class="d-flex")
+                            // Preferencias
+                            div(class="row gx-2 gy-1 py-1")
                             {
-                                label(class="form-check-label"){input(type="checkbox" id="check_all" class="form-check-input")" Seleccionar todas." }
-                                span(class="flex-grow-1"){""}
+                                div(class="col-auto align-self-end")
+                                {
+                                    div(class="form-check")
+                                    {
+                                        #!
+                                        checked = ifstr(not(@isnew), "checked", "")
+                                        #$
+                                        input(class="form-check-input" type="checkbox" id="check_all" "#<checked>"="")
+                                        label(class="form-check-label" "for"="check_all"){"Seleccionar todas."}
+                                    }
+                                }
+                                div(class="col-auto")
+                                {
+                                    div(class="d-flex align-items-center gap-1")
+                                    {
+                                        label("for"="objimp"){"Obj.Impuesto:"}
+                                        #!
+                                        do uie.dbSelect(_obj_impuestos)
+                                        #$
+                                    }
+                                }
+                                div(class="col-auto")
+                                {
+                                    div(class="d-flex align-items-center gap-1")
+                                    {
+                                        label("for"="fecha_cfdi"){"Fecha(CFDI):"}
+                                        input(class="form-control form-control-sm rounded-0 no-shadow" type="date" name="fecha_cfdi" value="#<fecha_cfdi>" id="fecha_cfdi")
+                                    }
+                                }
+                                div(class="col-auto ms-auto")
+                                {""
+                                #!
+                                ventas_lenght = list.count(ventas)
+                                if ventas_lenght > 0 {
+                                    #$
+                                    nav(class="overflow-auto" id="pagination" "aria-label"="...")
+                                    {
+                                        ul(class="pagination pagination-sm m-0")
+                                        {
+                                            li(class="page-item" id="first-page-item")
+                                            {
+                                                button(class="page-link no-shadow" type="button" onclick="fglobal.PrevPageData();" "aria-label"="Previous")
+                                                { span("aria-hidden"="true"){$"&laquo;"} }
+                                            }
+                                            li(class="page-item active" page="1"){ button(class="page-link no-shadow" type="button" onclick="fglobal.SetPage(1);"){"1"} }
+                                            li(class="page-item" id="last-page-item" "#<ifstr(ventas_lenght == 100, '','hidden')>"="")
+                                            {
+                                                button(class="page-link no-shadow" type="button" onclick="fglobal.NextPageData();" "aria-label"="Next")
+                                                { span("aria-hidden"="true"){$"&raquo;"} }
+                                            }
+                                        }
+                                    }
+                                }
+                                #$
+                                }
                             }
                             
                             #!
@@ -396,19 +453,72 @@ module ""
 
                         div(class="row gx-2")
                         {
+                            div(class="col-12 col-sm-auto")
+                            {
+                                label(class="form-label" "for"="nic"){$"NIC:"}
+                                input(class="induxsoft-form-control" type="text" name="nic" value="#<nic_emisor>" id="nic" readonly="")
+                            }
+                            div(class="col-12 col-sm-auto flex-fill")
+                            {
+                                label(class="form-label fw-bold" "for"="dom_expedicion"){$"Domicilio de expedición:"}
+                                select(class="form-select rounded-0 no-shadow" name="dom_expedicion" id="dom_expedicion" required="")
+                                {$""
+                                    #!
+                                    for i = 0; i < @count(domfiscales)
+                                    {
+                                        ref dom = @item(domfiscales,i)
+                                        text = @@(dom,"$direccion") + ", "+@@(dom,"$colonia")+" C.P. "+@@(dom,"$codpos")+" "+@@(dom,"$municipio")+" "+@@(dom,"$estado")+" "+@@(dom,"$pais")
+                                        selected = ifstr(@@(dom,"$codpos")==dom_expedicion, "selected", "")
+                                        #$
+                                        option(value="#<@@(dom,'$codpos')>" "#<selected>"=""){"#<text>"}
+                                    }
+                                }
+                            }
                             div(class="col-12")
                             {
-                                label("for"="concepto"){"Concepto:"}
+                                label(class="form-label" "for"="concepto"){"Concepto:"}
                                 input(type="text" class="induxsoft-form-control" id="concepto" name="concepto" value="Venta" disabled="true")
                             }
                             div(class="col-12")
                             {
-                                label("for"="notas"){"Notas:"}
+                                label(class="form-label" "for"="notas"){"Notas:"}
                                 textarea(class="induxsoft-form-control" rows="5" id="notas" name="notas"){"#<_text_notas_>"}
                             }
                         }
                     }
                 }
+            }
+            // Modal loading
+            div(class="modal fade" style="top:-270;pointer-events:none;z-index:100000" id="waiting-dialog" tabindex="-1" role="dialog" "aria-labelledby"="" "aria-hidden"="true" "data-bs-keyboard"="false" "data-bs-backdrop"="true")
+            {
+                div(class="modal-dialog modal-sm modal-dialog-centered" role="document")
+                {
+                    div(class="modal-content" style="height:5rem;justify-content:center")
+                    {
+                        /* div(class="modal-header")
+                        {
+                            h5(class="modal-title" id="wait-dlg-header"){""}
+                            button(type="button" class="close" "data-dismiss"="modal" "aria-label"="Close")
+                            { span ("aria-hidden"="true"){$"&times;"} }
+                        } */
+                        div(class="modal-body" id="wait-dlg-body")
+                        {
+                            div(class="row")
+                            {
+                                div(class="col-auto"){ span(class="load-spinner"){""} }
+                                div(class="col-auto align-self-center")
+                                {
+                                    label(class="d-block fw-bold" id="wait-text"){"Por favor, espere."}
+                                    small(class="" id="wait-small-text"){"Recopilando información..."}
+                                }
+                            }
+                        }
+                        /* div(class="modal-footer" id="wait-dlg-footer")
+                        {
+                            button(type="button" class="btn btn-danger" "data-dismiss"="modal"){ "Cerrar"}
+                        } */
+                    }
+                }       
             }
         }
 
@@ -442,7 +552,9 @@ module ""
         script
         {
             $'
-            fglobal.text_notas="#<text_notas>";
+            fglobal.text_notas = "#<text_notas>";
+            fglobal.default_max_rows = #<@default_max_rows_fact_global>;
+            fglobal.params = #<to.json(@("&parameters"))>;
             '
         }
     }

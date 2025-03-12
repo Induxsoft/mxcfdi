@@ -95,7 +95,7 @@ model "mxcfdi"
 
     entity "mxcfdi_ordenfac" : "TableModel"	
     {
-        @"status" ref :"mxcfdi_ordenfac_status" required
+        @"status" ref:"mxcfdi_ordenfac_status" required
         @"serie" ref:"blockdocumentos" required
         @"divisa" ref:"divisa" required
         @"cconsumo" ref:"cconsumo"
@@ -120,7 +120,7 @@ model "mxcfdi"
     entity "mxcfdi_ordenfac_det" : "TableModel"	
     {
         @"venta" ref:"venta" required
-        @"orden" ref: "mxcfdi_ordenfac" required
+        @"orden" ref:"mxcfdi_ordenfac" required
         
         index "mxcfdi_ordenfac_det_uq1" unique
         {

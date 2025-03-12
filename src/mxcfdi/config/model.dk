@@ -70,7 +70,6 @@ module "Configuración de emisores y cuentas de timbrado. :config"
 
         exception
         {
-            do errordet(@false)
             code = last_error_code()
             error = last_error()
             do dbr.apps.action.log()
@@ -86,7 +85,6 @@ module "Configuración de emisores y cuentas de timbrado. :config"
 
         exception
         {
-            do errordet(@false)
             code = last_error_code()
             error = last_error()
             do dbr.apps.action.log()
@@ -102,7 +100,6 @@ module "Configuración de emisores y cuentas de timbrado. :config"
 
         exception
         {
-            do errordet(@false)
             code = last_error_code()
             error = last_error()
             do dbr.apps.action.log()
@@ -170,7 +167,6 @@ module "Configuración de emisores y cuentas de timbrado. :config"
 
     catch::&db,&params,&data
     {
-        do errordet(@error_det)
         if isnull(data){ ref data:record.create() }
         if dbr.in_transaction(db){ do dbr.rollback(db) }
 

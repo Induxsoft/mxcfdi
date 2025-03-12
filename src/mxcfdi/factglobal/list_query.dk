@@ -49,6 +49,7 @@ module ""
 		o.mes,
 		o.anio,
 		o.nic,
+		o.dom_expedicion,
 		o.concepto,
 		o.notas,
 		o.token_solicitud,
@@ -65,6 +66,7 @@ module ""
 	@list_query_tic_rem = "
 	select
 		distinct v.sys_pk,
+		'No' as incluir,
 		v.referencia,
 		v.documento,
 		trim(date(v.fecha)) fecha,
@@ -76,7 +78,7 @@ module ""
 		@totalimpuesto := (
 			round(
 				(
-						v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
+					v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
 				) / mc.tipocambio,
 				2
 			)
@@ -90,9 +92,11 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
+		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
 	where
-		v.fecha >= date(@fechaini)
-		and v.fecha <= date(@fechafin)
+		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
+		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
 		and (
 			v.documento = 6
 			or v.documento = 3
@@ -110,14 +114,15 @@ module ""
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
 	order by
-		v.fecha,
+		v.sys_dtcreated,
 		v.documento
-	limit #<@default_max_rows_fact_global>;
+	limit #<@fact_global_start_rows>,#<@fact_global_end_rows>;
 	"
 
 	@list_query_tic = "
 	select
 		distinct v.sys_pk,
+		'No' as incluir,
 		v.referencia,
 		v.documento,
 		trim(date(v.fecha)) fecha,
@@ -137,9 +142,11 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
+		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
 	where
-		v.fecha >= date(@fechaini)
-		and v.fecha <= date(@fechafin)
+		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
+		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
 		and v.documento = 6
 		and c.rfc = 'xaxx010101000'
 		and v.aplicadoa is null
@@ -154,14 +161,15 @@ module ""
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
 	order by
-		v.fecha,
+		v.sys_dtcreated,
 		v.documento
-	limit #<@default_max_rows_fact_global>;
+	limit #<@fact_global_start_rows>,#<@fact_global_end_rows>;
 	"
 
 	@list_query_rem = "
 	select
 		distinct v.sys_pk,
+		'No' as incluir,
 		v.referencia,
 		v.documento,
 		trim(date(v.fecha)) fecha,
@@ -181,9 +189,11 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
+		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
 	where
-		v.fecha >= date(@fechaini)
-		and v.fecha <= date(@fechafin)
+		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
+		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
 		and v.documento = 3
 		and c.rfc = 'xaxx010101000'
 		and v.aplicadoa is null
@@ -198,14 +208,15 @@ module ""
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
 	order by
-		v.fecha,
+		v.sys_dtcreated,
 		v.documento
-	limit #<@default_max_rows_fact_global>;
+	limit #<@fact_global_start_rows>,#<@fact_global_end_rows>;
 	"
 
 	@list_query_detalle_orden = "
 	select
 		v.sys_pk,
+		'Sí' as incluir,
 		v.referencia,
 		trim(date(v.fecha)) fecha,
 		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
@@ -218,13 +229,16 @@ module ""
 				2
 			)
 		) as totalimpuesto,
-		(@subtotal - @descuento + @totalimpuesto) total,
-		'Sí' field_check
+		(@subtotal - @descuento + @totalimpuesto) total
 	from mxcfdi_ordenfac_det od
 		inner join venta v on od.venta=v.sys_pk
 		inner join movcaja mc on v.imovcaja = mc.sys_pk
-	WHERE od.orden=@_entity_id
-	limit #<@default_max_rows_fact_global>
+	where
+		od.orden=@_entity_id
+	order by
+		v.sys_dtcreated,
+		v.documento
+	limit #<@fact_global_start_rows>,#<@fact_global_end_rows>;
 	"
 
 	@list_query_cancelados = "

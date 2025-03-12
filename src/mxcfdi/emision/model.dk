@@ -402,7 +402,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         exception
         {
-            do errordet(@false)
             code = last_error_code()
             error = last_error()
             do dbr.apps.action.log()
@@ -421,7 +420,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         exception
         {
-            do errordet(@false)
             code = last_error_code()
             error = last_error()
             do dbr.apps.action.log()
@@ -946,8 +944,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     }
     getImpuestosDR::&db,&params
     {
-        do errordet(@error_det)
-
         ref response = emision.descargar(db,@@(params,"$uuid"),"xmlb64")
         ref comprobante = parse.xmlStr(from.base64(@@(response,"$data/content")))
         ref impuestos = cfdi.getElementByTagName(comprobante,"cfdi:Impuestos")
@@ -1383,7 +1379,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         exception
         {
-            do errordet(@error_det)
             do record.clear(data)
             do rise_error(last_error_code(),last_error())
         }
@@ -1393,7 +1388,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         //#region sendmail()
         namespace "emision"
-        do errordet(@error_det)
 
         if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
         ref cliente = getCliente(db,params)
@@ -1572,7 +1566,6 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     catch::&db,&params,&data
     {
         //#region catch()
-        do errordet(@error_det)
         if isnull(data){ ref data:record.create() }
         if dbr.in_transaction(db){ do dbr.rollback(db) }
 

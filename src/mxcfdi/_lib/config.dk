@@ -3,6 +3,7 @@
 module "Variables globales"
 {
 	if not(isset("@http_context")) && isset("@crud_context") { ref @http_context = ifnull(@@(@crud_context,"&http"),record.create()) }
+	do errordet(@false) //Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
 	
 	@curr_ndt = ndatetime.now()
     @curr_year = ndatetime.year(@curr_ndt)
@@ -35,7 +36,8 @@ module "Variables globales"
 
 	@default_max_rows = 250 // limite de registros para las vistas de lista
 	@default_max_rows_fact_global = 100
-	@error_det = @false // Mostrar detalles del error: @true -> {code} description [Ln 000] | @false -> description
+	@fact_global_start_rows = 0
+	@fact_global_end_rows = @default_max_rows_fact_global
 	@default_scfdi_path = "data/@qname/mxcfdi/success_cfdi/@emisor/"
 	@default_fcfdi_path = "data/@qname/mxcfdi/failure_cfdi/@emisor/"
 	@default_path_cfdi_loaded="data/@qname/mxcfdi/cfdis-loaded/" //crear compras desde un cfdi

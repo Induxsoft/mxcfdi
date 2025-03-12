@@ -57,3 +57,38 @@ textarea[readonly]
 {
     border:1px solid green;
 }
+
+.modal-backdrop { background-color: transparent; }
+.load-spinner {
+    display: inline-block;
+    border-style: double;
+    border-color: #28A745 transparent;
+    /* margin: 5em; */
+    border-width: 30px;
+    border-radius: 50%;
+    -webkit-animation: spin 1s linear infinite;
+    -moz-animation: spin 1s linear infinite;
+    -o-animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
+}
+
+@-webkit-keyframes spin {
+    100% {
+        -webkit-transform: rotate(359deg);
+    }
+}
+@-moz-keyframes spin {
+    100% {
+        -moz-transform: rotate(359deg);
+    }
+}
+@-o-keyframes spin {
+    100% {
+        -moz-transform: rotate(359deg);
+    }
+}
+@keyframes spin {
+    100% {
+        transform: rotate(359deg);
+    }
+}

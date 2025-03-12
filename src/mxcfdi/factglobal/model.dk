@@ -2,6 +2,7 @@
 #!
 module "Ordenes de timbrado (Facturación Global). :factglobal"
 {
+    #include "mxcfdi/emision/model.dk"
     #include "list_query.dk"
 
     list::&db,&params
@@ -15,9 +16,13 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
        }
        return entity
     }
+
     read::&db,&params
     {
         do dbr.apps.action.grant("GX40")
+
+        if not(isset("@read_entity_only")){ @read_entity_only = @false }
+        if @read_entity_only { return entity.read(db,params) }
 
         ref data=entity.read(db,params)
         
@@ -27,14 +32,20 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             @"enable":@false
         }
         
-        entity.enable:= @@(data,"#status")==@status_creada || @@(data,"#status")==@status_error
+        entity.enable := (@@(data,"#status")==@status_creada || @@(data,"#status")==@status_error)
 
         do PrepareView(db,params,entity)
 
-        if not(parse.bool(@@(entity,"$from_filter")))
+        if not(parse.bool(@@(params,"$from-filter")))
         {
+            @fact_global_start_rows = @@(params,"#start")
+            @fact_global_end_rows = @@(params,"#end")
+            if @fact_global_end_rows < 1 { @fact_global_end_rows = @default_max_rows_fact_global }
+
             entity<"ventas*">:dbr.list(db,ftext(@list_query_detalle_orden),params)
+            params<"from-filter"> : @false
         }
+        if parse.bool(@@(params,"$only-list")) { return @@(entity,"&ventas") }
         
         using params
         {
@@ -50,8 +61,8 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             check_remision := @@(data,"$remisiones")
         }
 
-        if @@(params,"$divisa")==""{params<"divisa">: @@(data,"$divisa")}
-        if @@(data,"$")!=""{params<"cconsumo">:@@(data,"$")}
+        if @@(params,"$divisa") == "" { params<"divisa"> : @@(data,"$divisa") }
+        if @@(data,"$cconsumo") != "" { params<"cconsumo"> : @@(data,"$cconsumo")}
 
         return entity
     }
@@ -60,17 +71,27 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     {
         entity<"ventas*">:list.create()
 
-        if field.exist(params,"sys_pk")
+        if parse.bool(@@(params,"$from-filter"))
         {
             if parse.bool(@@(params,"$check_ticket")) && parse.bool(@@(params,"$check_remision")){sql=@list_query_tic_rem}
             else if parse.bool(@@(params,"$check_ticket")){sql=@list_query_tic}
             else if parse.bool(@@(params,"$check_remision")){sql=@list_query_rem}
             else {do rise_error(500,"Es necesario indique al menos un tipo de documento Ticket y/o Remisión.")}
 
+            @fact_global_start_rows = @@(params,"#start")
+            @fact_global_end_rows = @@(params,"#end")
+            if @fact_global_end_rows < 1 { @fact_global_end_rows = @default_max_rows_fact_global }
             
-            entity<"ventas*">:dbr.list(db,ftext(sql),params)
-            entity<"from_filter">:@true
+            entity<"ventas*"> : dbr.list(db,ftext(sql),params)
+            params<"from-filter"> : @true
         }
+        if parse.bool(@@(params,"$only-list")) { return entity }
+
+        ref emisor : dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null)
+        if isnull(emisor) { do rise_error(500,"No se encontro un emisor configurado. Para configurar un emisor, dirigase al módulo: <br> Variables globales -> Emisión de CFDI -> Configuración de emisores") }
+
+        ref result = emision.getEmisorFactudesk(emisor)
+        ref domfiscales = emision.filterDomicilios(@@(result,"&domicilios"),@true)
         
         using entity
         {
@@ -82,10 +103,13 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             @"meses*":from.json(file.rtext(path.concat(@json_path,@sat_meses)))
             @"anios*":ListYear()
             @"cconsumos*":dbr.list(db,"SELECT sys_pk, concat_ws(' - ',codigo, descripcion)descripcion FROM cconsumo ORDER BY sys_pk;",params)
+            @"emisor*": emisor
+            @"domfiscales*": domfiscales
         }
 
         return entity
     }
+
     ListYear::
     {
         ref l=list.create()
@@ -108,10 +132,10 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             }
             do list.add(l,a)
         }
-        
 
         return l
     }
+
     blank::&db,&params
     {
         do dbr.apps.action.grant("GX40")
@@ -121,9 +145,11 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         entity.enable:=@true
 
         do PrepareView(db,params,entity)
+        if parse.bool(@@(params,"$only-list")) { return @@(entity,"&ventas") }
 
         return entity
     }
+
     GenOrdenFact::&data
     {
         new orden_fact
@@ -151,37 +177,40 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         if @@(data,"#cconsumo") > 0{orden_fact<"cconsumo">:@@(data,"#cconsumo")}
         if trim(@@(orden_fact,"$fecha_cfdi"))==""{orden_fact<"fecha_cfdi">:date_str(now(),"yyyy-MM-dd")}
 
-        if trim(@@(data,"$detalle"))!=""
-        {
-            using @childs
-            {
-                member "_detalle"
-                {
-                    @"joinfield": "orden"
-                    @"keyfield": "sys_pk"
-                    @"table": "mxcfdi_ordenfac_det"
-                    @"select_query": "SELECT NULL"
-                    @"fields": "venta"
-                }
-            }
-
-            orden_fact<"_detalle*">:from.json(@@(data,"$detalle"))
-        }
-        
-
         return orden_fact
     }
+
+    DumpOrderDet::&db,iorden,&data
+    {
+        sql = "INSERT INTO mxcfdi_ordenfac_det (sys_guid,sys_dtcreated,sys_timestamp,sys_recver,orden,venta) VALUES "
+        values = ""
+        for i = 0; i < list.count(data); i+1
+        {
+            ref vnt = list.obj(data,i)
+            iventa = @@(vnt,"#sys_pk")
+
+            values = values + ftext("('#<uuid()>',now(),now(),0,#<iorden>,#<iventa>),")
+        }
+        if values != "" {
+            sql = sql + rremove(values,1)
+            do dbr.execute(db,sql,@null)
+        }
+    }
+
     create::&db,&params,&data
     {
         @use_transaction = @false
-            do dbr.apps.action.pre("GX41")
+        @read_entity_only = @true
+
+        do dbr.apps.action.pre("GX41")
         do dbr.begin(db)
         
-            ref entity=entity.create(db,params,GenOrdenFact(data))
+        ref entity = entity.create(db,params,GenOrdenFact(data))
+        do DumpOrderDet(db,@@(entity,"#sys_pk"),from.json(@@(data,"$detalle")))
         
-            do dbr.apps.action.pos(entity)
+        do dbr.apps.action.pos(entity)
         do dbr.commit(db)
-            do dbr.apps.action.ext(entity)
+        do dbr.apps.action.ext(entity)
         
         return entity
 
@@ -191,28 +220,29 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             do dbr.apps.action.log()
             do rise_error(last_error_code(),last_error())
         }
-        
     }
+
     update::&db,&params,&data
     {
         @use_transaction = @false
-            do dbr.apps.action.pre("GX42")
+        @read_entity_only = @true
+
+        do dbr.apps.action.pre("GX42")
         
         ref entity=entity.read(db,params)
 
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error
-        {
-            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error")
-        }
+        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error") }
 
         do dbr.begin(db)
         
+        ref entity = entity.update(db,params,GenOrdenFact(data))
         do dbr.execute(db,"delete from mxcfdi_ordenfac_det where orden=@_entity_id",params)
-        ref entity=entity.update(db,params,GenOrdenFact(data))
+        do DumpOrderDet(db,@@(entity,"#sys_pk"),from.json(@@(data,"$detalle")))
         
-            do dbr.apps.action.pos(entity)
+        do dbr.apps.action.pos(entity)
         do dbr.commit(db)
-            do dbr.apps.action.ext(entity)
+        do dbr.apps.action.ext(entity)
         
         return entity
 
@@ -223,6 +253,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             do rise_error(last_error_code(),last_error())
         }
     }
+
     delete::&db,&params
     {
         @use_transaction = @false

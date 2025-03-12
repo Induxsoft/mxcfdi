@@ -24,6 +24,7 @@ module ""
             member @"last_error" { @"caption": "últ. error" }
             member @"_actions"
             {
+                @"caption": "Acciones"
                 @"no-print":@true
                 @"template":'<a href="./${DataRow.sys_pk}/" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;">Detalles</a>
                             <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;    border: none;height: 23px;margin-left: 2px;">Eliminar</button>'
