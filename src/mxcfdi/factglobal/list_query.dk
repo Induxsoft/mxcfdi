@@ -92,25 +92,23 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
-		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.`venta` AND od.`orden` = @sys_pk
 	where
-		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
-		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
-		and (
-			v.documento = 6
-			or v.documento = 3
+		(
+			# Ordenes vigentes donde se incluye la venta = 0
+			(select count(a.sys_pk) from mxcfdi_ordenfac_det a inner join mxcfdi_ordenfac b on a.`orden` = b.sys_pk and b.`status` != 99 where a.`venta` = v.sys_pk) = 0
+			# La orden donde se incluye la venta es la que consulta
+			or ifnull(od.sys_pk,0) > 0
 		)
+		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
+		and (v.documento = 6 or v.documento = 3)
 		and c.rfc = 'xaxx010101000'
 		and v.aplicadoa is null
 		and v.statusfacturacion = 1
 		and v.statusadministrativo = 3
 		and v.statusfinanciero = 2
 		and mc.idivisa = @divisa
-		and (
-			mc.documento != 34
-			and mc.documento != 99
-		)
+		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
 	order by
@@ -142,10 +140,14 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
-		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.`venta` AND od.`orden` = @sys_pk
 	where
-		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
+		(
+			# Ordenes vigentes donde se incluye la venta = 0
+			(select count(a.sys_pk) from mxcfdi_ordenfac_det a inner join mxcfdi_ordenfac b on a.`orden` = b.sys_pk and b.`status` != 99 where a.`venta` = v.sys_pk) = 0
+			# La orden donde se incluye la venta es la que consulta
+			or ifnull(od.sys_pk,0) > 0
+		)
 		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
 		and v.documento = 6
 		and c.rfc = 'xaxx010101000'
@@ -154,10 +156,7 @@ module ""
 		and v.statusadministrativo = 3
 		and v.statusfinanciero = 2
 		and mc.idivisa = @divisa
-		and (
-			mc.documento != 34
-			and mc.documento != 99
-		)
+		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
 	order by
@@ -189,10 +188,14 @@ module ""
 		inner join corte ct on mc.icorte = ct.sys_pk
 		inner join caja cj on ct.icaja = cj.sys_pk
 		inner join cconsumo cc on cj.centroconsumo = cc.sys_pk
-		left join mxcfdi_ordenfac_det od on v.sys_pk = od.venta
-		left join mxcfdi_ordenfac o on od.orden = o.sys_pk
+		left join mxcfdi_ordenfac_det od on v.sys_pk = od.`venta` AND od.`orden` = @sys_pk
 	where
-		(ifnull(od.sys_pk,0)=0 or ifnull(o.`status`,99)=99)
+		(
+			# Ordenes vigentes donde se incluye la venta = 0
+			(select count(a.sys_pk) from mxcfdi_ordenfac_det a inner join mxcfdi_ordenfac b on a.`orden` = b.sys_pk and b.`status` != 99 where a.`venta` = v.sys_pk) = 0
+			# La orden donde se incluye la venta es la que consulta
+			or ifnull(od.sys_pk,0) > 0
+		)
 		and (v.fecha >= date(@fechaini) and v.fecha <= date(@fechafin))
 		and v.documento = 3
 		and c.rfc = 'xaxx010101000'
@@ -201,10 +204,7 @@ module ""
 		and v.statusadministrativo = 3
 		and v.statusfinanciero = 2
 		and mc.idivisa = @divisa
-		and (
-			mc.documento != 34
-			and mc.documento != 99
-		)
+		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
 	order by

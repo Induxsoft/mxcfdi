@@ -1,7 +1,7 @@
 ﻿itemid,description,itemparent
 mxcfdi,Emisión de CFDI,\0
 mxcfdi.config,Configuración de emisores,mxcfdi
-GX90,Configurar emisores,mxcfdi.config
+GX90,Administración de emisores de CFDI,mxcfdi.config
 GX91,Agregar configuración de emisor,mxcfdi.config
 GX92,Editar configuración de emisor,mxcfdi.config
 GX93,Eliminar configuración de emisor,mxcfdi.config
@@ -13,9 +13,9 @@ GX31,Emitir CFDI por notas de cargo,mxcfdi.emision
 GX32,Emitir CFDI por cobros,mxcfdi.emision
 GX33,Emitir CFDI por bonificaciones,mxcfdi.emision
 GX34,Importar CFDI de compra,mxcfdi.emision
-GX40,Orden de factura global,mxcfdi.emision
-GX41,Agregar orden de fact-global,mxcfdi.emision
-GX42,Actualizar orden de fact-global,mxcfdi.emision
-GX43,Eliminar orden de fact-global,mxcfdi.emision
-GX44,Cancelar orden de fact-global,mxcfdi.emision
-
+mxcfdi.factglobal,Orden de factura global,mxcfdi
+GX40,Orden de factura global,mxcfdi.factglobal
+GX41,Crear orden de factura global,mxcfdi.factglobal
+GX42,Editar orden de factura global,mxcfdi.factglobal
+GX43,Eliminar orden de factura global,mxcfdi.factglobal
+GX44,Cancelar orden de factura global,mxcfdi.factglobal

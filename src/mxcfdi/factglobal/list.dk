@@ -39,14 +39,16 @@ module ""
         a(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" href="./_new/"){"Agregar"}
         #!
     }
-
     point buttons to buttons
     new nav_config
     {
         @"title": "Factura global"
         @"buttons*": buttons
         @"urlexit": "/"
-        @"jscurrentcontext": "list.getCurrentContext"
+        @"main": "" // Acciones que seran visibles en la navbar.
+        @"actions*": ifnull(@("&./itemactions"),list.create())
+        @"reports*": ifnull(@("&./itemreports"),list.create())
+        @"jscurrentcontext": "getCurrentContext"
     }
 
     new _status
@@ -106,16 +108,24 @@ module ""
             #$
         }
 
-        script
-        {
-            $'
-            document.addEventListener("DOMContentLoaded",(e)=>
-            {
-                var filter_date=document.getElementById("filter_date");
-                if(filter_date)filter_date._btnDone.addEventListener("click",(e)=>{document.getElementById("form_filter").submit();});
-
+        // script(src=""){$""}
+        script(type="text/javascript")
+        {$'
+            function filter(el) { el.form.submit(); }
+            
+            function getCurrentContext() {
+                const table = document.getElementById("factura_global");
+                const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
+                return { item_id:id, context: {} }
+            }
+            
+            document.addEventListener("DOMContentLoaded", () => {
+                var filter_date = document.getElementById("filter_date");
+                if (filter_date) filter_date._btnDone.addEventListener("click", (e) => { document.getElementById("form_filter").submit(); });
+                
+                // Script injection
+                #<@@(@crud_context,"script")>
             });
-            '
-        }
+        '}
     }
 }

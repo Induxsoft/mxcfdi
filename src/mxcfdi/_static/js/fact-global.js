@@ -13,23 +13,28 @@ var fglobal=
     {
         this.lbl_general_tab = document.getElementById("lbl-general-tab");
         this.lbl_preferencias_tab = document.getElementById("lbl-preferencias-tab");
+        this.form_factura_global=document.getElementById("form_factura_global");
+
+        this.divisa=document.getElementById("divisa");
+        this.cconsumo=document.getElementById("cconsumo");
+        this.fecha_range=document.getElementById("fecha_range");
+        this.fechaini=document.getElementById("fechaini");
+        this.fechafin=document.getElementById("fechafin");
         this.check_ticket=document.getElementById("check_ticket");
         this.check_remision=document.getElementById("check_remision");
         this.btn_change=document.getElementById("btn_change");
-        this.form_factura_global=document.getElementById("form_factura_global");
-        this.fecha_range=document.getElementById("fecha_range");
-        this.cconsumo=document.getElementById("cconsumo");
+        this.btn_cancel=document.getElementById("btn_cancel");
+
         this.notas=document.getElementById("notas");
         this.btn_save_orden=document.getElementById("btn_save_orden");
         this.check_all=document.getElementById("check_all");
         this.btn_cancel_orden=document.getElementById("btn_cancel_orden");
         this.factura_global_detalle=document.getElementById("factura_global_detalle");
         this.lbl_total=document.getElementById("lbl_total");
-        this.divisa=document.getElementById("divisa");
         this.objimp=document.getElementById("objimp");
         this._container_pages=document.getElementById("_container_pages");
         this.container_page=document.getElementById("container_page");
-        this.btn_get_data=document.getElementById("btn_get_data");
+        this.from_filter = document.getElementById("from-filter");
 
         this.lbl_general_tab.addEventListener("click", () => {
             this.lbl_general_tab.hidden = true;
@@ -42,40 +47,26 @@ var fglobal=
             if (this.btn_save_orden) this.btn_save_orden.hidden = false;
         });
 
-        if(this.check_ticket)this.check_ticket.addEventListener("change",()=>
-        {
-            this.ClickBtnFechaRange();
+        if(this.check_ticket) this.check_ticket.addEventListener("change",() => {
+            this.from_filter.value = "true";
             this.form_factura_global.submit();
         });
-
-        if(this.check_remision)this.check_remision.addEventListener("change",()=>
-        {
-            this.ClickBtnFechaRange();
+        if(this.check_remision) this.check_remision.addEventListener("change", () => {
+            this.from_filter.value = "true";
             this.form_factura_global.submit();
         });
+        if(this.check_all) this.check_all.addEventListener("change", () => { this.CheckedAll(); });
 
-        if(this.btn_change)this.btn_change.addEventListener("click",()=>{this.ChangeFilter();});
-        if(this.fecha_range)this.fecha_range.onChanging=(oldvalue,newvalue)=>
-        {
-            if(!newvalue || !this.notas)return;
-            this.notas.value=this.text_notas+" "+newvalue.start+ " al " +newvalue.end;
-        }
+        if(this.btn_change) this.btn_change.addEventListener("click", () => { this.ChangeFilter(); });
+        if(this.btn_cancel) this.btn_cancel.addEventListener("click", () => { this.CancelFilter(); });
         
-        if(this.btn_save_orden)this.btn_save_orden.addEventListener("click",()=>{this.SaveDetalle();});
-
-        if(this.check_all)this.check_all.addEventListener("change",()=>{this.CheckedAll();});
-        if(this.btn_cancel_orden)this.btn_cancel_orden.addEventListener("click",()=>{this.CancelOrden();});
-        if(this.btn_get_data)this.btn_get_data.addEventListener("click",()=>{this.GetData();});
+        if(this.btn_save_orden) this.btn_save_orden.addEventListener("click", () => { this.SaveDetalle(); });
+        if(this.btn_cancel_orden) this.btn_cancel_orden.addEventListener("click", () => { this.CancelOrden(); });
         
         if (this.factura_global_detalle)
         {
             setTimeout(() => 
             {
-                if(this.fecha_range._btnEdit)this.fecha_range._btnEdit.style.cssText="display:none";    
-                
-                this.fechaini=document.querySelector("input[name='fechaini']");
-                this.fechafin=document.getElementById("input[name='fechafin']");
-    
                 this.factura_global_detalle.Columns[0] = {
                     type: this.factura_global_detalle.EdiTable.Const.Columns.Types.Check,
                     field: "incluir",
@@ -87,7 +78,6 @@ var fglobal=
                 this.stop_paging = (this.factura_global_detalle.DataArray.length < this.default_max_rows);
                 
                 this.CollectData();
-                this.SetTotales();
             }, 100);
             
             this.SetEvent();
@@ -106,7 +96,7 @@ var fglobal=
     {
         if(!this.form_factura_global)return;
 
-        if(!elements) elements=this.form_factura_global.querySelectorAll("input,select,textarea");
+        if(!elements) elements=this.form_factura_global.querySelectorAll("input,select,textarea,fieldset");
         
         for (let i = 0; i < elements.length; i++) 
         {
@@ -128,9 +118,7 @@ var fglobal=
     },
     ChangeFilter()
     {
-        this.Enable(true,[this.cconsumo,this.fecha_range]);
-        this.ClickBtnFechaRange("edit");
-
+        this.Enable(true,[this.divisa,this.cconsumo,this.fecha_range]);
         if (this.btn_change)
         {
             if (this.btn_change.textContent.toLocaleLowerCase()=="aplicar")
@@ -139,28 +127,32 @@ var fglobal=
                     alert("Es necesario indique al menos un tipo de documento Ticket y/o Remisión.");
                     return;
                 }
-                const filter = document.getElementById("from-filter");
+                
 
-                filter.value = "true";
-                this.ClickBtnFechaRange();
-                this.btn_change.type="submit";
+                this.from_filter.value = "true";
+                this.btn_change.type = "submit";
             }
-            this.btn_change.textContent="Aplicar";
+            this.btn_cancel.hidden = false;
+            this.btn_change.textContent = "Aplicar";
         }
     },
-    ClickBtnFechaRange(btn="")
+    CancelFilter()
     {
-        switch (btn) 
+        this.Enable(false,[this.divisa,this.cconsumo,this.fecha_range]);
+        if (this.btn_change)
         {
-            case "edit":
-                if(fglobal.fecha_range._btnEdit)fglobal.fecha_range._btnEdit.click();
-                break;
-        
-            default:
-                if(fglobal.fecha_range._btnDone)fglobal.fecha_range._btnDone.click();
-                break;
+            let lastDivisa = Array.from(this.divisa.options).findIndex(opt => opt.value == this.divisa.getAttribute("defaultValue"));
+            let lastCConsumo = Array.from(this.cconsumo.options).findIndex(opt => opt.value == this.cconsumo.getAttribute("defaultValue"));
+            
+            this.divisa.selectedIndex = (lastDivisa < 0) ? 0 : lastDivisa;
+            this.cconsumo.selectedIndex = (lastCConsumo < 0) ? 0 : lastCConsumo;
+            this.fechaini.value = this.fechaini.defaultValue;
+            this.fechafin.value = this.fechafin.defaultValue;
+
+            this.btn_cancel.hidden = true;
+            this.btn_change.type = "button";
+            this.btn_change.textContent = "Cambiar";
         }
-        
     },
     SaveDetalle()
     {
@@ -290,7 +282,8 @@ var fglobal=
         tools.showModal("waiting-dialog");
 
         let page = (Object.keys(this.page_data).length + 1);
-        while (!this.stop_paging) {
+        while (!this.stop_paging)
+        {
             const data = await this.GetData((this.default_max_rows * (page - 1)), this.default_max_rows);
             if (data.length < this.default_max_rows) this.stop_paging = true;
             if (data.length == 0) break;
@@ -306,8 +299,9 @@ var fglobal=
             page++
         }
 
-        tools.hideModal("waiting-dialog");
         if (loading_line) loading_line.classList.remove("loading");
+        tools.hideModal("waiting-dialog");
+        this.SetTotales();
     },
     SetPage(page)
     {

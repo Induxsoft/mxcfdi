@@ -1,6 +1,13 @@
 ﻿id,title,shorttitle,icon16x16,href,_blank,appid,itemtype,req_context_item_id,act_type
+GX90,Administración de emisores de CFDI,Emisores,,/!/mxcfdi/config/,0,mxcfdi.config,DET083,0,shortcut
 GX91,Agregar configuración de emisor,Agregar,,/!/mxcfdi/config/_new/,0,mxcfdi.config,DET083,0,action
 GX92,Editar configuración de emisor,Editar,,/!/mxcfdi/config/@_src_context_item_id/,0,mxcfdi.config,DET083,1,action
-GX93,Eliminar configuración de emisor,Eliminar,,javascript:InduxsoftCrudlModel.Delete(@_src_context_item_id);,0,mxcfdi.config,DET083,1,action
+GX93,Eliminar configuración de emisor,Eliminar,,"javascript:InduxsoftCrudlModel.Delete(`@_src_context_item_id`);",0,mxcfdi.config,DET083,1,action
+
 GX34,Importar CFDI de compra,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
-GX40,Orden de factura global,Orden fact-global,,/!/mxcfdi/fact-global/,0,mxcfdi.factglobal,DET084,0,action
+
+GX40,Orden de factura global,Factura Global,,/!/mxcfdi/fact-global/,0,mxcfdi.factglobal,DET094,0,shortcut
+GX41,Crear orden de factura global,Crear,,/!/mxcfdi/fact-global/_new/,0,mxcfdi.factglobal,DET094,0,action
+GX42,Editar orden de factura global,Editar,,/!/mxcfdi/fact-global/@_src_context_item_id/,0,mxcfdi.factglobal,DET094,1,action
+GX43,Eliminar orden de factura global,Eliminar,,"javascript:InduxsoftCrudlModel.Delete(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action
+GX44,Cancelar orden de factura global,Cancelar,,/!/mxcfdi/fact-global/@_src_context_item_id/cancelar/,0,mxcfdi.factglobal,DET094,1,action

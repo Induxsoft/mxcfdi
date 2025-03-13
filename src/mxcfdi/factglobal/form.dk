@@ -7,6 +7,8 @@ module ""
     #include "uielements.v12.dkl"
     #include "uielements.dkl"
     #include "../_lib/config.dk"
+    #include "../_lib/lib.dk"
+    #include "../_lib/icons.dk"
     
     do @context.begin(@crud_context)
 
@@ -27,10 +29,8 @@ module ""
     @_entity_id = @("$parameters/_entity_id")
     @isnew = (@_entity_id == "_new")
     
-    text_notas="Factura Global por Ventas del"
-
-    fechaini=ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
-    fechafin=ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
+    fechaini = ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
+    fechafin = ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
     
     if not(field.exist(@("&parameters"),"fechaini"))
     {
@@ -43,40 +43,45 @@ module ""
         check_remision=parse.bool(@('$parameters/check_remision'))
         check_ticket=parse.bool(@('$parameters/check_ticket'))
 
-        if @("$parameters/fecha_cfdi")!=""{fecha_cfdi=@("$parameters/fecha_cfdi")}
-        else if @@(data,"$fecha_cfdi")!=""{fecha_cfdi=@@(data,"$fecha_cfdi")}
-        else{fecha_cfdi=date_str(now(),"yyyy-MM-dd")}
+        if @@(data,"$fecha_cfdi") != "" { fecha_cfdi = @@(data,"$fecha_cfdi")}
+        else { fecha_cfdi = date_str(now(),"yyyy-MM-dd") }
     }
 
-    if @isnew
-    {
-        nic_emisor = @@(emisor,"$nic")
-        dom_expedicion = ""
-    }
-    else
+    nic_emisor = @@(emisor,"$nic")
+    dom_expedicion = ""
+    text_notas = "Factura Global por Ventas del"
+    _text_notas_ = text_notas + " "+ fechaini +" al " + fechafin
+    
+    if not(@isnew)
     {
         nic_emisor = @@(data,"$nic")
         dom_expedicion = @@(data,"$dom_expedicion")
-    }
+        notas = trim(@@(data,"$notas"))
 
-    _text_notas_=text_notas + " "+ fechaini +" al " + fechafin
+        if notas != "" && not(contains(notas,text_notas)) { _text_notas_ = notas }
+    }
 
     buttons::
     {
+        btncls = "btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"
+        
         #$
-        label(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" "for"="nav-general-tab" id="lbl-general-tab" hidden=""){$"< Anterior"}
-        label(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" "for"="nav-preferencias-tab" id="lbl-preferencias-tab"){$"Siguiente >"}
+        label(class="#<btncls>" "for"="nav-general-tab" id="lbl-general-tab" hidden=""){$"< Anterior"}
+        label(class="#<btncls>" "for"="nav-preferencias-tab" id="lbl-preferencias-tab"){$"Siguiente >"}
         #!
         if parse.bool(@('#./enable')) {
             #$
-            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_save_orden" hidden=""){"Guardar"}
+            button(class="#<btncls>" id="btn_save_orden" hidden=""){"Guardar"}
             #!
         }
         if @("#./data/sys_pk") > 0 {
             #$
-            button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" id="btn_cancel_orden"){"Cancelar"}
+            button(class="#<btncls>" id="btn_cancel_orden"){"Cancelar"}
             #!
         }
+        #$
+        a(class="#<btncls>" href="./" title="Recargar"){$"#<@ICON_ARROW_CLOCKWISE>"}
+        #!
     }
     point buttons to buttons
     new nav_config
@@ -90,6 +95,7 @@ module ""
         {
             @"print": @true
             @"send": @true
+            @"refresh": @true
         }
     }
     //selects
@@ -100,9 +106,11 @@ module ""
         member "attributes"
         {
             @"name": "divisa"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-            @"onchange":"if(fglobal.form_factura_global)form_factura_global.submit();"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required": ""
+            @"readonly": ""
+            @"defaultValue": @("#parameters/divisa")
+            // @"onchange":"if(fglobal.form_factura_global)form_factura_global.submit();"
         }
         @"value_field": "sys_pk"
         @"text_field": "descripcion"
@@ -119,12 +127,12 @@ module ""
         member "attributes"
         {
             @"name": "serie"
-            @"class": "induxsoft-form-select"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
             @"required":"true"
         }
         @"value_field": "sys_pk"
         @"text_field": "serie"
-        @"selected": @("#parameters/serie")
+        @"selected": fd('serie','nm',data)
     }
     new _cconsumos
     {
@@ -133,9 +141,10 @@ module ""
         member "attributes"
         {
             @"name": "cconsumo"
-            @"class": "induxsoft-form-select"
-            @"required":"true"
-            @"readonly":"true"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            @"required": ""
+            @"readonly": ""
+            @"defaultValue": @("$parameters/cconsumo")
         }
         @"value_field": "sys_pk"
         @"text_field": "descripcion"
@@ -149,7 +158,7 @@ module ""
         @"id": "objimp"
         member "attributes"
         {
-            @"name": "objimp"
+            @"name": "objeto_impuesto"
             @"class": "form-select form-select-sm rounded-0 no-shadow"
             @"required":"true"
         }
@@ -157,7 +166,7 @@ module ""
         @"text_field": "valor"
         @"first_value": "00"
         @"first_text": "Ninguno"
-        @"selected": @("$parameters/objimp")
+        @"selected": fd('objeto_impuesto','tx',data)
     }
     new _regimen
     {
@@ -165,13 +174,13 @@ module ""
         @"id": "regfiscal"
         member "attributes"
         {
-            @"name": "regfiscal"
+            @"name": "regimen"
             @"class": "form-select form-select-sm rounded-0 no-shadow"
             @"required":"true"
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("$parameters/regfiscal")
+        @"selected": fd('regimen','tx',data)
     }
     new _periocidad
     {
@@ -185,7 +194,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("$parameters/periodicidad")
+        @"selected": fd('periodicidad','tx',data)
     }
     new _meses
     {
@@ -199,7 +208,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("$parameters/mes")
+        @"selected": fd('mes','tx',data)
     }
     new _anio
     {
@@ -213,7 +222,7 @@ module ""
         }
         @"value_field": "clave"
         @"text_field": "valor"
-        @"selected": @("$parameters/anio")
+        @"selected": fd('anio','nm',data)
     }
     
     //tabla detalle
@@ -306,20 +315,29 @@ module ""
                             }
                             div(class="col-md-4")
                             {
-                                label{"Fecha:"}
-                                "date-range"(id="fecha_range"
-                                "hidden-input-name-start"="fechaini"
-                                "hidden-input-name-end"="fechafin"
-                                start="#<fechaini>"
-                                "start-label"="Inicial:"
-                                end="#<fechafin>"
-                                required="true"
-                                "end-label"="Final:"){""}
+                                label(class="fw-bold"){"Fecha:"}
+                                fieldset(class="input-group input-group-sm p-0" id="fecha_range" readonly="")
+                                {
+                                    span(class="input-group-text rounded-0"){"Inicio"}
+                                    input(class="form-control rounded-0 no-shadow" type="date" name="fechaini" value="#<fechaini>" id="fechaini" required="")
+                                    span(class="input-group-text rounded-0"){"Fin"}
+                                    input(class="form-control rounded-0 no-shadow" type="date" name="fechafin" value="#<fechafin>" id="fechafin" required="")
+                                }
                             }
-                            div(class="col-md-1 align-self-end")
+                            #!
+                            if parse.bool(@('#./enable'))
                             {
-                                button(type="button" class="btn border-secondary induxsoft-corners btn-main-action no-print" id="btn_change"){"Cambiar"}
+                                #$
+                                div(class="col-md-1 align-self-end")
+                                {
+                                    div(class="d-flex justify-content-end gap-1")
+                                    {
+                                        button(class="btn btn-sm btn-primary rounded-0 no-shadow" type="button" id="btn_change"){"Cambiar"}
+                                        button(class="btn btn-sm btn-light border rounded-0 no-shadow" type="button" id="btn_cancel" hidden=""){$"#<@ICON_DISCARD>"}
+                                    }
+                                }
                             }
+                            #$
                         }
                         // Información global
                         fieldset(class="mt-2")
@@ -389,7 +407,7 @@ module ""
                                     div(class="form-check")
                                     {
                                         #!
-                                        checked = ifstr(not(@isnew), "checked", "")
+                                        checked = ifstr(not(@isnew) && not(parse.bool(@("$parameters/from-filter"))), "checked", "")
                                         #$
                                         input(class="form-check-input" type="checkbox" id="check_all" "#<checked>"="")
                                         label(class="form-check-label" "for"="check_all"){"Seleccionar todas."}
@@ -399,7 +417,7 @@ module ""
                                 {
                                     div(class="d-flex align-items-center gap-1")
                                     {
-                                        label("for"="objimp"){"Obj.Impuesto:"}
+                                        label("for"="objeto_impuesto"){"Obj.Impuesto:"}
                                         #!
                                         do uie.dbSelect(_obj_impuestos)
                                         #$
