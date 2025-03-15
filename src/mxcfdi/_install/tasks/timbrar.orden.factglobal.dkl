@@ -1,0 +1,387 @@
+#include "dkli.dkh"
+#!
+program "Ejecutar orden de factura global" 
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "webcl.dkh"
+    #include "dbr.dkh"
+    #include "dbr.apps.dkl"
+    #include "dbr.security.dkl"
+    // #include "batch.v12.dkl"
+    // #include "website.dkl"
+    #include "mxcfdi/_lib/config.dk"
+    #include "mxcfdi/_lib/list.queries.dk"
+    #include "mxcfdi/emision/model.dk"
+    #include "mxcfdi/factglobal/list_query.dk"
+
+    if not(isset("@batch_context"))
+    {
+        ref args = commandline("=")
+        new @batch_context
+        {
+            @"credentials*": record.create()
+            @"params*": args
+            @"job*": record.create()
+            @"qname": @@(args,"$qname")
+            @"database*": dbr.open(@@(args,"$qname"))
+        }
+    }
+    
+    do @context.begin(@batch_context)
+
+    module "Variables globales"
+    {
+        @fh_token_length = 10 // Longitud del token de la orden de procesamiento.
+        @success_cfdi_path = ""
+        @failure_cfdi_path = ""
+        
+        @icliente = 0
+        
+        @_generar_xml = 1
+        @_verificar_orden = 2
+        @_generar_xml_y_verificar_orden = 3
+
+        ref @emisores = record.create()
+    }
+    module "Definición de funciones"
+    {
+        function EstablecerParams(&db,params)
+        {
+            @icliente = dbr.num(db,"select sys_pk from cliente where not ifnull(sys_deleted,0) and rfc = 'XAXX010101000' limit 1",@null)
+            params<"icliente"> : @icliente
+        }
+
+        function EstablecerRutaCFDI(&db,&params)
+        {
+            fpath = dbr.vars.getd(db,"mxcfdi_failure_cfdi_path",@default_fcfdi_path)
+            fpath = replace(fpath,"@qname",@@(params,"$qname"))
+            fpath = replace(fpath,"@emisor","XAXX010101000")
+
+            spath = dbr.vars.getd(db,"mxcfdi_success_cfdi_path",@default_scfdi_path)
+            spath = replace(spath,"@qname",@@(params,"$qname"))
+            spath = replace(spath,"@emisor","XAXX010101000")
+
+            @failure_cfdi_path = fpath
+            @success_cfdi_path = spath
+        }
+
+        function RecolectarOrdenes(&db,&params)
+        {
+            if @@(params,"$orden") == "" {
+                return dbr.list(db,ftext("select * from mxcfdi_ordenfac where (status = #<@status_creado> or status = #<@status_error>)"),@null)
+            }
+
+            ref o = dbr.list(db,ftext("select * from mxcfdi_ordenfac where (sys_pk = @orden or sys_guid = @orden) and (status = #<@status_creado> or status = #<@status_error>) limit 1"),params)
+            if list.count(o) == 0 { do rise_error(511,"No fue posible encontrar información de la 'orden' proporcionada ó no se encuentra en un estado no válido para procesar.") }
+            return o
+        }
+
+        function CambiarEstado(&db,&orden,nvostt)
+        {
+            new p
+            {
+                @"iorden": @@(orden,"#sys_pk")
+                @"nvostt": nvostt
+            }
+            do dbr.execute(db,"update mxcfdi_ordenfac set status = @nvostt where sys_pk = @iorden",p)
+            orden<"status"> : nvostt
+        }
+
+        function ActualizarUltError(&db,&orden,error)
+        {
+            new p
+            {
+                @"iorden": @@(orden,"#sys_pk")
+                @"error": error
+            }
+            do dbr.execute(db,"update mxcfdi_ordenfac set last_error = @error where sys_pk = @iorden",p)
+            orden<"last_error"> : error
+
+            if not(ErrorValido(error)) { do CambiarEstado(db,orden,@status_error) }
+        }
+
+        function EstablecerToken(&db,&orden,mensaje)
+        {
+            new p { @"iorden": @@(orden,"#sys_pk") }
+
+            if contains(mensaje,"|")
+            {
+                ref parts = split(mensaje,"|")
+                token = trim(list.str(parts,1))
+                error = trim(list.str(parts,3))
+
+                token >> p
+                do dbr.execute(db,"update mxcfdi_ordenfac set token_solicitud = @token where sys_pk = @iorden",p)
+                orden<"token_solicitud"> : token
+                
+                do ActualizarUltError(db,orden,error)
+            }
+            else if contains(mensaje,"token para recuperar el CFDI:")
+            {
+                subtext = "token para recuperar el CFDI: "
+                position = findstr(mensaje,subtext) + length(subtext)
+                token = substring(mensaje,position,@fh_token_length)
+
+                token >> p
+                do dbr.execute(db,"update mxcfdi_ordenfac set token_solicitud = @token where sys_pk = @iorden",p)
+                orden<"token_solicitud"> : token
+
+                do ActualizarUltError(db,orden,mensaje)
+            }
+        }
+
+        function ErrorValido(error)
+        {
+            if contains(error,"Se registró la orden de procesamiento del CFDI") || contains(error,"Pendiente de procesar")
+            { return @true }
+
+            return @false
+        }
+
+        function AccionOrden(&orden)
+        {
+            if @@(orden,"#status") == @status_creada { return @_generar_xml }
+            if @@(orden,"#status") == @status_error && ErrorValido(@@(orden,"$last_error"))
+            {
+                file = path.concat(@failure_cfdi_path,@@(orden,"$sys_guid")+".xml")
+                
+                if file.exists(file) { return @_verificar_orden }
+                return @_generar_xml_y_verificar_orden
+            }
+
+            return 0
+        }
+
+        function ActualizarTotalesVenta(&db,iventa)
+        {
+            iventa >> p
+            ref amounts = dbr.rec(db,@qry_imp_venta,p)
+            do field.remove(amounts,"total")
+            do dbr.update(db,"venta",amounts,"sys_pk = @iventa",p)
+        }
+
+        function GuardarDVenta(&db,iventa,iorden)
+        {
+            iventa, iorden >> p
+            cdivisa = dbr.str(db,"select upper(d.codigo) from mxcfdi_ordenfac o inner join divisa d on o.`divisa` = d.sys_pk where o.sys_pk = @iorden",p)
+            insert = "INSERT INTO dventa (sys_guid,sys_dtcreated,sys_timestamo,sys_dtexported,sys_exported,sys_deleted,sys_recver,sys_info,cantidad,descuento1,descuento2,factor,impuesto1,impuesto2,impuesto3,impuesto4,notas,precio,status,tipocambio,unidad,xfacturar,xsalir,documento,ialmacen,iproducto,fk_venta_detalle,doc_partida) VALUES "
+            values = ""
+
+            ref tkt_rem = dbr.list(db,"select venta as vta from mxcfdi_ordenfac_det where orden = @iorden",p)
+            for i = 0; i < list.count(tkt_rem)
+            {
+                ref v = list.obj(tkt_rem,i)
+                ref detail = dbr.list(db,@qry_fg_dventa_sin_cancelaciones_parciales,v)
+                for j = 0; j < list.count(detail)
+                {
+                    ref row = list.obj(detail,j)
+                    
+                    sys_pk,cantidad,descuento1,descuento2,factor,impuesto1,impuesto2,impuesto3,impuesto4,notas,precio,status,tipocambio,unidad,xfacturar,xsalir,documento,ialmacen,iproducto,fk_venta_detalle << row
+
+                    if cdivisa == "MXN"
+                    {
+                        importe = (xfacturar * precio) + impuesto1
+                        iva = impuesto3
+                        if importe <= 0 { importe = 1 }
+
+                        por_iva = round(div(iva,importe),2)
+                        impuesto3 = (importe * por_iva)
+                    }
+
+                    cantidad = xfacturar
+                    xfacturar = 0
+                    xsalir = 0
+                    status = 3
+                    documento = v.vta
+                    fk_venta_detalle = iventa
+
+                    values = values + ftext("(REPLACE(UPPER(UUID()),'-',''),now(),now(),now(),FALSE,FALSE,0,'#<sys_pk>',#<cantidad>,#<descuento1>,#<descuento2>,#<factor>,#<impuesto1>,#<impuesto2>,#<impuesto3>,#<impuesto4>,'#<notas>',#<precio>,#<status>,#<tipocambio>,'#<unidad>',#<xfacturar>,#<xsalir>,#<documento>,#<ialmacen>,#<iproducto>,#<fk_venta_detalle>,#<sys_pk>),")
+                }
+                // Actualizar el documento que se incluyen en la factura.
+                iventa >> v
+                do dbr.execute(db,"update venta set statusfacturacion = 3, aplicadoa = @iventa where sys_pk = @vta",v)
+            }
+
+            if values != ""
+            {
+                // Volcar los detalles a la nueva factura.
+                sql_dump = insert + rremove(values,1)
+                do dbr.execute(db,sql_dump,@null)
+                // Actualiza los datos de dcardex.
+                do dbr.execute(db,"update dcardex as dc inner join dventa dv on dc.rventa = dv.sys_info set dc.rventa = dv.sys_pk where dv.fk_venta_detalle = @iventa",p)
+            }
+        }
+
+        function GuardarVenta(&db,&orden)
+        {
+            block = @@(orden,"#serie")
+            serie = dbr.str(db,"select serie from blockdocumentos where sys_pk = @serie",orden)
+            folio = dbr.folios.set_new(db,block,dbr.folios.get_new(db,block),3)
+            ref df = dbr.folios.info(db,block,folio)
+
+            ref_size = dbr.vars.getd(db,"ventas_fix_ref_size",6)
+            referencia = serie + padleft(str(folio),ref_size,"0")
+            fecha = date_str(@@(orden,"&fecha_cfdi"),"yyyy-MM-dd")
+
+            new venta
+            {
+                @"sys_pk": 0
+                @"sys_guid": uuid()
+                @"sys_dtcreated*": dbr.sql("now()")
+                @"sys_timestamp*": dbr.sql("now()")
+                @"sys_dtexported*": dbr.sql("now()")
+                @"sys_exported": @false
+                @"sys_deleted": @false
+                @"sys_recver": 0
+                @"auditado": @false
+                @"contabilizado": @false
+                @"descuento1": 0
+                @"descuento2": 0
+                @"documento": @cFactura
+                @"referencia": referencia
+                @"ifolio": @@(df,"#sys_pk")
+                @"icliente": @icliente
+                @"idivisa": @@(orden,"#divisa")
+                @"tipocambio": dbr.num(db,"select tcambio from divisa where sys_pk = @divisa",orden)
+                @"icconsumo": @@(orden,"#cconsumo")
+                @"fecha": fecha
+                @"fentrega": fecha
+                @"vencimiento": fecha
+                @"fembarque": fecha
+                @"fliquidacion": fecha
+                @"fultimocobro": fecha
+                @"formapago": @fp_contado
+                @"importeadicional": 0
+                @"impuesto1": 0
+                @"impuesto2": 0
+                @"impuesto3": 0
+                @"impuesto4": 0
+                @"notas": @@(orden,"$notas")
+                @"pcomicion": 0
+                @"statusadministrativo": 3 //cProcesado
+                @"statusentrega": 3 //cEntregado
+                @"statusfacturacion": 0 //cNo_Aplica
+                @"statusfinanciero": 2 //cSaldado
+                @"subtotal": 0
+                @"tipodomicilio": 0
+            }
+            do dbr.insert(db,"venta",venta)
+
+            iorden = @@(orden,"#sys_pk")
+            iventa = dbr.num(db,"select last_insert_id()",@null)
+
+            do GuardarDVenta(db,iventa,iorden)
+            do ActualizarTotalesVenta(db,iventa)
+
+            do dbr.execute(db,ftext("update mxcfdi_ordenfac set venta = #<iventa> where sys_pk = #<iorden>"),@null)
+            orden<"venta"> : iventa
+            
+            return iventa
+        }
+
+        function ObtenerEmisor(&db,&orden)
+        {
+            nic = @@(orden,"$nic")
+            if field.exist(@emisores,nic) { return field.obj(@emisores,nic) }
+
+            ref emisor = dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE nic=@nic LIMIT 1",orden)
+            ref result = emision.getEmisorFactudesk(emisor)
+            using emisor
+            {
+                @"nombre": @@(result,"$razon_social")
+                @"rfc": @@(result,"$rfc")
+                @"reg_fiscal": @@(result,"$reg_fiscal")
+                @"domicilios*": filterDomicilios(@@(result,"&domicilios"),@true)
+                @"certificados*": @@(result,"&certificados")
+            }
+
+            @emisores<nic+"*"> : emisor
+            return emisor
+        }
+    }
+    module "Ejecución del programa"
+    {
+        ref params = @("&params")
+        ref db = @("&database")
+        
+        do EstablecerParams(db,params)
+        do EstablecerRutaCFDI(db,params)
+        ref ordenes = RecolectarOrdenes(db,params)
+        ref cliente = dbr.rec(db,@qry_get_receptor,params)
+        for i = 0; i < list.count(ordenes)
+        {
+            ref orden = list.obj(ordenes,i)
+            switch AccionOrden(orden)
+            {
+                case @_generar_xml
+                {
+                    codeblock "Generar XML"
+                    {
+                        do dbr.begin(db)
+                    
+                        params.doc := GuardarVenta(db,orden)
+                        cfdi_id = @@(orden,"$sys_guid")
+                        new data
+                        {
+                            @"documento*": dbr.rec(db,ftext(@qry_read_venta),params)
+                            @"cliente*": cliente
+                            @"emisor*": ObtenerEmisor(db,orden)
+                            // Atributos adicionales
+                            @"reg_fiscal": "616"
+                            @"codpos": @@(cliente,"$codpos")
+                            @"forma_pago": "01"
+                            @"metodo_pago": "PUE"
+                            // @"cond_pago": "PAGO EN UNA SOLA EXHIBICIÓN"
+                            @"uso_cfdi": "S01"
+                            @"exportacion": "01"
+                            @"sel_expedicion": @@(orden,"$dom_expedicion")
+                            // Información Global (CFDI 4.0)
+                            @"periodicidad": @@(orden,"$periodicidad")
+                            @"mes": @@(orden,"$mes")
+                            @"anio": @@(orden,"$anio")
+                        }
+                        comprobante = emision.generarCFDI(db,params,data)
+                        
+                        do dbr.commit(db)
+                    }
+                    break
+                }
+                case @_verificar_orden
+                {
+                    // code...
+                    break
+                }
+                case @_generar_xml_y_verificar_orden
+                {
+                    // code...
+                    break
+                }
+            }
+
+            exception
+            {
+                do errordet(@false)
+                code = last_error_code()
+                error = last_error()
+
+                if dbr.in_transaction(db) { do dbr.rollback(db) }
+                do ActualizarUltError(db,orden,error)
+            }
+        }
+
+        do dbr.close(db)
+
+        exception
+        {
+            do errordet(@false)
+            code = last_error_code()
+            error = last_error()
+
+            do dbr.close(db)
+            do rise_error(code,error)
+        }
+    }
+
+    do @context.end()
+}

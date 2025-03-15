@@ -19,3 +19,4 @@ GX41,Crear orden de factura global,mxcfdi.factglobal
 GX42,Editar orden de factura global,mxcfdi.factglobal
 GX43,Eliminar orden de factura global,mxcfdi.factglobal
 GX44,Cancelar orden de factura global,mxcfdi.factglobal
+GX45,Ejecutar orden de factura global,mxcfdi.factglobal

@@ -16,5 +16,10 @@ module ""
             point @update to factglobal.cancelar
             break
         }
+        case "ejecutar"
+        {
+            point @update to factglobal.ejecutar
+            break
+        }
     }
 }

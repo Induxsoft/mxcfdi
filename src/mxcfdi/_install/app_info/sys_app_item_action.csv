@@ -10,4 +10,4 @@ GX40,Orden de factura global,Factura Global,,/!/mxcfdi/fact-global/,0,mxcfdi.fac
 GX41,Crear orden de factura global,Crear,,/!/mxcfdi/fact-global/_new/,0,mxcfdi.factglobal,DET094,0,action
 GX42,Editar orden de factura global,Editar,,/!/mxcfdi/fact-global/@_src_context_item_id/,0,mxcfdi.factglobal,DET094,1,action
 GX43,Eliminar orden de factura global,Eliminar,,"javascript:InduxsoftCrudlModel.Delete(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action
-GX44,Cancelar orden de factura global,Cancelar,,/!/mxcfdi/fact-global/@_src_context_item_id/cancelar/,0,mxcfdi.factglobal,DET094,1,action
+GX44,Cancelar orden de factura global,Cancelar,,"javascript:cancelarOrden(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action

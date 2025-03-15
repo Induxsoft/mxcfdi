@@ -28,6 +28,7 @@ module ""
     @_entities_type = @("$parameters/_entities_type")
     @_entity_id = @("$parameters/_entity_id")
     @isnew = (@_entity_id == "_new")
+    @status = @@(data,"#status")
     
     fechaini = ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
     fechafin = ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
@@ -74,7 +75,7 @@ module ""
             button(class="#<btncls>" id="btn_save_orden" hidden=""){"Guardar"}
             #!
         }
-        if @("#./data/sys_pk") > 0 {
+        if not(@isnew) && (@status == @status_creada || @status == @status_error)  {
             #$
             button(class="#<btncls>" id="btn_cancel_orden"){"Cancelar"}
             #!

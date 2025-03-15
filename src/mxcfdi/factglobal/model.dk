@@ -252,7 +252,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         @use_transaction = @false
         do dbr.apps.action.pre("GX43")
 
-        ref entity=entity.read(db,params)
+        ref entity = entity.read(db,params)
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error && @@(entity,"#status")!=@status_cancelada
         {
             do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada")
@@ -281,13 +281,21 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     {
         @use_transaction = @false
         do dbr.apps.action.pre("GX44")
+
+        ref entity = entity.read(db,params)
+        if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error
+        {
+            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error")
+        }
+
         do dbr.begin(db)
         
         do dbr.execute(db,ftext("update mxcfdi_ordenfac set status=#<@status_cancelada> where sys_pk=@_entity_id"),params)
+        entity<"status"> : @status_cancelada
         
-        do dbr.apps.action.pos(data)
+        do dbr.apps.action.pos(entity)
         do dbr.commit(db)
-        do dbr.apps.action.ext(data)
+        do dbr.apps.action.ext(entity)
         
         exception
         {
@@ -296,4 +304,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             do rise_error(last_error_code(),last_error())
         }
     }
+
+    ejecutar::&db,&params,&data
+    {}
 }

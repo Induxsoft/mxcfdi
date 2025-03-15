@@ -25,9 +25,12 @@ module ""
             member @"_actions"
             {
                 @"caption": "Acciones"
-                @"no-print":@true
-                @"template":'<a href="./${DataRow.sys_pk}/" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;">Detalles</a>
-                            <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="cursor: pointer;text-decoration: none;padding: 0px 8px;background-color: #F5F5F5;color: #000;    border: none;height: 23px;margin-left: 2px;">Eliminar</button>'
+                @"no-print": @true
+                @"template": '
+                    <a href="./${DataRow.sys_pk}/" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;">Detalles</a>
+                    <button onclick="cancelarOrden(${DataRow.sys_pk})" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;border:none;height:23px;margin-left:2px;">Cancelar</button>
+                    <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;border:none;height:23px;margin-left:2px;">Eliminar</button>
+                '
             }
         }
         @"table_footer": "Mostrando los primeros # registros"
@@ -81,13 +84,13 @@ module ""
                 {
                     div(class="row")
                     {
-                        div(class="col-md-3")
+                        div(class="col-md-auto")
                         {
                             #!
                             do uie.dbSelect(_status)
                             #$
                         }
-                        div(class="col-md-8")
+                        div(class="col-md-auto")
                         {
                             "date-range"(id="filter_date"
                             "hidden-input-name-start"="fechaini"
@@ -117,6 +120,21 @@ module ""
                 const table = document.getElementById("factura_global");
                 const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
                 return { item_id:id, context: {} }
+            }
+
+            function cancelarOrden(id) {
+                if (!id || !confirm("¿Esta seguro en cancelar la orden seleccionada?")) return;
+
+                InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/cancelar/",{},
+                    (data) => {
+                        window.location.reload();
+                    },
+                    (error) => {
+                        alert(error.message ?? "Ha ocurrido un error, no fue posible cancelar la orden");
+                        console.error(error);
+                    },
+                    "PATCH",false
+                );
             }
             
             document.addEventListener("DOMContentLoaded", () => {

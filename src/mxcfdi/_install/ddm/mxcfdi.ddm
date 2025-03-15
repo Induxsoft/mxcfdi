@@ -9,6 +9,8 @@ model "mxcfdi"
     #include "induxsoft.abstracts.ddm"
 
     //* ======================================== [ DEPENDENCIAS (FK) ]
+    wide compatibility
+
     entity "aplcxc" : "TableModel" {}
     entity "dcxc" : "TableModel" {}
     entity "venta" : "TableModel" {}
@@ -22,6 +24,8 @@ model "mxcfdi"
     }
     entity "blockdocumentos" : "TableModel"{}
     entity "divisa" : "TableModel"{}
+
+    strict compatibility
     //* ======================================== [ ENTIDADES PRINCIPALES ]
     entity "ut_cfdinfo" : "TableModel"
     {
@@ -99,6 +103,7 @@ model "mxcfdi"
         @"serie" ref:"blockdocumentos" required
         @"divisa" ref:"divisa" required
         @"cconsumo" ref:"cconsumo"
+        @"venta" ref:"venta" //cFactura generada por la ejecución de la orden
         @"fecha_cfdi" datetime
         @"finicial" datetime
         @"ffinal" datetime
@@ -119,7 +124,7 @@ model "mxcfdi"
 
     entity "mxcfdi_ordenfac_det" : "TableModel"	
     {
-        @"venta" ref:"venta" required
+        @"venta" ref:"venta" required //Ticket o Remisión que se incluye en la orden de factura global.
         @"orden" ref:"mxcfdi_ordenfac" required
         
         index "mxcfdi_ordenfac_det_uq1" unique

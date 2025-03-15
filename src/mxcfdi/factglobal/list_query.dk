@@ -277,4 +277,86 @@ module ""
 		and v.fecha <= date(@fechafin)
 		and v.notas = '$dp$';
 	"
+
+	@qry_fg_dventa_sin_cancelaciones_parciales = "
+	SELECT
+		dv.sys_pk,
+		dv.sys_guid,
+		dv.sys_dtcreated,
+		dv.sys_timestamp,
+		dv.sys_dtexported,
+		dv.sys_exported,
+		dv.sys_info,
+		dv.sys_user,
+		dv.sys_lastuser,
+		dv.sys_recver,
+		dv.cantidad,
+		dv.descuento1,
+		dv.descuento2,
+		dv.`factor`,
+		dv.impuesto1 - IFNULL((
+			SELECT t2.impuesto1
+			FROM venta t1
+				INNER JOIN dventa t2 ON t1.sys_pk = t2.fk_venta_detalle
+			WHERE t1.aplicadoa = @vta AND t2.iproducto = dv.iproducto
+		),0) AS impuesto1,
+		dv.impuesto2 - IFNULL((
+			SELECT t2.impuesto2
+			FROM venta t1
+				INNER JOIN dventa t2 ON t1.sys_pk = t2.fk_venta_detalle
+			WHERE t1.aplicadoa = @vta AND t2.iproducto = dv.iproducto
+		),0) AS impuesto2,
+		dv.impuesto3 - IFNULL((
+			SELECT t2.impuesto3
+			FROM venta t1
+				INNER JOIN dventa t2 ON t1.sys_pk = t2.fk_venta_detalle
+			WHERE t1.aplicadoa = @vta AND t2.iproducto = dv.iproducto
+		),0) AS impuesto3,
+		dv.impuesto4 - IFNULL((
+			SELECT t2.impuesto4
+			FROM venta t1
+				INNER JOIN dventa t2 ON t1.sys_pk = t2.fk_venta_detalle
+			WHERE t1.aplicadoa = @vta AND t2.iproducto = dv.iproducto
+		),0) AS impuesto4,
+		IFNULL(dv.notas,'') notas,
+		dv.precio,
+		dv.`status`,
+		mc.tipocambio,
+		dv.unidad,
+		dv.xfacturar,
+		dv.xsalir,
+		dv.documento,
+		dv.ialmacen,
+		dv.iproducto,
+		dv.fk_venta_detalle
+	FROM dventa dv
+		INNER JOIN venta v ON dv.fk_venta_detalle = v.sys_pk
+		INNER JOIN movcaja mc ON v.imovcaja = mc.sys_pk
+		LEFT JOIN venta vcancel ON dv.fk_venta_detalle = vcancel.aplicadoa
+	WHERE NOT (IFNULL(dv.notas,'') = '$DP$' AND IFNULL(dv.xfacturar,0) < 1)
+		AND dv.fk_venta_detalle = @vta
+	GROUP BY dv.sys_pk;
+	"
+
+	@qry_imp_venta = "
+    SELECT
+        SUM(IFNULL(d.precio,0) * IFNULL(d.cantidad,0)) AS subtotal,
+        SUM(IFNULL(d.descuento1,0)) AS descuento1,
+        SUM(IFNULL(d.descuento2,0)) AS descuento2,
+        SUM(IFNULL(d.impuesto1,0)) AS impuesto1,
+        SUM(IFNULL(d.impuesto2,0)) AS impuesto2,
+        SUM(IFNULL(d.impuesto3,0)) AS impuesto3,
+        SUM(IFNULL(d.impuesto4,0)) AS impuesto4,
+        IFNULL(SUM(
+            ((IFNULL(d.precio,0) * IFNULL(d.cantidad,0))
+            - IFNULL(d.descuento1,0)
+            - IFNULL(d.descuento2,0))
+            + IFNULL(d.impuesto1,0)
+            + IFNULL(d.impuesto2,0)
+            + IFNULL(d.impuesto3,0)
+            + IFNULL(d.impuesto4,0)
+        ),0) total
+    FROM dventa d
+    WHERE d.fk_venta_detalle = @iventa
+    "
 }
