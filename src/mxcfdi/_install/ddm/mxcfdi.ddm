@@ -30,10 +30,10 @@ model "mxcfdi"
     entity "ut_cfdinfo" : "TableModel"
     {
         @"uf_nocertificado" string(20) unique required
-        @"uf_certificado" string(4096)
-        @"uf_llaveprivada" string(4096) required
-        @"uf_clave" string(4096) required
-        @"uf_pfx" string(4096)
+        @"uf_certificado" memo
+        @"uf_llaveprivada" memo required
+        @"uf_clave" memo required
+        @"uf_pfx" memo
     }
     entity "ut_cfdfolio" : "TableModel"
     {
