@@ -455,7 +455,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         
         comprobante = generarCFDI(db,params,data)
         
-        ref response = sellarYTimbrar(emisor,comprobante)
+        ref response = sellarYTimbrar(emisor,comprobante,"")
         do saveResponse(db,response,comprobante,rfc_emisor,cfdi_id)
         do aplicarFactura(db,params,response)
 
@@ -529,6 +529,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         return ""
     }
+
     getDomicilioEmisor::&emisor
     {
         ref domicilio=cfdi.find(@@(emisor,"&domicilios"),"#fiscal",1)
@@ -538,18 +539,18 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         return domicilio
     }
+
     generarCFDI::&db,&params,&data
     {
         //#region generarCFDI()
         namespace "emision"
 
         ref documento = field.obj(data,"documento")
-        ref emisor = field.obj(data,"emisor")
-
-        ref domicilio=cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
-        
-        if isnull(domicilio){ref domicilio=getDomicilioEmisor(emisor)}
         ref cliente = field.obj(data,"cliente")
+        ref emisor = field.obj(data,"emisor")
+        ref domicilio = cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
+        
+        if isnull(domicilio) { ref domicilio:getDomicilioEmisor(emisor)}
 
         program_path = "mxcfdi/emision"
         program_name = "cfdi40.dkl"
@@ -595,6 +596,37 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
 
         if @@(cfdi,"$Moneda") == "MXN" { cfdi<"TipoCambio"> : 1 }
+        if parse.bool(@@(data,"$factglobal"))
+        {
+            using cfdi
+            {
+                @"TipoDeComprobante": "I"
+                @"MetodoPago": "PUE"
+                @"Exportacion": "01"
+
+                member @"InformacionGlobal"
+                {
+                    @"Periodicidad": field.dstr(data,"periodicidad","")
+                    @"Mes": field.dstr(data,"mes","")
+                    @"Anio": field.dstr(data,"anio","")
+                }
+
+                member @"Emisor"
+                {
+                    @"RegimenFiscal": field.str(data,"reg_fiscal")
+                }
+
+                member @"Receptor"
+                {
+                    @"Rfc": "XAXX010101000"
+                    @"Nombre": "PUBLICO EN GENERAL"
+                    @"DomicilioFiscalReceptor": field.str(cfdi,"LugarExpedicion")
+                    @"RegimenFiscalReceptor": "616"
+                    @"UsoCFDI": "S01"
+                }
+            }
+            // if @@(cfdi,"$InformacionGlobal/Periodicidad") == "05" { cfdi<"Emisor/RegimenFiscal"> : "621" }
+        }
         if @@(cfdi,"$TipoDeComprobante") == "P" 
         {
             program_name = "cfdi40.pago20.dkl"
@@ -603,8 +635,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         else { do setConceptos(db,params,data,cfdi) }
 
         do setAddenda(db,cliente,cfdi,domicilio)
-
-        comprobante = to.base64(replace(runscript(path.concat(program_path,program_name),"cfdi",cfdi)," = ","="))
+        comprobante = runscript(path.concat(program_path,program_name),"cfdi",cfdi)
+        comprobante = to.base64(replace(comprobante," = ","="))
         return comprobante
     }
 
@@ -1189,7 +1221,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
     }
 
-    sellarYTimbrar::&emisor,comprobante
+    sellarYTimbrar::&emisor,comprobante,idd
     {
         //#region sellarYTimbrar()
         new header { @"Content-Type": "application/json; charset=UTF-8" }
@@ -1197,7 +1229,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         {
             @"cti": field.str(emisor,"cti")
             @"pwd": field.str(emisor,"pwd")
-            @"idd": ""
+            @"idd": idd
             @"ncer": ""
             @"nb64": @false
             @"xml": comprobante

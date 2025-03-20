@@ -1,6 +1,7 @@
 #include "dkli.dkh"
 
 #def Comprobante "cfdi:Comprobante"
+#def InformacionGlobal "cfdi:InformacionGlobal"
 #def CfdiRelacionados "cfdi:CfdiRelacionados"
 #def CfdiRelacionado "cfdi:CfdiRelacionado"
 #def Emisor "cfdi:Emisor"
@@ -25,6 +26,7 @@ program "Generar comprobante xml"
     do @context.begin(@cfdi)
 
     incluir_tcambio = not(containsword(@("$Moneda"),"MXN,XXX"))
+    es_factura_global = (@("$Receptor/Rfc")=="XAXX010101000" && field.exist(@cfdi,"InformacionGlobal"))
     incluir_cfdi_rels = (list.count(ifnull(@("&CfdiRelacionados/Relacionados"),list.create())) > 0)
     incluir_imp_tras = (list.count(ifnull(@("&Impuestos/Traslados"),list.create())) > 0)
     incluir_imp_ret = (list.count(ifnull(@("&Impuestos/Retenciones"),list.create())) > 0)
@@ -45,7 +47,7 @@ program "Generar comprobante xml"
         Fecha="#<@('Fecha')>"
         MetodoPago="#<@('MetodoPago')>"
         FormaPago="#<@('FormaPago')>"
-        CondicionesDePago="#<@('CondicionesDePago')>"
+        "#<ifstr(es_factura_global,'','CondicionesDePago')>"="#<@('CondicionesDePago')>"
         TipoDeComprobante="#<@('TipoDeComprobante')>"
         Moneda="#<@('Moneda')>"
         "#<ifstr(incluir_tcambio,'TipoCambio','')>"="#<@('TipoCambio')>"
@@ -56,6 +58,10 @@ program "Generar comprobante xml"
         Total="#<@('Total')>"
     )
     {
+        #!
+        if es_factura_global {
+            #$ InformacionGlobal(Periodicidad="#<@('InformacionGlobal/Periodicidad')>" Meses="#<@('InformacionGlobal/Meses')>" "Año"="#<@('InformacionGlobal/Anio')>")
+        }
         #!
         if incluir_cfdi_rels
         {

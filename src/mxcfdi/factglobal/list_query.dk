@@ -325,10 +325,10 @@ module ""
 		dv.unidad,
 		dv.xfacturar,
 		dv.xsalir,
-		dv.documento,
+		IFNULL(dv.documento,0) documento,
 		dv.ialmacen,
 		dv.iproducto,
-		dv.fk_venta_detalle
+		IFNULL(dv.fk_venta_detalle,0) fk_venta_detalle
 	FROM dventa dv
 		INNER JOIN venta v ON dv.fk_venta_detalle = v.sys_pk
 		INNER JOIN movcaja mc ON v.imovcaja = mc.sys_pk

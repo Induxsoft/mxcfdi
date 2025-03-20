@@ -59,6 +59,9 @@ module "Variables globales"
 	// Sellar y timbrar CFDI 4.0 y CR 2.0
     // DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/sellar-y-timbrar.md
 	@svc_fdsk_sellar_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/sellar-y-timbrar/"
+	// Timbrado de CFDI 4.0 y CR 2.0
+	// DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/timbrar.md
+	@svc_fdsk_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/timbrar/"
 	// Enviar CFDI o CR
     // DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/enviar.md
 	@svc_fdsk_enviar = "https://factudesk.api.induxsoft.net/comprobantes/enviar/"

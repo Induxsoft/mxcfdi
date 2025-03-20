@@ -306,5 +306,13 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     }
 
     ejecutar::&db,&params,&data
-    {}
+    {
+        qname = @@(@http_context,"$session/idp/qname")
+        orden = @@(params,"$_entity_id")
+
+        exe = "dkl"
+        args = ftext('/usr/v12stgtdemo1/mxcfdi/_install/tasks/timbrar.orden.factglobal.dkl qname="#<qname>" orden="#<orden>"')
+
+        do exec(exe,args,@false)
+    }
 }
