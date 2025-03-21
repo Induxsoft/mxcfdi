@@ -9,32 +9,59 @@ module ""
     
     do @context.begin(@crud_context)
 
+    tbtn = "cursor:pointer; text-decoration:none; border:none; outline:none; padding: 0px 8px; background-color:#F5F5F5; color:#000000;"
     new table_definition
     {
         @"datatable*": @("&./data")
         member @"columns"
         {
-            member @"creacion" { @"caption": "Creación" }
-            member @"estado" { @"caption": "Estado" }
-            member @"fecha_cfdi" { @"caption": "Fecha CFDI" }
-            member @"finicial" { @"caption": "Fecha inicial" }
-            member @"ffinal" { @"caption": "Fecha final" }
+            member @"creacion"
+            {
+                @"caption": "Creación"
+                @"align": "center"
+            }
+            member @"estado"
+            {
+                @"caption": "Estado"
+                @"align": "center"
+            }
+            member @"fecha_cfdi"
+            {
+                @"caption": "Fecha CFDI"
+                @"align": "center"
+            }
+            member @"finicial"
+            {
+                @"caption": "Fecha inicial"
+                @"align": "center"
+            }
+            member @"ffinal"
+            {
+                @"caption": "Fecha final"
+                @"align": "center"
+            }
             member @"cconsumo" { @"caption": "Centro de consumo" }
             member @"token_solicitud" { @"caption": "Token de timbrado" }
             member @"last_error" { @"caption": "últ. error" }
             member @"_actions"
             {
-                @"caption": "Acciones"
-                @"no-print": @true
-                @"template": '
-                    <a href="./${DataRow.sys_pk}/" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;">Detalles</a>
-                    <button onclick="timbrarOrden(${DataRow.sys_pk})" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;border:none;height:23px;margin-left:2px;">Timbrar</button>
-                    <button onclick="cancelarOrden(${DataRow.sys_pk})" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;border:none;height:23px;margin-left:2px;">Cancelar</button>
-                    <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="cursor:pointer;text-decoration:none;padding: 0px 8px;background-color:#F5F5F5;color:#000;border:none;height:23px;margin-left:2px;">Eliminar</button>
-                '
+                @"caption":"Acciones"
+                @"no-print":@true
+                @"template": ftext('
+                    <div style="display:flex;gap:5px;justify-content:center;width:100%;">
+                        <a href="./${DataRow.sys_pk}/" style="#<tbtn>">Detalles</a>
+                        ${ (DataRow.status==0 || DataRow.status==98) ? `<button onclick="timbrarOrden(${DataRow.sys_pk})" style="#<tbtn>">Timbrar</button>` : "" }
+                        ${ (DataRow.status==0 || DataRow.status==98) ? `<button onclick="cancelarOrden(${DataRow.sys_pk})" style="#<tbtn>">Cancelar</button>` : "" }
+                        ${ ((DataRow.status==0 || DataRow.status==99) || (DataRow.status==98 && !DataRow.venta)) ? `<button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="#<tbtn>">Eliminar</button>` : "" }
+                    </div>
+                ')
             }
         }
         @"table_footer": "Mostrando los primeros # registros"
+        @"control_styles": '
+            tr th { font-size:.9rem; font-weight:500 !important; outline:none !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+            tr td { font-size:.8rem; }
+        '
     }
 
     buttons::

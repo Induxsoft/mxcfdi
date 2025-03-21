@@ -257,6 +257,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         {
             do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada")
         }
+        if @@(entity,"#venta") > 0 { do rise_error(500,"No es posible eliminar la orden debido a que tiene una factura relacionada.") }
 
         do dbr.begin(db)
         
@@ -290,7 +291,11 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
 
         do dbr.begin(db)
         
+        if @@(entity,"#venta") > 0 {
+            // Revertir factuta
+        }
         do dbr.execute(db,ftext("update mxcfdi_ordenfac set status=#<@status_cancelada> where sys_pk=@_entity_id"),params)
+        
         entity<"status"> : @status_cancelada
         
         do dbr.apps.action.pos(entity)
@@ -310,8 +315,8 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         qname = @@(@http_context,"$session/idp/qname")
         orden = @@(params,"$_entity_id")
 
-        exe = "dkl"
-        args = ftext('/usr/v12stgtdemo1/mxcfdi/_install/tasks/timbrar.orden.factglobal.dkl qname="#<qname>" orden="#<orden>"')
+        exe = "./dkl"
+        args = ftext('mxcfdi/_install/tasks/timbrar.orden.factglobal.dkl qname="#<qname>" orden="#<orden>"')
 
         do exec(exe,args,@false)
     }
