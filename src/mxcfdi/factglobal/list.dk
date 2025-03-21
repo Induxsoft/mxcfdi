@@ -155,7 +155,9 @@ module ""
 
                 InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/ejecutar/",{},
                     (data) => {
-                        window.location.reload();
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
                     },
                     (error) => {
                         alert(error.message ?? "Ha ocurrido un error, no fue posible ejecutar la orden");

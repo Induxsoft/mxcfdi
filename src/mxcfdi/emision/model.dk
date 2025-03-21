@@ -607,7 +607,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 member @"InformacionGlobal"
                 {
                     @"Periodicidad": field.dstr(data,"periodicidad","")
-                    @"Mes": field.dstr(data,"mes","")
+                    @"Meses": field.dstr(data,"mes","")
                     @"Anio": field.dstr(data,"anio","")
                 }
 
@@ -1273,13 +1273,21 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         new ut_cfd
         {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_dtexported*": dbr.sql("now()")
+            @"sys_exported": @false
+            @"sys_deleted": @false
+            @"sys_recver": 0
             @"uf_xml": cfdi_uuid
             @"uf_cadenaoriginal": ""
             @"uf_sellodigital": cfdi.attr(comprobante,"Sello")
             // @"uf_iventa*": @null //PkVenta
             // @"uf_idcxc*": @null //PkRecibo
             // @"uf_aplcxc*": @null //PkAplicado
-            @"uf_fechahora*": now()
+            @"uf_fechahora*": dbr.sql("now()")
             // @"uf_tipo*": @null
             // @"uf_cfdi_info": dbr.num(db,"SELECT sys_pk FROM ut_cfdinfo WHERE NOT IFNULL(sys_deleted,0) ORDER BY sys_pk DESC LIMIT 1;",@null)
             @"uf_sellodigitalsat": cfdi.attr(tfd,"SelloSAT")
@@ -1323,7 +1331,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             }
         }
 
-        do dbr.save(db,"ut_cfd",ut_cfd)
+        do dbr.insert(db,"ut_cfd",ut_cfd)
     }
 
     cfdi.preview::&db,&params

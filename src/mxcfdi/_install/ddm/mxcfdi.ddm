@@ -119,6 +119,7 @@ model "mxcfdi"
         @"concepto" string(255)
         @"notas" memo
         @"token_solicitud" string(64)
+        @"uuid_timbre" string(64) unique
         @"last_error" memo
     }
 
