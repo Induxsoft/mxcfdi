@@ -598,8 +598,11 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if @@(cfdi,"$Moneda") == "MXN" { cfdi<"TipoCambio"> : 1 }
         if parse.bool(@@(data,"$factglobal"))
         {
+            params<"factglobal"> : @true
+
             using cfdi
             {
+                @"Fecha": field.str(data,"fecha_cfdi")
                 @"TipoDeComprobante": "I"
                 @"MetodoPago": "PUE"
                 @"Exportacion": "01"
@@ -627,16 +630,22 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             }
             // if @@(cfdi,"$InformacionGlobal/Periodicidad") == "05" { cfdi<"Emisor/RegimenFiscal"> : "621" }
         }
+
         if @@(cfdi,"$TipoDeComprobante") == "P" 
         {
             program_name = "cfdi40.pago20.dkl"
             do setComplementoP(db,data,cfdi)
         }
-        else { do setConceptos(db,params,data,cfdi) }
+        else
+        {
+            do setConceptos(db,params,data,cfdi)
+        }
 
         do setAddenda(db,cliente,cfdi,domicilio)
+
         comprobante = runscript(path.concat(program_path,program_name),"cfdi",cfdi)
         comprobante = to.base64(replace(comprobante," = ","="))
+        
         return comprobante
     }
 
@@ -762,6 +771,121 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
     }
 
+    conceptosFactGlobal::&db,&data,&cfdi
+    {
+        //#region conceptosFactGlobal()
+        new params
+        {
+            @"ifactura": @@(data,"#ifactura")
+            @"objimp": @@(data,"$objimp")
+        }
+        ref ventas = dbr.list(db,@qry_factglobal_det,params)
+        ref conceptos = list.create()
+        ref _traslados = record.create()
+
+        SubTotal = 0.00
+        Descuento = 0.00
+        Total = 0.00
+        TotalImpuestosTrasladados = 0.00
+
+        go foreach.lobj(value:vnt) with(ventas)
+        {
+            ref traslados = list.create()
+            // if @@(vnt,"$ObjetoImp") == "02" //&& (@@(vnt,"#ieps") + @@(vnt,"#iva")) > 0
+            // {
+            //     ref impuestos_producto = dbr.list(db,@qry_factglobal_det_impprod,vnt)
+            //     for r = 0; r < list.count(impuestos_producto)
+            //     {
+            //         ref fila = list.obj(impuestos_producto,r)
+
+            //         if @@(vnt,"#ieps") > 0 && list.str(split(@@(fila,"$tasa1"),"|"),0) != "%"
+            //         {
+            //             // code...
+            //         }
+
+            //         if @@(vnt,"#iva") >= 0 && list.str(split(@@(fila,"$tasa3"),"|"),0) != "%"
+            //         {
+            //             // code...
+            //         }
+            //     }
+            // }
+            // for tipo = 1; tipo <= 4
+            // {
+            //     /**
+            //     * tipo 1 = IEPS
+            //     * tipo 2 = ??
+            //     * tipo 3 = IVA
+            //     * tipo 4 = ??
+            //     */
+            //     imp_text = field.str(obj,ftext("i#<tipo>_text"))
+            //     imp_tasa = ftext("i#<tipo>_tasa")
+            //     imp_value = ftext("impuesto#<tipo>")
+
+            //     if @@(vnt,"$ObjetoImp") == "02"
+            //     {
+            //         new traslado
+            //         {
+            //             @"Impuesto": emision.getClaveImpuesto(imp_text)
+            //             @"TipoFactor": ifstr(@@(obj,"#exento_iva"),"Exento","Tasa")
+            //             @"TasaOCuota": field.dnum(obj,imp_tasa,0)
+            //             @"Base": field.num(obj,"subtotal")
+            //             @"Importe": field.num(obj,imp_value)
+            //         }
+
+            //         if tipo > 2 { traslado<"Base"> : RoundTo(@@(obj,"#subtotal") + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
+
+            //         gp_tras = md5(@@(traslado,"$Impuesto")+@@(traslado,"$TipoFactor")+@@(traslado,"$TasaOCuota"))
+            //         if not(field.exist(_traslados,gp_tras)) { _traslados<gp_tras+"*"> : record.copy(traslado,"*") }
+            //         else
+            //         {
+            //             _traslados<gp_tras+"/Base"> : @@(_traslados,"#"+gp_tras+"/Base") + @@(traslado,"#Base")
+            //             _traslados<gp_tras+"/Importe"> : @@(_traslados,"#"+gp_tras+"/Importe") + @@(traslado,"#Importe")
+            //         }
+            //         TotalImpuestosTrasladados = TotalImpuestosTrasladados + @@(traslado,"#Importe")
+
+            //         do list.add(traslados,traslado)
+            //     }
+            // }
+
+            ref concepto = record.copy(vnt,"ClaveProdServ,NoIdentificacion,Cantidad,ClaveUnidad,Descripcion,ValorUnitario,Importe,Descuento,ObjetoImp")
+            concepto<"Traslados*"> : traslados
+
+            SubTotal = SubTotal + field.num(concepto,"Importe")
+            Descuento = Descuento + field.num(concepto,"Descuento")
+
+            do list.add(conceptos,concepto)
+        }
+
+        go foreach.fobj(value:tras) with(_traslados)
+        {
+            using tras
+            {
+                @"Base": RoundTo(@@(tras,"#Base"),2,@AwayFromZero)
+                @"Importe": RoundTo(@@(tras,"#Importe"),2,@AwayFromZero)
+            }
+        }
+
+        SubTotal = RoundTo(SubTotal,2,@AwayFromZero)
+        Descuento = RoundTo(Descuento,2,@AwayFromZero)
+        TotalImpuestosTrasladados = RoundTo(TotalImpuestosTrasladados,2,@AwayFromZero)
+        Total = RoundTo(((SubTotal - Descuento) + TotalImpuestosTrasladados),2,@AwayFromZero)
+
+        using cfdi
+        {
+            @"SubTotal": SubTotal
+            @"Descuento": Descuento
+            @"Total": Total
+
+            @"Conceptos*": conceptos
+
+            member @"Impuestos"
+            {
+                @"TotalImpuestosTrasladados": TotalImpuestosTrasladados
+                @"Traslados*": record.values(_traslados)
+            }
+        }
+    }
+
     conceptosCxC::&db,&data,&cfdi
     {
         //#region conceptosCxC()
@@ -853,71 +977,18 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     setConceptos::&db,&params,&data,&cfdi
     {
-        if @@(params,"$_entity_id") == "ventas" { do emision.conceptosVenta(db,params,cfdi) }
+        if @@(params,"$_entity_id") == "ventas"
+        {
+            if not(parse.bool(@@(data,"$factglobal"))) {
+                do emision.conceptosVenta(db,params,cfdi)
+                return
+            }
+
+            do emision.conceptosFactGlobal(db,data,cfdi)
+            return
+        }
         if @@(params,"$_entity_id") == "cxc" { do emision.conceptosCxC(db,data,cfdi) }
     }
-
-    // _getDoctoRelacionado::&db,irecibo
-    // {
-    //     //#region getDoctoRelacionado()
-    //     new params { @"irecibo": irecibo }
-    
-    //     mxcfdi_nventa = parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
-    //     if mxcfdi_nventa
-    //     {
-    //         return getDoctoRelacionadoCXC(db,irecibo)
-    //     }
-
-    //     sql_facturas_aplicadas = "
-    //     SELECT fac.referencia, IFNULL(fac.iventa,0) AS iventa
-    //     FROM aplcxc AS apl
-    //         INNER JOIN dcxc AS fac ON apl.aplicadoa = fac.sys_pk
-    //     WHERE apl.fk_dcxc_aplicadoa = @irecibo AND (TRIM(IFNULL(apl.uf_cfdi,''))='' OR apl.uf_cfdi='0')
-    //     GROUP BY fac.iventa;
-    //     "
-    //     ref facturas_aplicadas = dbr.list(db,sql_facturas_aplicadas,params)
-    //     ref relacionados = list.create()
-
-    //     for i = 0; i < list.count(facturas_aplicadas)
-    //     {
-    //         params<"iventa"> : field.num(list.obj(facturas_aplicadas,i),"iventa")
-
-    //         sql_facturas_saldadas = "
-    //         SELECT
-    //             @parcis:=(@parcis + 1) AS NumParcialidad,
-    //             f.debe,
-    //             ROUND(f.debe - @rownum:=(@rownum + a.importe),2) AS ImpSaldoInsoluto,
-    //             ROUND(a.importe,2) AS ImpPagado,
-    //             ROUND(f.debe - @rownum + a.importe,2) AS ImpSaldoAnt,
-    //             (SELECT uf_foliosat FROM ut_cfd WHERE uf_iventa = @iventa LIMIT 1) AS IdDocumento,
-    //             bd.serie AS Serie,
-    //             fd.folio AS Folio,
-    //             dv.codigo AS MonedaDR,
-    //             v.tipocambio AS EquivalenciaDR,
-    //             '' AS ObjetoImpDR,
-    //             a.sys_pk AS pk_aplcxc, -- Registro de aplicación de pago
-    //             a.fk_dcxc_aplicadoa, -- Doc del pago (Recibo)
-    //             a.aplicadoa AS fk_aplicadoa, -- Doc al que se aplico el pago (Factura)
-    //             IFNULL(a.uf_cfdi,'') AS uf_cfdi
-    //         FROM (SELECT @parcis:=0) q, (SELECT @rownum:=0) r, aplcxc AS a
-    //             INNER JOIN dcxc AS p ON a.fk_dcxc_aplicadoa = p.sys_pk
-    //             INNER JOIN dcxc AS f ON a.aplicadoa = f.sys_pk
-    //             INNER JOIN venta AS v ON f.iventa = v.sys_pk
-    //             INNER JOIN foliosdocumentos AS fd ON v.ifolio = fd.sys_pk
-    //             INNER JOIN blockdocumentos AS bd ON fd.block = bd.sys_pk
-    //             INNER JOIN divisa AS dv ON v.idivisa = dv.sys_pk
-    //         WHERE v.sys_pk = @iventa AND v.statusadministrativo != 99
-    //         "
-    //         ref facturas_saldadas = dbr.list(db,"SELECT * FROM ("+sql_facturas_saldadas+") AS sbqry WHERE fk_dcxc_aplicadoa=@irecibo",params)
-
-    //         for j = 0; j < list.count(facturas_saldadas)
-    //         {
-    //             do list.add(relacionados,list.obj(facturas_saldadas,j))
-    //         }
-    //     }
-
-    //     return relacionados
-    // }
 
     getDoctoRelacionado::&db,irecibo
     {

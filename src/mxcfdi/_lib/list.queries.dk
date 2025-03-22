@@ -122,6 +122,94 @@ module "Lista de consultas MySQL"
     WHERE dt.fk_venta_detalle = @doc
     "
 
+    @qry_factglobal_det = "
+    SELECT
+        v.documento,
+        '01010101' AS ClaveProdServ,
+        v.referencia AS NoIdentificacion,
+        1 AS Cantidad,
+        'ACT' AS ClaveUnidad,
+        '' AS Unidad,
+        'Venta' AS Descripcion,
+        @importe := ROUND(v.subtotal - (
+            SELECT if((v.documento=3 OR v.documento=6), 0, IFNULL(SUM(subtotal),0))
+            FROM venta
+            WHERE aplicadoa = v.sys_pk
+        ),6) AS ValorUnitario,
+        @importe AS Importe,
+        ROUND((v.descuento1 + v.descuento2) - (
+            SELECT if((v.documento=3 OR v.documento=6), 0, IFNULL(SUM(descuento1 + descuento2),0))
+            FROM venta
+            WHERE aplicadoa = v.sys_pk
+        ),6) AS Descuento,
+        IFNULL(@objimp,'') AS ObjetoImp,
+        v.impuesto1 - (
+            SELECT if((v.documento=3 OR v.documento=6), 0, IFNULL(SUM(impuesto1),0)) AS ieps
+            FROM venta
+            WHERE aplicadoa = v.sys_pk
+        ) AS ieps, 
+        v.impuesto3 - (
+            SELECT if((v.documento=3 OR v.documento=6), 0, IFNULL(SUM(impuesto3),0)) AS iva
+            FROM venta
+            WHERE aplicadoa = v.sys_pk
+        ) AS iva
+    FROM venta v
+    WHERE v.aplicadoa = @ifactura
+    GROUP BY v.sys_pk;
+    "
+
+    @qry_factglobal_det_impprod = "
+    SELECT 
+        dv.notas,
+        dv.xfacturar AS cantidad,
+        (dv.descuento1 + dv.descuento2) AS descuentot,
+        dv.impuesto1 - (
+            SELECT IFNULL(SUM(dventa.impuesto1), 0)
+            FROM dventa
+                INNER JOIN venta ON dventa.fk_venta_detalle = venta.sys_pk
+            WHERE venta.aplicadoa = v.sys_pk AND dventa.iproducto = dv.iproducto
+        ) AS impuesto1,
+        dv.impuesto1 - (
+            SELECT IFNULL(SUM(dventa.impuesto1), 0)
+            FROM dventa
+                INNER JOIN venta ON dventa.fk_venta_detalle = venta.sys_pk
+            WHERE venta.aplicadoa = v.sys_pk AND dventa.iproducto = dv.iproducto
+        ) AS imp1,
+        dv.impuesto2 - (
+            SELECT IFNULL(SUM(dventa.impuesto2), 0)
+            FROM dventa
+                INNER JOIN venta ON dventa.fk_venta_detalle = venta.sys_pk
+            WHERE venta.aplicadoa = v.sys_pk
+        ) AS impuesto2,
+        dv.impuesto3 - (
+            SELECT IFNULL(SUM(dventa.impuesto3), 0)
+            FROM dventa
+                INNER JOIN venta ON dventa.fk_venta_detalle = venta.sys_pk
+            WHERE venta.aplicadoa = v.sys_pk AND dventa.iproducto = dv.iproducto
+        ) AS impuesto3,
+        dv.impuesto3 - (
+            SELECT IFNULL(SUM(dventa.impuesto3), 0)
+            FROM dventa
+                INNER JOIN venta ON dventa.fk_venta_detalle = venta.sys_pk
+            WHERE venta.aplicadoa = v.sys_pk AND dventa.iproducto = dv.iproducto
+        ) AS imp3,
+        dv.precio AS valorunitario,
+        im.uf_tipoi1 AS tipoimp1,
+        im.i1venta AS tasa1,
+        im.uf_tipoi3 AS tipoimp3,
+        im.i3venta AS tasa3,
+        im.tasa AS exento,
+        im.nombre AS nomimpuesto
+    FROM cfgimpuesto AS im
+        INNER JOIN producto AS p ON im.sys_pk = p.impuestos
+        INNER JOIN dventa AS dv ON p.sys_pk = dv.iproducto
+        INNER JOIN venta AS v ON dv.fk_venta_detalle = v.sys_pk
+    WHERE v.referencia = @NoIdentificacion
+        AND IFNULL(dv.notas,'') != '$DP$'
+        AND cantidad > 0
+    GROUP BY dv.sys_pk;
+    "
+
     @qry_list_dcxc = "
     SELECT
         cxc.sys_pk,

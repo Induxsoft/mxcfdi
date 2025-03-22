@@ -39,8 +39,10 @@ program "Ejecutar orden de factura global"
         do errordet(@true)
 
         @fh_token_length = 10 // Longitud del token de la orden de procesamiento.
+
         @success_cfdi_path = ""
         @failure_cfdi_path = ""
+        @esperar_timbre = @false
         
         @icliente = 0
         
@@ -117,6 +119,9 @@ program "Ejecutar orden de factura global"
 
             ref o = dbr.list(db,ftext("select * from mxcfdi_ordenfac where (sys_pk = @orden or sys_guid = @orden) and (status = #<@status_creada> or status = #<@status_error>) limit 1"),params)
             if list.count(o) == 0 { do rise_error(511,"No fue posible encontrar información de la 'orden' proporcionada ó no se encuentra en un estado no válido para procesar.") }
+            
+            @esperar_timbre = @true
+            
             return o
         }
 
@@ -433,25 +438,40 @@ program "Ejecutar orden de factura global"
             orden<"uuid_timbre"> : @@(response,"$data/uuid")
             do dbr.execute(db,"update mxcfdi_ordenfac set uuid_timbre = @uuid_timbre where sys_pk = @sys_pk",orden)
 
+            // function AnalizarRespuesta(&resp)
+            // {
+            //     expose success, message, token
+                
+            //     success = @@(resp,"#success")
+            //     message = @@(resp,"$message")
+            //     action = ""
+            //     token = @@(resp,"$data/token")
+
+            //     if contains(message,"|") {
+            //         ref parts = split(message,"|")
+            //         token = trim(list.str(parts,1))
+            //         action = trim(list.str(parts,2))
+            //         message = trim(list.str(parts,3))
+
+            //         if action == "break" { do rise_error(500,message) }
+            //     }
+
+            //     that
+            // }
+
             /* codeblock "Analizar respuesta"
             {
-                success = @@(response,"#success")
-                message = @@(response,"$message")
-                token = @@(response,"$token")
-
+                go AnalizarRespuesta(success:ok, message:msg, token:token) with(response)
+                {}
                 exception
                 {
-                    success = @false
-                    message = last_error()
-                    
-                    if contains(message,"|") {
-                        ref parts = split(message,"|")
-                        token = trim(list.str(parts,1))
-                        action = trim(list.str(parts,2))
-                        message = trim(list.str(parts,3))
-
-                        if action == "break" { do rise_error(500,message) }
+                    using response
+                    {
+                        @"success": false
+                        @"message": last_error()
                     }
+                    go AnalizarRespuesta(success:ok, message:msg, token:token) with(response)
+                    {}
                     do pop_exception()
                 }
             } */
@@ -535,6 +555,12 @@ program "Ejecutar orden de factura global"
                             @"uso_cfdi": "S01"
                             @"exportacion": "01"
                             @"sel_expedicion": @@(orden,"$dom_expedicion")
+                            
+                            @"iorden": @@(orden,"#sys_pk")
+                            @"ifactura": factura
+                            @"fecha_cfdi": date_str(@@(orden,"&fecha_cfdi"),"yyyy-MM-ddTHH:mm:ss")
+                            @"objimp": @@(orden,"$objeto_impuesto")
+                            @"notas": @@(orden,"$notas")
                             // Información Global (CFDI 4.0)
                             @"periodicidad": @@(orden,"$periodicidad")
                             @"mes": @@(orden,"$mes")
