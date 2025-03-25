@@ -18,6 +18,7 @@ program "Ejecutar orden de factura global"
     #include "mxcfdi/_lib/list.queries.dk"
     #include "mxcfdi/emision/model.dk"
     #include "mxcfdi/factglobal/list_query.dk"
+    #include "mxcfdi/factglobal/model.dk"
 
     if not(isset("@batch_context"))
     {
@@ -105,9 +106,16 @@ program "Ejecutar orden de factura global"
                 do rise_error(500,message)
             }
 
-            if @@(response,"$data/uuid") == "" { return }
+            uuid = @@(response,"$data/uuid")
+            xml = @@(response,"$data/xml")
 
-            do GuardarLog(@true,@@(response,"$data/xml"),@@(response,"$data/uuid"),"")
+            if uuid == "" && xml == "" { return }
+            if uuid == "" && xml != "" {
+                do GuardarLog(@false,xml,idd,"")
+                return
+            }
+
+            do GuardarLog(@true,xml,uuid,"")
             do RemoverLog(idd)
         }
 
@@ -133,51 +141,52 @@ program "Ejecutar orden de factura global"
                 @"nvostt": nvostt
                 @"limpiar_error": (nvostt==@status_creada || nvostt==@status_timbrada)
             }
-            do dbr.execute(db,"update mxcfdi_ordenfac set status = @nvostt, last_error = if(@limpiar_error,'',last_error) where sys_pk = @iorden",p)
+
             orden<"status"> : nvostt
+            do dbr.execute(db,"update mxcfdi_ordenfac set status = @nvostt, last_error = if(@limpiar_error,'',last_error) where sys_pk = @iorden",p)
             if p.limpiar_error { orden<"last_error"> : "" }
         }
 
         function ActualizarUltError(&db,&orden,error)
         {
+            if contains(error,"|")
+            {
+                ref parts = split(mensaje,"|")
+                error = trim(list.str(parts,3))
+            }
+
             new p
             {
                 @"iorden": @@(orden,"#sys_pk")
                 @"error": error
             }
-            do dbr.execute(db,"update mxcfdi_ordenfac set last_error = @error where sys_pk = @iorden",p)
-            orden<"last_error"> : error
 
-            if not(ErrorValido(error)) { do ActualizarEstado(db,orden,@status_error) }
+            orden<"last_error"> : error
+            do dbr.execute(db,"update mxcfdi_ordenfac set last_error = @error where sys_pk = @iorden",p)
+            do ActualizarEstado(db,orden,@status_error)
         }
 
         function EstablecerToken(&db,&orden,mensaje)
         {
-            new p { @"iorden": @@(orden,"#sys_pk") }
+            iorden = @@(orden,"#sys_pk")
+            token = ""
 
             if contains(mensaje,"|")
             {
                 ref parts = split(mensaje,"|")
                 token = trim(list.str(parts,1))
-                error = trim(list.str(parts,3))
-
-                token >> p
-                do dbr.execute(db,"update mxcfdi_ordenfac set token_solicitud = @token where sys_pk = @iorden",p)
-                orden<"token_solicitud"> : token
-                
-                do ActualizarUltError(db,orden,error)
             }
             else if contains(mensaje,"token para recuperar el CFDI:")
             {
                 subtext = "token para recuperar el CFDI: "
                 position = findstr(mensaje,subtext) + length(subtext)
                 token = substring(mensaje,position,@fh_token_length)
+            }
 
-                token >> p
-                do dbr.execute(db,"update mxcfdi_ordenfac set token_solicitud = @token where sys_pk = @iorden",p)
+            if token != "" {
+                iorden, token >> p
                 orden<"token_solicitud"> : token
-
-                do ActualizarUltError(db,orden,mensaje)
+                do dbr.execute(db,"update mxcfdi_ordenfac set token_solicitud = @token where sys_pk = @iorden",p)
             }
         }
 
@@ -331,45 +340,6 @@ program "Ejecutar orden de factura global"
             return iventa
         }
 
-        function Revertir(&db,&orden)
-        {
-            start_transaction = @false
-
-            if @@(orden,"#venta") <= 0 { return }
-            new p
-            {
-                @"pkorden": @@(orden,"#sys_pk")
-                @"pkfactura": @@(orden,"#venta")
-            }
-
-            if not(dbr.in_transaction(db)) {
-                start_transaction = @true
-                do dbr.begin(db)
-            }
-            
-            // Actualizar relación dcardex-dventa.
-            do dbr.execute(db,"update dcardex as dc inner join dventa dv on dc.rventa = dv.sys_pk set dc.rventa = dv.doc_partida where dv.fk_venta_detalle = @pkfactura",p)
-            // Revertir tickets incluidos.
-            do dbr.execute(db,"update venta set aplicadoa = null, statusfacturacion = 1 where aplicadoa = @pkfactura",p)
-            // Desvincular factura-orden
-            do dbr.execute(db,"update mxcfdi_ordenfac set venta=null where sys_pk=@pkorden",p)
-            // Eliminar detalles de la factura (venta) creada por la orden.
-            do dbr.execute(db,"delete from dventa where fk_venta_detalle = @pkfactura",p)
-            // Eliminar factura (venta) creada por la orden.
-            do dbr.execute(db,"delete from venta where sys_pk = @pkfactura",p)
-            
-            if start_transaction { do dbr.commit(db) }
-
-            do RemoverLog(@@(orden,"$sys_guid"))
-            orden<"venta*"> : @null
-
-            exception
-            {
-                if start_transaction { do dbr.rollback(db) }
-                do rise_error(last_error_code(),last_error())
-            }
-        }
-
         function ObtenerEmisor(&db,&orden)
         {
             nic = @@(orden,"$nic")
@@ -432,74 +402,51 @@ program "Ejecutar orden de factura global"
             
             xmlsellado = @@(sealresp,"$data/xml")
             
-            ref response = Timbrar(emisor,xmlsellado,idd,token)
-            do GuardarRespuesta(response,comprobante,idd)
+            // ref response = Timbrar(emisor,xmlsellado,idd,token)
+            // do GuardarRespuesta(response,comprobante,idd)
+
+            ref response = @null
+            retry = @false
+            c = 0
+
+            while c == 0 || (retry && isnull(response))
+            {
+                ref response:Timbrar(emisor,xmlsellado,idd,token)
+                exception
+                {
+                    message = last_error()
+                    action = ""
+
+                    if contains(message,"|") {
+                        ref parts = split(message,"|")
+                        token = trim(list.str(parts,1))
+                        action = trim(list.str(parts,2))
+                        message = trim(list.str(parts,3))
+
+                        if action == "break" {
+                            do EstablecerToken(db,orden,last_error())
+                            do rise_error(500,message)
+                        }
+                    }
+                    
+                    if action == "continue" && token != "" && @esperar_timbre
+                    {
+                        retry = @true
+                        do pop_exception()
+                        do EstablecerToken(db,orden,ftext("|#<token>|#<action>|#<message>|"))
+                    }
+                    else
+                    {
+                        do EstablecerToken(db,orden,last_error())
+                        do rise_error(500,message)
+                    }
+                }
+                c = c + 1
+            }
 
             orden<"uuid_timbre"> : @@(response,"$data/uuid")
             do dbr.execute(db,"update mxcfdi_ordenfac set uuid_timbre = @uuid_timbre where sys_pk = @sys_pk",orden)
-
-            // function AnalizarRespuesta(&resp)
-            // {
-            //     expose success, message, token
-                
-            //     success = @@(resp,"#success")
-            //     message = @@(resp,"$message")
-            //     action = ""
-            //     token = @@(resp,"$data/token")
-
-            //     if contains(message,"|") {
-            //         ref parts = split(message,"|")
-            //         token = trim(list.str(parts,1))
-            //         action = trim(list.str(parts,2))
-            //         message = trim(list.str(parts,3))
-
-            //         if action == "break" { do rise_error(500,message) }
-            //     }
-
-            //     that
-            // }
-
-            /* codeblock "Analizar respuesta"
-            {
-                go AnalizarRespuesta(success:ok, message:msg, token:token) with(response)
-                {}
-                exception
-                {
-                    using response
-                    {
-                        @"success": false
-                        @"message": last_error()
-                    }
-                    go AnalizarRespuesta(success:ok, message:msg, token:token) with(response)
-                    {}
-                    do pop_exception()
-                }
-            } */
-            /* codeblock "Reintentar solicitud de timbrado"
-            {
-                retry = not(success) || (contains(message,"Pendiente de procesar") token != "" )
-                while retry
-                {
-                    _idd = idd + "|" + token
-                    ref response:Timbrar(&emisor,xmlsellado,_idd)
-                    exception
-                    {
-                        success = @false
-                        message = last_error()
-                        
-                        if contains(message,"|") {
-                            ref parts = split(message,"|")
-                            token = trim(list.str(parts,1))
-                            action = trim(list.str(parts,2))
-                            message = trim(list.str(parts,3))
-
-                            if action == "break" { do rise_error(500,message) }
-                        }
-                        do pop_exception()
-                    }
-                    retry = not(success) || (contains(message,"Pendiente de procesar") token != "" )
-                }
-            } */
+            do GuardarRespuesta(response,comprobante,idd)
 
             return response
         }
@@ -603,12 +550,14 @@ program "Ejecutar orden de factura global"
                 }
                 case @_revertir
                 {
+                    if @@(orden,"#venta") <= 0 { break }
                     do dbr.begin(db)
 
-                    do Revertir(db,orden)
+                    do factglobal.revertir(db,@@(orden,"#sys_pk"),@@(orden,"#venta"),@true)
                     do ActualizarEstado(db,orden,@status_creada)
 
                     do dbr.commit(db)
+                    do RemoverLog(@@(orden,"$sys_guid"))
                     break
                 }
             }
@@ -619,7 +568,6 @@ program "Ejecutar orden de factura global"
                 error = last_error()
 
                 if dbr.in_transaction(db) { do dbr.rollback(db) }
-                do file.wtext("data/"+date_str(now(),"ddMMyyyy.HHmmss")+".txt",error)
                 if ErrorValido(error) { do EstablecerToken(db,orden,error) }
                 do ActualizarUltError(db,orden,error)
                 do pop_exception()
@@ -634,7 +582,7 @@ program "Ejecutar orden de factura global"
             error = last_error()
             
             do dbr.close(db)
-            do file.wtext("data/"+date_str(now(),"ddMMyyyy.HHmmss")+".txt",error)
+            // do file.wtext("data/"+date_str(now(),"ddMMyyyy.HHmmss")+".txt",error)
             do rise_error(code,error)
         }
     }

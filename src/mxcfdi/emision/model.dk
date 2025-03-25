@@ -167,7 +167,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         data<"entity*"> : getEntity(db,params)
         data<"cliente*"> : getCliente(db,params)
 
-        if containsword(_view,"factura,devolucion,nota-cargo,cobro,bonificacion")
+        if isanyword(_view,"factura,devolucion,nota-cargo,cobro,bonificacion")
         {
             
             if _view == "cobro" { data<"doctosrel*"> : getDoctoRelacionado(db,@@(params,"#doc")) }
@@ -680,14 +680,16 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             for tipo = 1; tipo <= 4
             {
                 /**
-                * tipo 1 = IEPS
-                * tipo 2 = ??
-                * tipo 3 = IVA
-                * tipo 4 = ??
+                * `tipo` => campo `impuesto(1-4)` de la tabla `dventa`.
+                *
+                * impuesto1 = IEPS
+                * impuesto2 = ??
+                * impuesto3 = IVA
+                * impuesto4 = ??
                 */
-                imp_text = field.str(obj,ftext("i#<tipo>_text"))
-                imp_tasa = ftext("i#<tipo>_tasa")
-                imp_value = ftext("impuesto#<tipo>")
+                imp_text = field.str(obj,ftext("i#<tipo>_text")) // ISR | IVA | IEPS
+                imp_tasa = ftext("i#<tipo>_tasa") //i(1-4)_tasa => 0.160000 | 0.080000 | ...
+                imp_value = ftext("impuesto#<tipo>") //impuesto(1-4)
 
                 if imp_text != "" && field.str(obj,"objetoimp") == "02"
                 {
@@ -701,14 +703,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     }
 
                     if tipo > 2 { traslado<"Base"> : RoundTo(@@(obj,"#subtotal") + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
-
-                    gp_tras = md5(@@(traslado,"$Impuesto")+@@(traslado,"$TipoFactor")+@@(traslado,"$TasaOCuota"))
-                    if not(field.exist(_traslados,gp_tras)) { _traslados<gp_tras+"*"> : record.copy(traslado,"*") }
-                    else
-                    {
-                        _traslados<gp_tras+"/Base"> : @@(_traslados,"#"+gp_tras+"/Base") + @@(traslado,"#Base")
-                        _traslados<gp_tras+"/Importe"> : @@(_traslados,"#"+gp_tras+"/Importe") + @@(traslado,"#Importe")
-                    }
+                    do emision.agruparImpuestos(_traslados,traslado)
                     TotalImpuestosTrasladados = TotalImpuestosTrasladados + @@(traslado,"#Importe")
 
                     do list.add(traslados,traslado)
@@ -771,6 +766,18 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
     }
 
+    agruparImpuestos::&diccionario,&impuesto
+    {
+        grupo = @@(impuesto,"$Impuesto")+@@(impuesto,"$TipoFactor")+@@(impuesto,"$TasaOCuota")
+        
+        if not(field.exist(diccionario,grupo)) { diccionario<grupo+"*"> : record.copy(impuesto,"*") }
+        else
+        {
+            diccionario<grupo+"/Base"> : @@(diccionario,"#"+grupo+"/Base") + @@(impuesto,"#Base")
+            diccionario<grupo+"/Importe"> : @@(diccionario,"#"+grupo+"/Importe") + @@(impuesto,"#Importe")
+        }
+    }
+
     conceptosFactGlobal::&db,&data,&cfdi
     {
         //#region conceptosFactGlobal()
@@ -790,65 +797,58 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         go foreach.lobj(value:vnt) with(ventas)
         {
-            ref traslados = list.create()
-            // if @@(vnt,"$ObjetoImp") == "02" //&& (@@(vnt,"#ieps") + @@(vnt,"#iva")) > 0
-            // {
-            //     ref impuestos_producto = dbr.list(db,@qry_factglobal_det_impprod,vnt)
-            //     for r = 0; r < list.count(impuestos_producto)
-            //     {
-            //         ref fila = list.obj(impuestos_producto,r)
+            ref traslados = record.create()
+            if @@(vnt,"$ObjetoImp") == "02" //&& (@@(vnt,"#ieps") + @@(vnt,"#iva")) > 0
+            {
+                ref ImpuestosXProducto = dbr.list(db,@qry_factglobal_det_impprod,vnt)
+                for r = 0; r < list.count(ImpuestosXProducto)
+                {
+                    ref fila = list.obj(ImpuestosXProducto,r)
+                    cantidad = @@(fila,"#cantidad")
+                    vu = @@(fila,"#valorunitario")
+                    descuento = @@(fila,"#descuento")
+                    ieps = 0
 
-            //         if @@(vnt,"#ieps") > 0 && list.str(split(@@(fila,"$tasa1"),"|"),0) != "%"
-            //         {
-            //             // code...
-            //         }
+                    if @@(vnt,"#ieps") > 0 && list.str(split(@@(fila,"$tasa1"),"|"),0) != "%"
+                    {
+                        toc = parse.num(replace(list.str(split(@@(fila,"$tasa1"),"|"),0),"%",""))
+                        
+                        Impuesto = "003"
+                        TipoFactor = "Tasa"
+                        TasaOCuota = parse.num(format((toc / 100),"0.000000"))
+                        Base = parse.num(format((cantidad * vu) - descuento,"0.000000"))
+                        Importe = parse.num(format((Base * TasaOCuota),"0.000000"))
 
-            //         if @@(vnt,"#iva") >= 0 && list.str(split(@@(fila,"$tasa3"),"|"),0) != "%"
-            //         {
-            //             // code...
-            //         }
-            //     }
-            // }
-            // for tipo = 1; tipo <= 4
-            // {
-            //     /**
-            //     * tipo 1 = IEPS
-            //     * tipo 2 = ??
-            //     * tipo 3 = IVA
-            //     * tipo 4 = ??
-            //     */
-            //     imp_text = field.str(obj,ftext("i#<tipo>_text"))
-            //     imp_tasa = ftext("i#<tipo>_tasa")
-            //     imp_value = ftext("impuesto#<tipo>")
+                        Impuesto, TipoFactor, TasaOCuota, Base, Importe >> traslado
+                        do emision.agruparImpuestos(traslados,traslado)
+                        do emision.agruparImpuestos(_traslados,traslado)
+                        TotalImpuestosTrasladados = TotalImpuestosTrasladados + Importe
 
-            //     if @@(vnt,"$ObjetoImp") == "02"
-            //     {
-            //         new traslado
-            //         {
-            //             @"Impuesto": emision.getClaveImpuesto(imp_text)
-            //             @"TipoFactor": ifstr(@@(obj,"#exento_iva"),"Exento","Tasa")
-            //             @"TasaOCuota": field.dnum(obj,imp_tasa,0)
-            //             @"Base": field.num(obj,"subtotal")
-            //             @"Importe": field.num(obj,imp_value)
-            //         }
+                        ieps = Importe
+                    }
 
-            //         if tipo > 2 { traslado<"Base"> : RoundTo(@@(obj,"#subtotal") + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
+                    if @@(vnt,"#iva") >= 0 && list.str(split(@@(fila,"$tasa3"),"|"),0) != "%"
+                    {
+                        toc = parse.num(replace(list.str(split(@@(fila,"$tasa3"),"|"),0),"%",""))
 
-            //         gp_tras = md5(@@(traslado,"$Impuesto")+@@(traslado,"$TipoFactor")+@@(traslado,"$TasaOCuota"))
-            //         if not(field.exist(_traslados,gp_tras)) { _traslados<gp_tras+"*"> : record.copy(traslado,"*") }
-            //         else
-            //         {
-            //             _traslados<gp_tras+"/Base"> : @@(_traslados,"#"+gp_tras+"/Base") + @@(traslado,"#Base")
-            //             _traslados<gp_tras+"/Importe"> : @@(_traslados,"#"+gp_tras+"/Importe") + @@(traslado,"#Importe")
-            //         }
-            //         TotalImpuestosTrasladados = TotalImpuestosTrasladados + @@(traslado,"#Importe")
+                        Impuesto = "002"
+                        TipoFactor = ifstr(@@(fila,"#exento"), "Exento", "Tasa")
+                        TasaOCuota = parse.num(format((toc / 100),"0.000000"))
+                        Base = parse.num(format((((cantidad * vu) - descuento) + ieps),"0.000000"))
+                        Importe = parse.num(format((Base * TasaOCuota),"0.000000"))
 
-            //         do list.add(traslados,traslado)
-            //     }
-            // }
+                        Impuesto, TipoFactor, TasaOCuota, Base, Importe >> traslado
+                        do emision.agruparImpuestos(traslados,traslado)
+                        do emision.agruparImpuestos(_traslados,traslado)
+                        TotalImpuestosTrasladados = TotalImpuestosTrasladados + Importe
+
+                        ieps = 0
+                    }
+                }
+            }
 
             ref concepto = record.copy(vnt,"ClaveProdServ,NoIdentificacion,Cantidad,ClaveUnidad,Descripcion,ValorUnitario,Importe,Descuento,ObjetoImp")
-            concepto<"Traslados*"> : traslados
+            concepto<"Traslados*"> : record.values(traslados)
 
             SubTotal = SubTotal + field.num(concepto,"Importe")
             Descuento = Descuento + field.num(concepto,"Descuento")

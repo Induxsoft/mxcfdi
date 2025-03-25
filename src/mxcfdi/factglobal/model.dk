@@ -250,16 +250,19 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     delete::&db,&params
     {
         @use_transaction = @false
+        
         do dbr.apps.action.pre("GX43")
-
         ref entity = entity.read(db,params)
+        
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error && @@(entity,"#status")!=@status_cancelada
-        {
-            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada")
-        }
-        if @@(entity,"#venta") > 0 { do rise_error(500,"No es posible eliminar la orden debido a que tiene una factura relacionada.") }
+        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada") }
 
         do dbr.begin(db)
+
+        if @@(entity,"#venta") > 0 {
+            // Revertir factuta
+            do revertir(db,@@(entity,"#sys_pk"),@@(entity,"#venta"),@true)
+        }
         
         do dbr.execute(db,"delete from mxcfdi_ordenfac_det where orden=@_entity_id",params)
         ref entity = entity.delete(db,params)
@@ -277,30 +280,78 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
             do rise_error(last_error_code(),last_error())
         }
     }
+
+    revertir::&db,pkorden,pkfactura,delfac
+    {
+        if pkorden == 0 || pkfactura == 0 { return }
+        start_transaction = @false
+        pkorden, pkfactura >> p
+
+        if not(dbr.in_transaction(db)) {
+            start_transaction = @true
+            do dbr.begin(db)
+        }
+        
+        // Actualizar relación dcardex-dventa.
+        do dbr.execute(db,"update dcardex as dc inner join dventa dv on dc.rventa = dv.sys_pk set dc.rventa = dv.doc_partida where dv.fk_venta_detalle = @pkfactura",p)
+        // Liberar tickets incluidos.
+        do dbr.execute(db,"update venta set aplicadoa = null, statusfacturacion = 1 where aplicadoa = @pkfactura",p)
+        // Desvincular factura-orden
+        do dbr.execute(db,"update mxcfdi_ordenfac set venta = null where sys_pk = @pkorden",p)
+        
+        if delfac
+        {
+            // Eliminar detalles de la factura (venta) creada por la orden.
+            do dbr.execute(db,"delete from dventa where fk_venta_detalle = @pkfactura",p)
+            // Eliminar factura (venta) creada por la orden.
+            do dbr.execute(db,"delete from venta where sys_pk = @pkfactura",p)
+        }
+        else
+        {
+            // Desvincular detalles (dventa-origen) de la factura (venta) creada por la orden.
+            do dbr.execute(db,"update dventa set sys_info = null, documento = null, doc_partida = null where fk_venta_detalle = @pkfactura",p)
+            // Cancelar factura (venta) creada por la orden.
+            do dbr.execute(db,"update venta set statusadministrativo = 99 where sys_pk = @pkfactura",p)
+        }
+        
+        if start_transaction { do dbr.commit(db) }
+
+        exception
+        {
+            if start_transaction { do dbr.rollback(db) }
+            do rise_error(last_error_code(),last_error())
+        }
+    }
     
     cancelar::&db,&params,&data
     {
         @use_transaction = @false
-        do dbr.apps.action.pre("GX44")
 
+        do dbr.apps.action.pre("GX44")
         ref entity = entity.read(db,params)
-        if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error
-        {
-            do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error")
-        }
+
+        if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_timbrada && @@(entity,"#status")!=@status_error
+        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error") }
 
         do dbr.begin(db)
         
-        if @@(entity,"#venta") > 0 {
+        pkfactura = @@(entity,"#venta")
+        if pkfactura > 0 {
             // Revertir factuta
+            do revertir(db,@@(entity,"#sys_pk"),pkfactura,@false)
+            
+            entity<"venta"> : 0
+            entity<"url_redir"> : "/!/mxcfdi/emision/ventas/cancelar-cfdi/?doc="+str(pkfactura)
         }
+
         do dbr.execute(db,ftext("update mxcfdi_ordenfac set status=#<@status_cancelada> where sys_pk=@_entity_id"),params)
-        
         entity<"status"> : @status_cancelada
         
         do dbr.apps.action.pos(entity)
         do dbr.commit(db)
         do dbr.apps.action.ext(entity)
+
+        return entity
         
         exception
         {
@@ -312,6 +363,8 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
 
     ejecutar::&db,&params,&data
     {
+        do dbr.apps.action.grant("GX45")
+
         qname = @@(@http_context,"$session/idp/qname")
         orden = @@(params,"$_entity_id")
 

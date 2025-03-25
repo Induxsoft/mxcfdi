@@ -75,11 +75,11 @@ module ""
             button(class="#<btncls>" id="btn_save_orden" hidden=""){"Guardar"}
             #!
         }
-        if not(@isnew) && (@status == @status_creada || @status == @status_error)  {
-            #$
-            button(class="#<btncls>" id="btn_cancel_orden"){"Cancelar"}
-            #!
-        }
+        // if not(@isnew) && (@status == @status_creada || @status == @status_error)  {
+        //     #$
+        //     button(class="#<btncls>" id="btn_cancel_orden"){"Cancelar"}
+        //     #!
+        // }
         #$
         a(class="#<btncls>" href="./" title="Recargar"){$"#<@ICON_ARROW_CLOCKWISE>"}
         #!

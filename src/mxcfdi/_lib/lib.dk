@@ -136,6 +136,7 @@ module "Funciones de propósito general"
         }
         return rec
     }
+    
     function FixTo(value,precision)
     {
         number = parse.num(value)

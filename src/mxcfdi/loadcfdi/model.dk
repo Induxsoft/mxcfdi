@@ -145,6 +145,7 @@ module ""
                @"ultimocosto": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
                @"precio1": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
                @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
+               @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
             }
             //divisa
             if not(isnull(def_divisa))
@@ -199,6 +200,7 @@ module ""
             {
                @"sys_pk":@@(producto,"#sys_pk")
                @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
+               @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
             }
             do list.add(array_productos_exist,p)
          }
@@ -317,6 +319,8 @@ module ""
       // or p.uf_codigoparaproveedor1=@codigo
       // or p.uf_codigoparaproveedor2=@codigo
       // or p.uf_codigoparaproveedor3=@codigo
+      ref compra=NewCompra(db,data)
+      tcambio=dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",compra)
 
       ref dcompra=list.create()
       for i = 0; i < @count(detalle)
@@ -340,8 +344,14 @@ module ""
          producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
          if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
 
-         producto<"notas">:@@(dt,"$nota")
-         do list.add(dcompra,NewDcompra(db,producto))
+         using producto
+         {
+            @"notas":@@(dt,"$nota")
+            @"descuento":@@(dt,"#descuento")
+         }
+         ref rec_dcompra=NewDcompra(db,producto)
+         rec_dcompra<"tipocambio">:tcambio
+         do list.add(dcompra,rec_dcompra)
       }
       
 
@@ -352,12 +362,20 @@ module ""
 
          if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
 
-         producto<"notas">:@@(dt,"$nota")
-         do list.add(dcompra,NewDcompra(db,producto))
+         using producto
+         {
+            @"notas":@@(dt,"$nota")
+            @"descuento":@@(dt,"#descuento")
+         }
+
+         ref rec_dcompra=NewDcompra(db,producto)
+         rec_dcompra<"tipocambio">:dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",producto)
+
+         do list.add(dcompra,rec_dcompra)
       }
       if @count(dcompra)< 1{do rise_error(500,"No hay detalle de la compra")}
       // compras.crear(db)
-      ref compra=NewCompra(db,data)
+      //agregar detalle de la compra
       compra<"_detalle*">:dcompra
 
       ref _compra=doc.agregar(db,params,compra)
@@ -527,7 +545,7 @@ module ""
          @"cantidad": cantidad
          @"precio":@@(data,"#precio1")
          @"iproducto":@@(data,"#sys_pk")
-         @"descuento1": 0
+         @"descuento1": @@(data,"#descuento")
          @"descuento2": 0
          @"factor":@@(data,"#factorb")
          @"status": 1 //por recibir
