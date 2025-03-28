@@ -37,6 +37,7 @@ program "Ejecutar orden de factura global"
 
     module "Variables globales"
     {
+        //#region > VARIABLES
         do errordet(@true)
 
         @fh_token_length = 10 // Longitud del token de la orden de procesamiento.
@@ -55,6 +56,7 @@ program "Ejecutar orden de factura global"
     }
     module "Definición de funciones"
     {
+        //#region > FUNCIONES
         function EstablecerParams(&db,&params)
         {
             @icliente = dbr.num(db,"select sys_pk from cliente where not ifnull(sys_deleted,0) and rfc = 'XAXX010101000' limit 1",@null)
@@ -99,6 +101,7 @@ program "Ejecutar orden de factura global"
 
         function GuardarRespuesta(&response,comprobante,idd)
         {
+            //#region GuardarRespuesta()
             if not(parse.bool(@@(response,"$success"))) {
                 message = @@(response,"$message")
 
@@ -121,6 +124,7 @@ program "Ejecutar orden de factura global"
 
         function RecolectarOrdenes(&db,&params)
         {
+            //#region RecolectarOrdenes()
             if @@(params,"$orden") == "" {
                 return dbr.list(db,ftext("select * from mxcfdi_ordenfac where (status = #<@status_creada> or status = #<@status_error>)"),@null)
             }
@@ -135,6 +139,7 @@ program "Ejecutar orden de factura global"
 
         function ActualizarEstado(&db,&orden,nvostt)
         {
+            //#region ActualizarEstado()
             new p
             {
                 @"iorden": @@(orden,"#sys_pk")
@@ -149,6 +154,7 @@ program "Ejecutar orden de factura global"
 
         function ActualizarUltError(&db,&orden,error)
         {
+            //#region ActualizarUltError()
             if contains(error,"|")
             {
                 ref parts = split(mensaje,"|")
@@ -168,6 +174,7 @@ program "Ejecutar orden de factura global"
 
         function EstablecerToken(&db,&orden,mensaje)
         {
+            //#region EstablecerToken()
             iorden = @@(orden,"#sys_pk")
             token = ""
 
@@ -200,6 +207,7 @@ program "Ejecutar orden de factura global"
 
         function AccionOrden(&orden)
         {
+            //#region AccionOrden()
             if @@(orden,"#status") == @status_creada { return @_generar_xml_y_timbrar_orden }
             if @@(orden,"#status") == @status_error
             {
@@ -223,6 +231,7 @@ program "Ejecutar orden de factura global"
 
         function GuardarDVenta(&db,iventa,iorden)
         {
+            //#region GuardarDVenta()
             iventa, iorden >> p
             cdivisa = dbr.str(db,"select upper(d.codigo) from mxcfdi_ordenfac o inner join divisa d on o.`divisa` = d.sys_pk where o.sys_pk = @iorden",p)
             insert = "INSERT INTO dventa (sys_guid,sys_dtcreated,sys_timestamp,sys_dtexported,sys_exported,sys_deleted,sys_recver,sys_info,cantidad,descuento1,descuento2,factor,impuesto1,impuesto2,impuesto3,impuesto4,notas,precio,status,tipocambio,unidad,xfacturar,xsalir,documento,ialmacen,iproducto,fk_venta_detalle,doc_partida) VALUES "
@@ -275,6 +284,7 @@ program "Ejecutar orden de factura global"
 
         function GuardarVenta(&db,&orden)
         {
+            //#region GuardarVenta()
             block = @@(orden,"#serie")
             serie = dbr.str(db,"select serie from blockdocumentos where sys_pk = @serie",orden)
             folio = dbr.folios.set_new(db,block,dbr.folios.get_new(db,block),3)
@@ -342,11 +352,15 @@ program "Ejecutar orden de factura global"
 
         function ObtenerEmisor(&db,&orden)
         {
+            //#region ObtenerEmisor()
             nic = @@(orden,"$nic")
             if field.exist(@emisores,nic) { return field.obj(@emisores,nic) }
 
             ref emisor = dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE nic=@nic LIMIT 1",orden)
+            if isnull(emisor) { do rise_error(512,"No se encontró datos del emisor de la orden proporcionada.") }
+            
             ref result = emision.getEmisorFactudesk(emisor)
+            
             using emisor
             {
                 @"nombre": @@(result,"$razon_social")
@@ -362,6 +376,7 @@ program "Ejecutar orden de factura global"
 
         function Sellar(&emisor,comprobante)
         {
+            //#region Sellar()
             new header { @"Content-Type": "application/json; charset=UTF-8" }
             new payload
             {
@@ -380,6 +395,7 @@ program "Ejecutar orden de factura global"
 
         function Timbrar(&emisor,xmlsellado,idd,token)
         {
+            //#region Timbrar()
             new header { @"Content-Type": "application/json; charset=UTF-8" }
             new payload
             {
@@ -397,13 +413,11 @@ program "Ejecutar orden de factura global"
 
         function SellarYTimbrar(&db,&orden,&emisor,comprobante,idd,token)
         {
+            //#region SellarYTimbrar()
             ref sealresp = Sellar(emisor,comprobante)
             do GuardarRespuesta(sealresp,comprobante,idd)
             
             xmlsellado = @@(sealresp,"$data/xml")
-            
-            // ref response = Timbrar(emisor,xmlsellado,idd,token)
-            // do GuardarRespuesta(response,comprobante,idd)
 
             ref response = @null
             retry = @false
@@ -453,6 +467,7 @@ program "Ejecutar orden de factura global"
     }
     module "Ejecución del programa"
     {
+        //#region > INICIO
         ref params = @("&params")
         ref db = @("&database")
         

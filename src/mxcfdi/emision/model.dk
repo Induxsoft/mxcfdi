@@ -237,6 +237,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cFactura>
+                    AND vnt.statusadministrativo != 99
                     AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
                 "
                 break
@@ -265,6 +266,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cNotaCredito>
+                    AND vnt.statusadministrativo != 99
                     AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
                 "
                 break
@@ -1536,24 +1538,21 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return response
     }
 
-    cfdi.cancelar::&db,&params,&data
+    cfdi._cancelar::&db,&params,&data
     {
-        //#region cancelar()
-        namespace "emision"
-        @use_transaction = @false
-
-        if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
-        ref cliente = getCliente(db,params)
-        ref emisor = getEmisor(db,params,cliente)
+        start_transaction = @false
         ref doc = @null
 
         uuid_regex = "^[0-9A-Fa-f]{8}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{12}$"
         _entity_id = @@(params,"$_entity_id")
+        cti = @@(data,"$cti")
+        pwd = @@(data,"$pwd")
         cve_motivo = @@(data,"$motivo")
         rel_uuid = trim(@@(data,"$uuid"))
 
+        if cti == "" || pwd == "" { do rise_error(511,"No se proporcionado Cuenta de timbrado (cti) y Contraseña (pwd).") }
         if cve_motivo == "01" && not(Regex.IsMatch(rel_uuid,uuid_regex)) {
-            do rise_error(500,"Es necesario indicar un UUID válido.\r\nDebe tener el formato 8-4-4-4-12 con caracteres hexadecimales.")
+            do rise_error(512,"Es necesario indicar un UUID válido.\r\nDebe tener el formato 8-4-4-4-12 con caracteres hexadecimales.")
         }
 
         if _entity_id == "ventas" {
@@ -1566,7 +1565,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             ref doc:dbr.rec(db,sql,params)
 
             aplicados = dbr.num(db,"SELECT COUNT(apl.sys_pk) FROM dcxc cxc INNER JOIN aplcxc apl ON cxc.sys_pk = apl.aplicadoa WHERE cxc.iventa = @iventa;",doc)
-            if aplicados > 0 { do rise_error(500,"No es posible cancelar la factura porque tiene pagos relacionados.") }
+            if aplicados > 0 { do rise_error(513,"No es posible cancelar la factura porque tiene pagos relacionados.") }
         }
         else if _entity_id == "cxc" {
             sql = "
@@ -1578,10 +1577,13 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             ref doc:dbr.rec(db,sql,params)
         }
 
-        if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
-        if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
+        if isnull(doc) { do rise_error(514,"No fue posible recuperar el documento.") }
+        if @@(doc,"$uf_foliosat") == "" { do rise_error(515,"El documento aun no ha sido timbrado.") }
 
-        do dbr.begin(db)
+        if not(dbr.in_transaction(db)) {
+            do dbr.begin(db)
+            start_transaction = @true
+        }
 
         sql_unlink_cfdi = "
         UPDATE ut_cfd SET
@@ -1592,25 +1594,51 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             uf_idcxc=NULL
         WHERE sys_pk = @icfd
         "
-        if not(dbr.execute(db,sql_unlink_cfdi,doc)) { do rise_error(500,"No fue posible establecer la cancelación.") }
+        if not(dbr.execute(db,sql_unlink_cfdi,doc)) { do rise_error(516,"No fue posible establecer la cancelación.") }
 
         new header { @"Content-Type": "application/json; charset=UTF-8" }
         new payload
         {
             @"ctaTimb": "#" // Autorizar por cuenta de timbrado.
-            @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
-            @"pwd": field.str(emisor,"pwd") // Contraseña de la cuenta de timbrado.
-            @"uuid": @@(doc,"$uf_foliosat") // UUID del CFDI.
+            @"cti": cti // Cuenta de timbrado.
+            @"pwd": pwd // Contraseña de la cuenta de timbrado.
             @"tipo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención.
+            @"uuid": @@(doc,"$uf_foliosat") // UUID del CFDI.
             @"motivo": cve_motivo // Clave del motivo de cancelación del SAT.
             @"frel": rel_uuid // UUID del CFDI relacionado, en caso de que el motivo sea'01'.
         }
 
         ref response = from.json(http.request(@svc_fdsk_cancelar,"POST",header,to.json(payload)))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
-        @url_redir = ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
 
-        do dbr.commit(db)
+        if start_transaction { do dbr.commit(db) }
+        return response
+
+        exception
+        {
+            if start_transaction { do dbr.rollback(db) }
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+
+    cfdi.cancelar::&db,&params,&data
+    {
+        //#region cancelar()
+        namespace "emision"
+        @use_transaction = @false
+
+        if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
+        ref cdata = record.copy(data,"*")
+        ref cliente = getCliente(db,params)
+        ref emisor = getEmisor(db,params,cliente)
+        
+        using cdata
+        {
+            @"cti": @@(emisor,"$cti")
+            @"pwd": @@(emisor,"$pwd")
+        }
+        do cfdi._cancelar(db,params,cdata)
+        @url_redir = ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
 
         exception{ do catch(db,params,data) }
     }

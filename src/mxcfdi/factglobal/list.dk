@@ -9,6 +9,7 @@ module ""
     
     do @context.begin(@crud_context)
 
+    table_id = "factura_global"
     tbtn = "cursor:pointer; text-decoration:none; border:none; outline:none; padding: 0px 8px; background-color:#F5F5F5; color:#000000;"
     new table_definition
     {
@@ -50,8 +51,8 @@ module ""
                 @"template": ftext('
                     <div style="display:flex;gap:5px;justify-content:center;width:100%;">
                         <a href="./${DataRow.sys_pk}/" style="#<tbtn>">Detalles</a>
-                        ${ (DataRow.status==0 || DataRow.status==98) ? `<button onclick="timbrarOrden(${DataRow.sys_pk})" style="#<tbtn>">Timbrar</button>` : "" }
-                        ${ (DataRow.status==0 || DataRow.status==3 || DataRow.status==98) ? `<button onclick="cancelarOrden(${DataRow.sys_pk})" style="#<tbtn>">Cancelar</button>` : "" }
+                        ${ (DataRow.status==0 || DataRow.status==98) ? `<button onclick="fglist.timbrarOrden(${DataRow.sys_pk})" style="#<tbtn>">Timbrar</button>` : "" }
+                        ${ (DataRow.status==0 || DataRow.status==3 || DataRow.status==98) ? `<button onclick="fglist.cancelarOrden(${DataRow.sys_pk})" style="#<tbtn>">Cancelar</button>` : "" }
                         ${ (DataRow.status==0 || DataRow.status==98 || DataRow.status==99) ? `<button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="#<tbtn>">Eliminar</button>` : "" }
                     </div>
                 ')
@@ -79,7 +80,7 @@ module ""
         @"main": "" // Acciones que seran visibles en la navbar.
         @"actions*": ifnull(@("&./itemactions"),list.create())
         @"reports*": ifnull(@("&./itemreports"),list.create())
-        @"jscurrentcontext": "getCurrentContext"
+        @"jscurrentcontext": "fglist.getCurrentContext"
     }
 
     new _status
@@ -135,72 +136,17 @@ module ""
         section(id="work_area")
         {
             #!
-            do uie.dbeditable(table_definition,"factura_global")
+            do uie.dbeditable(table_definition,table_id)
             #$
         }
 
-        // script(src=""){$""}
+        script(src="/$/mxcfdi/js/factglobal.list.js"){$""}
         script(type="text/javascript")
         {$'
             function filter(el) { el.form.submit(); }
             
-            function getCurrentContext() {
-                const table = document.getElementById("factura_global");
-                const id = (table?.DataArray[table.CurrentRowIndex()]?.sys_pk ?? "");
-                return { item_id:id, context: {} }
-            }
-
-            function timbrarOrden(id) {
-                if (!id || !confirm("¿Timbrar orden seleccionada?")) return;
-
-                InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/ejecutar/",{},
-                    (data) => {
-                        if (!(data?.success??true) || (data?.message??"")!="") {
-                            alert(data.message ?? JSON.stringify(data));
-                            return
-                        }
-                        
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
-                    },
-                    (error) => {
-                        alert(error.message ?? "Ha ocurrido un error, no fue posible ejecutar la orden");
-                        console.error(error);
-                    },
-                    "PATCH",false
-                );
-            }
-
-            function cancelarOrden(id) {
-                if (!id || !confirm("¿Esta seguro en cancelar la orden seleccionada?")) return;
-
-                InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/cancelar/",{},
-                    (data) => {
-                        if (!(data?.success??true) || (data?.message??"")!="") {
-                            alert(data.message ?? JSON.stringify(data));
-                            return
-                        }
-
-                        if ((data?.url_redir??"") == "") { window.location.reload(); }
-                        else
-                        {
-                            if (!confirm("La orden ha sido cancelada, para cancelar el CFDI dirigase al módulo de <Facturación electrónica>.\r\n¿Ir ahora mismo?"))
-                            { window.location.href = data.url_redir; }
-                            else { window.location.reload(); }
-                        }
-                    },
-                    (error) => {
-                        alert(error.message ?? "Ha ocurrido un error, no fue posible cancelar la orden");
-                        console.error(error);
-                    },
-                    "PATCH",false
-                );
-            }
-            
             document.addEventListener("DOMContentLoaded", () => {
-                var filter_date = document.getElementById("filter_date");
-                if (filter_date) filter_date._btnDone.addEventListener("click", (e) => { document.getElementById("form_filter").submit(); });
+                fglist.tableId = "#<table_id>";
                 
                 // Script injection
                 #<@@(@crud_context,"script")>

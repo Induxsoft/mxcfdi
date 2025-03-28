@@ -250,16 +250,17 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     delete::&db,&params
     {
         @use_transaction = @false
+        @read_entity_only = @true
         
         do dbr.apps.action.pre("GX43")
         ref entity = entity.read(db,params)
         
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error && @@(entity,"#status")!=@status_cancelada
-        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error/cancelada") }
+        { do rise_error(500,"La orden se encuentra en un estado diferente a creada/error/cancelada") }
 
         do dbr.begin(db)
 
-        if @@(entity,"#venta") > 0 {
+        if @@(entity,"#venta") > 0 && @@(entity,"$uuid_timbre") == "" {
             // Revertir factuta
             do revertir(db,@@(entity,"#sys_pk"),@@(entity,"#venta"),@true)
         }
@@ -326,22 +327,43 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     cancelar::&db,&params,&data
     {
         @use_transaction = @false
+        @read_entity_only = @true
 
         do dbr.apps.action.pre("GX44")
         ref entity = entity.read(db,params)
 
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_timbrada && @@(entity,"#status")!=@status_error
-        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error") }
+        { do rise_error(511,"La orden se encuentra en un estado diferente a creada/timbrada/error") }
 
         do dbr.begin(db)
         
         pkfactura = @@(entity,"#venta")
         if pkfactura > 0 {
-            // Revertir factuta
+            // Cancelar CFDI
+            if @@(entity,"#status") == @status_timbrada
+            {
+                ref emisor = dbr.rec(db,"select nic, cti, pwd from mxcfdi_emisor where nic = @nic",entity)
+                if isnull(emisor) { do rise_error(512,"No se encontró datos del emisor de la orden proporcionada.") }
+                new p
+                {
+                    @"_entity_id": "ventas"
+                    @"_view": "cancelar-cfdi"
+                    @"doc": pkfactura
+                }
+                new d
+                {
+                    @"doc": pkfactura
+                    @"cti": @@(emisor,"$cti")
+                    @"pwd": @@(emisor,"$pwd")
+                    @"motivo": "02"
+                }
+                do emision.cfdi._cancelar(db,p,d)
+            }
+            // Cancelar factuta
             do revertir(db,@@(entity,"#sys_pk"),pkfactura,@false)
             
             entity<"venta"> : 0
-            entity<"url_redir"> : "/!/mxcfdi/emision/ventas/cancelar-cfdi/?doc="+str(pkfactura)
+            // entity<"url_redir"> : "/!/mxcfdi/emision/ventas/cancelar-cfdi/?doc="+str(pkfactura)
         }
 
         do dbr.execute(db,ftext("update mxcfdi_ordenfac set status=#<@status_cancelada> where sys_pk=@_entity_id"),params)
@@ -372,5 +394,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         args = ftext('mxcfdi/_install/tasks/timbrar.orden.factglobal.dkl qname="#<qname>" orden="#<orden>"')
 
         do exec(exe,args,@false)
+
+        return data
     }
 }
