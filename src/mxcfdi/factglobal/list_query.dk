@@ -15,12 +15,14 @@ module ""
 		o.status,
 		so.const estado,
 		concat(ifnull(cc.codigo,'*'), ' - ', ifnull(cc.descripcion,'Todos')) cconsumo,
+		IFNULL(v.referencia,'') AS factura,
 		o.token_solicitud,
-		last_error
+		o.last_error
 	FROM
 		mxcfdi_ordenfac o
 		INNER JOIN mxcfdi_ordenfac_status so ON o.`status` = so.id
 		LEFT JOIN cconsumo cc ON o.cconsumo = cc.sys_pk
+		LEFT JOIN venta v ON o.`venta` = v.sys_pk
 	WHERE
 		IFNULL(o.sys_deleted, 0) = 0
 		and if(ifnull(@status, '*') = '*', true, o.`status` = @status)
@@ -70,11 +72,12 @@ module ""
 	@list_query_tic_rem = "
 	select
 		distinct v.sys_pk,
+		v.sys_dtcreated as created,
+		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
-		trim(date(v.fecha)) fecha,
-		v.sys_dtcreated as created,
+		v.formapago,
 		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
 		@descuento := (
 			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)
@@ -124,11 +127,12 @@ module ""
 	@list_query_tic = "
 	select
 		distinct v.sys_pk,
+		v.sys_dtcreated as created,
+		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
-		trim(date(v.fecha)) fecha,
-		v.sys_dtcreated as created,
+		v.formapago,
 		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
 		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
 		@totalimpuesto := round(
@@ -172,11 +176,12 @@ module ""
 	@list_query_rem = "
 	select
 		distinct v.sys_pk,
+		v.sys_dtcreated as created,
+		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
-		trim(date(v.fecha)) fecha,
-		v.sys_dtcreated as created,
+		v.formapago,
 		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
 		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
 		@totalimpuesto := round(

@@ -192,6 +192,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
     evaluateFilters::&db,&params
     {
+        //#region evaluateFilters()
         tname = ""
         show_tab = "ingresos"
         fil_doctype = @@(params,"#fil_doctype")
@@ -207,8 +208,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if show_tab == "egresos" && not(between(fil_doctype,11,20)) && mxcfdi_nventa { fil_doctype = 12 }
         if show_tab == "pagos" && not(between(fil_doctype,21,30)) { fil_doctype = 21 }
         params<"fil_doctype"> : fil_doctype
-        if not(field.exist(params,"fil_timbrados")){ params<"fil_timbrados"> : @true }
-        if not(field.exist(params,"fil_fdr_field")){ params<"fil_fdr_field"> : 1 }
+        if not(field.exist(params,"fil_status")){ params<"fil_status"> : 1 }
+        if not(field.exist(params,"fdr_field")){ params<"fdr_field"> : 1 }
         // fdr_init
         if not(field.exist(params,"fdr_mode")){ params<"fdr_mode"> : "month" }
         // [month]
@@ -217,8 +218,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         // [lastdays]
         if not(field.exist(params,"fdr_range")){ params<"fdr_range"> : 30 }
         // [range]
-        if not(field.exist(params,"fdr_from")){ params<"fdr_from"> : "" }
-        if not(field.exist(params,"fdr_to")){ params<"fdr_to"> : "" }
+        if not(field.exist(params,"fdr_from")){ params<"fdr_from"> : hoy("yyyy-MM-01") }
+        if not(field.exist(params,"fdr_to")){ params<"fdr_to"> : hoy("yyyy-MM-dd") }
         //#endregion
 
         selects = ""
@@ -233,12 +234,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_venta
                 tname = "vnt"
 
-                selects = ",IFNULL(cfd.uf_foliosat,'') AS uf_foliosat"
+                selects = "
+                ,IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+                ,IFNULL(DATE_FORMAT(cfd.uf_fechahoracersat,'%Y-%m-%d %H:%i:%s'),'') uf_fechasat
+                "
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cFactura>
-                    AND vnt.statusadministrativo != 99
-                    AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
+                    AND IF(IFNULL(@fil_status,'0')='0', vnt.statusadministrativo != 99, TRUE)
                 "
                 break
             }
@@ -247,13 +250,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_dcxc
                 tname = "cxc"
 
-                selects = ",IFNULL(cfd.uf_foliosat,'') AS uf_foliosat"
+                selects = "
+                ,IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+                ,IFNULL(DATE_FORMAT(cfd.uf_fechahoracersat,'%Y-%m-%d %H:%i:%s'),'') uf_fechasat
+                "
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
                     AND cxc.documento IN (#<@cFactura>,#<@cNotaCargo>)
                     AND IFNULL(cxc.debe,0) > 0
                     AND cxc.iventa IS NULL
-                    AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
                 "
                 break
             }
@@ -262,12 +267,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_venta
                 tname = "vnt"
 
-                selects = ",IFNULL(cfd.uf_foliosat,'') AS uf_foliosat"
+                selects = "
+                ,IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+                ,IFNULL(DATE_FORMAT(cfd.uf_fechahoracersat,'%Y-%m-%d %H:%i:%s'),'') uf_fechasat
+                "
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cNotaCredito>
-                    AND vnt.statusadministrativo != 99
-                    AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
+                    AND IF(IFNULL(@fil_status,'0')='0', vnt.statusadministrativo != 99, TRUE)
                 "
                 break
             }
@@ -276,13 +283,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_dcxc
                 tname = "cxc"
 
-                selects = ",IFNULL(cfd.uf_foliosat,'') AS uf_foliosat"
+                selects = "
+                ,IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+                ,IFNULL(DATE_FORMAT(cfd.uf_fechahoracersat,'%Y-%m-%d %H:%i:%s'),'') uf_fechasat
+                "
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
                     AND IFNULL(cxc.haber,0) > 0
                     AND IFNULL(cxc.xaplicar,0) = 0
                     AND cxc.iventa IS NULL
-                    AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
                 "
                 break
             }
@@ -291,13 +300,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @list_query = @qry_list_dcxc
                 tname = "cxc"
 
-                selects = ",IFNULL(cfd.uf_foliosat,'') AS uf_foliosat"
+                selects = "
+                ,IFNULL(cfd.uf_foliosat,'') AS uf_foliosat
+                ,IFNULL(DATE_FORMAT(cfd.uf_fechahoracersat,'%Y-%m-%d %H:%i:%s'),'') uf_fechasat
+                "
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
                     AND IFNULL(cxc.haber,0) > 0
                     AND IFNULL(cxc.xaplicar,0) = 0
                     AND (IFNULL(cxc.imovcuenta,0) > 0 OR IFNULL(cxc.imovcaja,0) > 0)
-                    AND IF(IFNULL(@fil_timbrados,0), (IFNULL(cfd.sys_pk,0) > 0), NOT (IFNULL(cfd.sys_pk,0) > 0))
                 "
                 break
             }
@@ -316,8 +327,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"2": "cxc.aplicacion" // Vencimiento
         }
         fdr_field = ""
-        if tname == "vnt" { fdr_field = @@(vnt_date_fields,str(@@(params,"#fil_fdr_field"))) }
-        if tname == "cxc" { fdr_field = @@(cxc_date_fields,str(@@(params,"#fil_fdr_field"))) }
+        if tname == "vnt" { fdr_field = @@(vnt_date_fields,str(@@(params,"#fdr_field"))) }
+        if tname == "cxc" { fdr_field = @@(cxc_date_fields,str(@@(params,"#fdr_field"))) }
 
         switch @@(params,"$fdr_mode")
         {
@@ -371,9 +382,19 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         //#endregion
 
+        conditions = conditions + "
+        AND (
+            CASE CONVERT(@fil_status,DECIMAL)
+                WHEN 0 THEN IFNULL(cfd.sys_pk,0) = 0 OR (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
+                WHEN 1 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) != 1 AND IFNULL(cfd.uf_ackcancelacion_sat,'') != '1')
+                WHEN 2 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
+            END
+        )
+        "
+
         if trim(@@(params,"$fil_text")) != ""
         {
-            conditions = "
+            conditions = conditions + "
             AND (
                 #<tname>.referencia LIKE CONCAT('%',@fil_text,'%')
                 OR cte.nombre LIKE CONCAT('%',@fil_text,'%')
@@ -1585,16 +1606,22 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             start_transaction = @true
         }
 
-        sql_unlink_cfdi = "
+        /* sql_cancel_cfdi = "
         UPDATE ut_cfd SET
             sys_info = COALESCE(CONCAT('uf_iventa:',uf_iventa),CONCAT('uf_idcxc:',uf_idcxc)),
-            uf_canceladosat=1,
-            uf_ackcancelacion_sat='1',
-            uf_iventa=NULL,
-            uf_idcxc=NULL
+            uf_canceladosat = 1,
+            uf_ackcancelacion_sat = '1',
+            uf_iventa = NULL,
+            uf_idcxc = NULL
+        WHERE sys_pk = @icfd
+        " */
+        sql_cancel_cfdi = "
+        UPDATE ut_cfd SET
+            uf_canceladosat = 1,
+            uf_ackcancelacion_sat = '1'
         WHERE sys_pk = @icfd
         "
-        if not(dbr.execute(db,sql_unlink_cfdi,doc)) { do rise_error(516,"No fue posible establecer la cancelación.") }
+        if not(dbr.execute(db,sql_cancel_cfdi,doc)) { do rise_error(516,"No fue posible establecer la cancelación.") }
 
         new header { @"Content-Type": "application/json; charset=UTF-8" }
         new payload

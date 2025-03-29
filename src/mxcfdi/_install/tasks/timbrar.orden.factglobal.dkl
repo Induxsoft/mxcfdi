@@ -38,7 +38,7 @@ program "Ejecutar orden de factura global"
     module "Variables globales"
     {
         //#region > VARIABLES
-        do errordet(@true)
+        do errordet(@false)
 
         @fh_token_length = 10 // Longitud del token de la orden de procesamiento.
 
@@ -426,6 +426,7 @@ program "Ejecutar orden de factura global"
             while c == 0 || (retry && isnull(response))
             {
                 ref response:Timbrar(emisor,xmlsellado,idd,token)
+                if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
                 exception
                 {
                     message = last_error()
@@ -446,8 +447,8 @@ program "Ejecutar orden de factura global"
                     if action == "continue" && token != "" && @esperar_timbre
                     {
                         retry = @true
-                        do pop_exception()
                         do EstablecerToken(db,orden,ftext("|#<token>|#<action>|#<message>|"))
+                        do pop_exception()
                     }
                     else
                     {
@@ -459,7 +460,7 @@ program "Ejecutar orden de factura global"
             }
 
             orden<"uuid_timbre"> : @@(response,"$data/uuid")
-            do dbr.execute(db,"update mxcfdi_ordenfac set uuid_timbre = @uuid_timbre where sys_pk = @sys_pk",orden)
+            do dbr.execute(db,"update mxcfdi_ordenfac set uuid_timbre = if(@uuid_timbre = '', null, @uuid_timbre) where sys_pk = @sys_pk",orden)
             do GuardarRespuesta(response,comprobante,idd)
 
             return response
@@ -511,7 +512,7 @@ program "Ejecutar orden de factura global"
                             // Atributos adicionales
                             @"reg_fiscal": @@(orden,"$regimen")
                             @"codpos": @@(orden,"$dom_expedicion")
-                            @"forma_pago": "01"
+                            @"forma_pago": ifempty(@@(orden,"$forma_pago"),"01")
                             @"metodo_pago": "PUE"
                             @"cond_pago": "PAGO EN UNA SOLA EXHIBICIÓN"
                             @"uso_cfdi": "S01"
@@ -550,7 +551,7 @@ program "Ejecutar orden de factura global"
                     idd = @@(orden,"$sys_guid")
                     file = path.concat(@failure_cfdi_path,idd+".xml")
                     token = @@(orden,"$token_solicitud")
-                    comprobante = file.rtext(file)
+                    comprobante = to.base64(file.rtext(file))
                     
                     codeblock "Solicitar Timbre"
                     {

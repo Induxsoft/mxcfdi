@@ -108,6 +108,7 @@ model "mxcfdi"
         @"finicial" datetime
         @"ffinal" datetime
         @"objeto_impuesto" string(2) required
+        @"forma_pago" string(2)
         @"tickets" bool
         @"remisiones" bool
         @"regimen" string(5)

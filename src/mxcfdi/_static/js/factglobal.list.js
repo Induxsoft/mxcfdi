@@ -1,5 +1,6 @@
 var fglist = {
     tableId:"", table:null,
+    acttemp:"",
 
     init()
     {
@@ -31,16 +32,49 @@ var fglist = {
                 }, 500);
             },
             (error) => {
-                alert(error.message ?? "Ha ocurrido un error, no fue posible ejecutar la orden");
+                alert(error.message ?? "¡Ha ocurrido un error!, no fue posible ejecutar la orden");
                 console.error(error);
             },
             "PATCH",false
         );
     },
 
+    verificarOrden(id)
+    {
+        if (!id) return;
+        let index = (this.table?.DataArray ?? []).findIndex(obj => obj.sys_pk == id);
+        if (index < 0) return;
+
+        InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/verificar/",null,
+            (data) => {
+                if (!(data?.success??true) || (data?.message??"")!="") {
+                    alert(data.message ?? JSON.stringify(data));
+                    return
+                }
+
+                let rowdata = this.table.DataArray[index];
+                console.log("Orden de la fila "+ (index+1) +":", data.text_status);
+                // if (rowdata.status == data.status) return;
+
+                rowdata.status = data.status;
+                rowdata.estado = data.text_status;
+                rowdata.token_solicitud = data.token_solicitud;
+                rowdata.last_error = data.last_error;
+                rowdata._actions = this.table.applyTemplate(this.acttemp,rowdata);
+
+                this.table.UpdateRow(index);
+            },
+            (error) => {
+                alert(error.message ?? "¡Ha ocurrido un error!, no fue posible verificar la orden");
+                console.error(error);
+            },
+            "GET",false
+        );
+    },
+
     cancelarOrden(id)
     {
-        if (!id || !confirm("¿Esta seguro en cancelar la orden seleccionada?")) return;
+        if (!id || !confirm("¿Seguro que quiere cancelar la orden seleccionada?")) return;
 
         InduxsoftCrudlModel.InvokeService("/!/mxcfdi/fact-global/"+id+"/cancelar/",{},
             (data) => {
@@ -58,7 +92,7 @@ var fglist = {
                 }
             },
             (error) => {
-                alert(error.message ?? "Ha ocurrido un error, no fue posible cancelar la orden");
+                alert(error.message ?? "¡Ha ocurrido un error!, no fue posible cancelar la orden");
                 console.error(error);
             },
             "PATCH",false

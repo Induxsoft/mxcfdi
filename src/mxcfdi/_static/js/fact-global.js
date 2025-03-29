@@ -32,6 +32,8 @@ var fglobal=
         this.factura_global_detalle=document.getElementById("factura_global_detalle");
         this.lbl_total=document.getElementById("lbl_total");
         this.objimp=document.getElementById("objimp");
+        this.fpago=document.getElementById("forma_pago");
+        this.div_formapago=document.getElementById("div_formapago");
         this._container_pages=document.getElementById("_container_pages");
         this.container_page=document.getElementById("container_page");
         this.from_filter = document.getElementById("from-filter");
@@ -224,12 +226,23 @@ var fglobal=
     {
         if(!this.lbl_total) return;
         
+        let array = Object.values(this.page_data).flat();
         let total = 0;
-        Object.values(this.page_data).flat().forEach(item => {
+        let mayor = 0;
+        
+        array.forEach(item => {
             if (tools.ParseBool(item.incluir)) {
-                total = Math.add(total, Number(item.total));
+                total = Math.add(total, item.total);
+                if (item.total > mayor) mayor = item.total;
             }
         });
+
+        let docs = array.filter(item => (item.total == mayor && item.formapago != 1 && tools.ParseBool(item.incluir)));
+        if (docs.length >= 1) {
+            this.div_formapago.hidden = false;
+        } else {
+            this.div_formapago.hidden = true;
+        }
         
         let data="";
         if(this.divisa)

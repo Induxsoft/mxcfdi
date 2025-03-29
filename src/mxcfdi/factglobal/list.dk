@@ -42,6 +42,7 @@ module ""
                 @"align": "center"
             }
             member @"cconsumo" { @"caption": "Centro de consumo" }
+            member @"factura" { @"caption": "Factura" }
             member @"token_solicitud" { @"caption": "Token de timbrado" }
             member @"last_error" { @"caption": "últ. error" }
             member @"_actions"
@@ -52,6 +53,7 @@ module ""
                     <div style="display:flex;gap:5px;justify-content:center;width:100%;">
                         <a href="./${DataRow.sys_pk}/" style="#<tbtn>">Detalles</a>
                         ${ (DataRow.status==0 || DataRow.status==98) ? `<button onclick="fglist.timbrarOrden(${DataRow.sys_pk})" style="#<tbtn>">Timbrar</button>` : "" }
+                        ${ (DataRow.status==1 || DataRow.status==2) ? `<button onclick="fglist.verificarOrden(${DataRow.sys_pk})" style="#<tbtn>">Verificar</button>` : "" }
                         ${ (DataRow.status==0 || DataRow.status==3 || DataRow.status==98) ? `<button onclick="fglist.cancelarOrden(${DataRow.sys_pk})" style="#<tbtn>">Cancelar</button>` : "" }
                         ${ (DataRow.status==0 || DataRow.status==98 || DataRow.status==99) ? `<button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="#<tbtn>">Eliminar</button>` : "" }
                     </div>
@@ -99,6 +101,9 @@ module ""
         @"first_value":"*"
         @"selected": @("$parameters/status")
     }
+
+    if @("#parameters/status") == 3 { do field.remove(table_definition,"columns/last_error") }
+
     #$
     div(class="container-fluid v12-list-view" id="view")
     {
@@ -147,6 +152,8 @@ module ""
             
             document.addEventListener("DOMContentLoaded", () => {
                 fglist.tableId = "#<table_id>";
+                fglist.acttemp = #<to.json(@@(table_definition,"$columns/_actions/template"))>;
+                fglist.init();
                 
                 // Script injection
                 #<@@(@crud_context,"script")>

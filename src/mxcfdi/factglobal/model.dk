@@ -35,6 +35,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         {
             @"divisas*":dbr.list(db,"select sys_pk,codigo,concat_ws(' - ',codigo,descripcion)descripcion from divisa where ifnull(sys_deleted,0)=0",params)
             @"objimpuestos*":from.json(file.rtext(path.concat(@json_path,@sat_objeto_imp)))
+            @"formaspagos*":from.json(file.rtext(path.concat(@json_path,@sat_forma_pago)))
             @"series*":dbr.list(db,"select sys_pk,serie from blockdocumentos where not ifnull(sys_deleted,0) and documento=4 and activo and fiscal",params)
             @"regimenes*":from.json(file.rtext(path.concat(@json_path,@sat_regimen_fiscal)))
             @"periocidades*":from.json(file.rtext(path.concat(@json_path,@sat_peridicidad)))
@@ -147,24 +148,25 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
     {
         new orden_fact
         {
-            @"status":@status_creada
-            @"serie":@@(data,"#serie")
-            @"finicial":@@(data,"$fechaini")
-            @"ffinal":@@(data,"$fechafin")
-            @"objeto_impuesto":@@(data,"$objeto_impuesto")
+            @"status": @status_creada
+            @"serie": @@(data,"#serie")
+            @"finicial": @@(data,"$fechaini")
+            @"ffinal": @@(data,"$fechafin")
+            @"objeto_impuesto": @@(data,"$objeto_impuesto")
+            @"forma_pago": ifempty(@@(data,"$forma_pago"),"01")
             @"tickets": if(parse.bool(@@(data,"$check_ticket")),1,0)
             @"remisiones": if(parse.bool(@@(data,"$check_remision")),1,0)
-            @"regimen":@@(data,"$regimen")
-            @"periodicidad":@@(data,"$periodicidad")
+            @"regimen": @@(data,"$regimen")
+            @"periodicidad": @@(data,"$periodicidad")
             @"mes": @@(data,"$mes")
             @"anio": @@(data,"#anio")
             @"nic": @@(data,"$nic")
             @"dom_expedicion": @@(data,"$domfiscal")
-            @"concepto":"Venta"
-            @"notas":@@(data,"$notas")
-            @"divisa":@@(data,"#divisa")
-            @"sys_recver":@@(data,"#sys_recver")
-            @"fecha_cfdi":@@(data,"$fecha_cfdi")
+            @"concepto": "Venta"
+            @"notas": @@(data,"$notas")
+            @"divisa": @@(data,"#divisa")
+            @"sys_recver": @@(data,"#sys_recver")
+            @"fecha_cfdi": @@(data,"$fecha_cfdi")
         }
         
         if @@(data,"#cconsumo") > 0{orden_fact<"cconsumo">:@@(data,"#cconsumo")}
@@ -297,11 +299,11 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         do dbr.execute(db,"update dcardex as dc inner join dventa dv on dc.rventa = dv.sys_pk set dc.rventa = dv.doc_partida where dv.fk_venta_detalle = @pkfactura",p)
         // Liberar tickets incluidos.
         do dbr.execute(db,"update venta set aplicadoa = null, statusfacturacion = 1 where aplicadoa = @pkfactura",p)
-        // Desvincular factura-orden
-        do dbr.execute(db,"update mxcfdi_ordenfac set venta = null where sys_pk = @pkorden",p)
         
         if delfac
         {
+            // Desvincular factura-orden
+            do dbr.execute(db,"update mxcfdi_ordenfac set venta = null where sys_pk = @pkorden",p)
             // Eliminar detalles de la factura (venta) creada por la orden.
             do dbr.execute(db,"delete from dventa where fk_venta_detalle = @pkfactura",p)
             // Eliminar factura (venta) creada por la orden.
@@ -359,7 +361,7 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
                 }
                 do emision.cfdi._cancelar(db,p,d)
             }
-            // Cancelar factuta
+            // Cancelar factura
             do revertir(db,@@(entity,"#sys_pk"),pkfactura,@false)
             
             entity<"venta"> : 0
@@ -396,5 +398,10 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         do exec(exe,args,@false)
 
         return data
+    }
+
+    verificar::&db,&params
+    {
+        return entity.read(db,params)
     }
 }

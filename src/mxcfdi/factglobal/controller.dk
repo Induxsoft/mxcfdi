@@ -21,5 +21,10 @@ module ""
             point @update to factglobal.ejecutar
             break
         }
+        case "verificar"
+        {
+            point @read to factglobal.verificar
+            break
+        }
     }
 }

@@ -16,6 +16,7 @@ module ""
     ref ventas=@("&./ventas")
     ref divisas=@("&./divisas")
     ref objimpuestos=@("&./objimpuestos")
+    ref formaspagos=@("&./formaspagos")
     ref series=@("&./series")
     ref regimenes=@("&./regimenes")
     ref periocidades=@("&./periocidades")
@@ -153,6 +154,7 @@ module ""
         @"first_value":"*"
         @"selected": @("$parameters/cconsumo")
     }
+
     new _obj_impuestos
     {
         @"datatable*": objimpuestos
@@ -169,6 +171,23 @@ module ""
         @"first_text": "Ninguno"
         @"selected": fd('objeto_impuesto','tx',data)
     }
+    new _forma_pago
+    {
+        @"datatable*": formaspagos
+        @"id": "forma_pago"
+        member "attributes"
+        {
+            @"name": "forma_pago"
+            @"class": "form-select form-select-sm rounded-0 no-shadow"
+            // @"hidden":"true"
+            // @"required":"true"
+        }
+        @"value_field": "clave"
+        @"text_field": "valor"
+        @"selected": fd('forma_pago','tx',data)
+    }
+    if @@(_forma_pago,"$selected") == "" { _forma_pago<"selected"> : "01" }
+
     new _regimen
     {
         @"datatable*": regimenes
@@ -418,9 +437,19 @@ module ""
                                 {
                                     div(class="d-flex align-items-center gap-1")
                                     {
-                                        label("for"="objeto_impuesto"){"Obj.Impuesto:"}
+                                        label(class="fw-bold" "for"="objeto_impuesto"){"Obj.Impuesto:"}
                                         #!
                                         do uie.dbSelect(_obj_impuestos)
+                                        #$
+                                    }
+                                }
+                                div(class="col-auto" id="div_formapago" hidden="")
+                                {
+                                    div(class="d-flex align-items-center gap-1")
+                                    {
+                                        label(class="fw-bold" "for"="forma_pago"){"F.Pago:"}
+                                        #!
+                                        do uie.dbSelect(_forma_pago)
                                         #$
                                     }
                                 }

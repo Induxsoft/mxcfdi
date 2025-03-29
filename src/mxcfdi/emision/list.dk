@@ -34,8 +34,8 @@ module "Emisión de CFDI"
         // [lastdays]
         @"fdr_range": field.dnum(@("&parameters"),"fdr_range",30)
         // [range]
-        @"fdr_from": field.dstr(@("&parameters"),"fdr_from","")
-        @"fdr_to": field.dstr(@("&parameters"),"fdr_to","")
+        @"fdr_from": field.dstr(@("&parameters"),"fdr_from",hoy("yyyy-MM-01"))
+        @"fdr_to": field.dstr(@("&parameters"),"fdr_to",hoy("yyyy-MM-dd"))
     }
 
     new doctype
@@ -60,14 +60,14 @@ module "Emisión de CFDI"
         @"id": "fil_fdr_field"
         member "attributes"
         {
-            @"name": "fil_fdr_field"
+            @"name": "fdr_field"
             @"class": "induxsoft-form-select"
-            @"title": "Elegir método de filtro para el rango de fechas"
+            @"title": "Elegir columna de filtro para el rango de fechas"
             @"onchange": "filter(this)"
         }
         @"value_field": "id"
         @"text_field": "const"
-        @"selected": @("#parameters/fil_fdr_field")
+        @"selected": @("#parameters/fdr_field")
     }
 
     new fil_doctype
@@ -85,25 +85,27 @@ module "Emisión de CFDI"
         @"selected": @("#parameters/fil_doctype")
     }
 
-    new fil_timbrados
+    new fil_status
     {
         @"datatable*": from.json('[
             {"id":0, "const":"Por timbrar"},
             {"id":1, "const":"Timbrados"},
+            {"id":2, "const":"Cancelados"}
         ]')
-        @"id": "fil_timbrados"
+        @"id": "fil_status"
         member "attributes"
         {
-            @"name": "fil_timbrados"
+            @"name": "fil_status"
             @"class": "induxsoft-form-select"
+            @"title": "Filtrar por los estados del documento"
             @"onchange": "filter(this)"
         }
         @"value_field": "id"
         @"text_field": "const"
-        @"selected": @("#parameters/fil_timbrados")
+        @"selected": @("#parameters/fil_status")
     }
 
-    new table_definition
+    new @table_definition
     {
         @"datatable*": data
         member @"columns"
@@ -142,8 +144,18 @@ module "Emisión de CFDI"
                 @"thousandssep": @true
                 @"decs": 2
             }
+            member @"uf_foliosat" { @"caption": "Folio fiscal" }
+            member @"uf_fechasat"
+            {
+                @"caption": "Fecha certificación"
+                @"align": "center"
+            }
         }
         @"table_footer": "Mostrando los primeros # registros"
+        @"control_styles": '
+            tr th { font-size:.9rem; font-weight:500 !important; outline:none !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+            tr td { font-size:.8rem; }
+        '
     }
 
     fn_print_buttons::
@@ -182,27 +194,36 @@ module "Emisión de CFDI"
             view = "cobro"
         }
         
-        if parse.bool(@("$parameters/fil_timbrados"))
+        if @("#parameters/fil_status") == 0
+        {
+            do field.remove(@table_definition,"columns/uf_foliosat")
+            do field.remove(@table_definition,"columns/uf_fechasat")
+
+            url_emitir_cfdi = replace(url_template,"{_entity_id}",entity_id)
+            url_emitir_cfdi = replace(url_emitir_cfdi,"{_view}",view)
+            
+            #$
+            button(class="#<act_btn_cls>" type="button" id="btn_emitir" "data-href"="#<url_emitir_cfdi>"){$"Crear CFDI"}
+            button(class="#<act_btn_cls>" type="button" id="btn_preview"){$"Vista Previa"}
+            #!
+        }
+        else if @("#parameters/fil_status") == 1
         {
             url_send_mail = replace(url_template,"{_entity_id}",entity_id)
             url_send_mail = replace(url_send_mail,"{_view}","send-mail")
 
             url_cancelar = replace(url_template,"{_entity_id}",entity_id)
             url_cancelar = replace(url_cancelar,"{_view}","cancelar-cfdi")
+            
             #$
             button(class="#<act_btn_cls>" type="button" id="btn_download"){$"Descargar"}
             button(class="#<act_btn_cls>" type="button" id="btn_sendmail" "data-href"="#<url_send_mail>"){$"Enviar"}
             button(class="#<act_btn_cls>" type="button" id="btn_cancelar" "data-href"="#<url_cancelar>"){$"Cancelar CFDI"}
             #!
         }
-        else
+        else if @("#parameters/fil_status") == 2
         {
-            url_emitir_cfdi = replace(url_template,"{_entity_id}",entity_id)
-            url_emitir_cfdi = replace(url_emitir_cfdi,"{_view}",view)
-            #$
-            button(class="#<act_btn_cls>" type="button" id="btn_emitir" "data-href"="#<url_emitir_cfdi>"){$"Crear CFDI"}
-            button(class="#<act_btn_cls>" type="button" id="btn_preview"){$"Vista Previa"}
-            #!
+            // acciones...
         }
     }
     point print_buttons to fn_print_buttons
@@ -266,7 +287,7 @@ module "Emisión de CFDI"
                     div(class="d-flex gap-2")
                     {
                         #! if list.count(@@(fil_doctype,"&datatable")) > 0 {#$ div{#! do uie.dbSelect(fil_doctype)} } #$
-                        div{#! do uie.dbSelect(fil_timbrados)} #$
+                        div{#! do uie.dbSelect(fil_status)} #$
                     }
                     div(class="flex-grow-1")
                     {
@@ -328,7 +349,7 @@ module "Emisión de CFDI"
             }
 
             #!
-            do uie.dbeditable(table_definition,table_id)
+            do uie.dbeditable(@table_definition,table_id)
             #$
 
             div(class="show-on-print"){p(class="fixed-bottom text-center my-1"){$"#<@@(titles,'$footer')>"}}
