@@ -14,6 +14,15 @@ module "Funciones de propósito general"
         do _map_function(lib_numeros,"induxsoft_dkl_NumeroAletrasCorregido.NumerosEnLetras","ParteDecimal","Dec2Ltr","System.Decimal","$")
 
         /**
+        * Suspende el subproceso actual durante el número de milisegundos especificado.
+        *
+        * @param Int millisecondsTimeout | Número de milisegundos durante los que el subproceso está suspendido.
+        *
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.threading.thread.sleep?view=net-9.0#system-threading-thread-sleep(system-int32)
+        */
+        do _map_function(-1,"System.Threading.Thread","Sleep","Sleep","System.Int32","void")
+
+        /**
         * Indica si la expresión regular especificada busca una coincidencia en la cadena de entrada indicada.
         *
         * @param String input | Cadena en la que se va a buscar una coincidencia.

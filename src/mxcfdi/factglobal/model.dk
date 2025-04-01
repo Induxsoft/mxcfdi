@@ -224,16 +224,17 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
 
         do dbr.apps.action.pre("GX42")
         
-        ref entity=entity.read(db,params)
+        ref entity = entity.read(db,params)
 
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error
-        { do rise_error(500,"La orden ya se encuentra en un estado diferente a creada/error") }
+        { do rise_error(511,"La orden ya se encuentra en un estado diferente a creada/error") }
 
         do dbr.begin(db)
         
-        ref entity = entity.update(db,params,GenOrdenFact(data))
+        do revertir(db,@@(entity,"#sys_pk"),@@(entity,"#venta"),@true)
         do dbr.execute(db,"delete from mxcfdi_ordenfac_det where orden=@_entity_id",params)
         do DumpOrderDet(db,@@(entity,"#sys_pk"),from.json(@@(data,"$detalle")))
+        ref entity = entity.update(db,params,GenOrdenFact(data))
         
         do dbr.apps.action.pos(entity)
         do dbr.commit(db)
@@ -258,12 +259,12 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
         ref entity = entity.read(db,params)
         
         if @@(entity,"#status")!=@status_creada && @@(entity,"#status")!=@status_error && @@(entity,"#status")!=@status_cancelada
-        { do rise_error(500,"La orden se encuentra en un estado diferente a creada/error/cancelada") }
+        { do rise_error(511,"La orden se encuentra en un estado diferente a creada/error/cancelada") }
 
         do dbr.begin(db)
 
         if @@(entity,"#venta") > 0 && @@(entity,"$uuid_timbre") == "" {
-            // Revertir factuta
+            // Eliminar factuta
             do revertir(db,@@(entity,"#sys_pk"),@@(entity,"#venta"),@true)
         }
         

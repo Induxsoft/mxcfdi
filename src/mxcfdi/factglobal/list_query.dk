@@ -118,6 +118,7 @@ module ""
 		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
+	having total > 0
 	order by
 		v.sys_dtcreated,
 		v.documento
@@ -167,6 +168,7 @@ module ""
 		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+	having total > 0
 	order by
 		v.sys_dtcreated,
 		v.documento
@@ -216,6 +218,7 @@ module ""
 		and (mc.documento != 34 and mc.documento != 99)
 		and d.xfacturar > 0
 		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+	having total > 0
 	order by
 		v.sys_dtcreated,
 		v.documento

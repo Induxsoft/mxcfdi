@@ -449,6 +449,7 @@ program "Ejecutar orden de factura global"
                         retry = @true
                         do EstablecerToken(db,orden,ftext("|#<token>|#<action>|#<message>|"))
                         do pop_exception()
+                        do Sleep(3000)
                     }
                     else
                     {

@@ -35,7 +35,7 @@ module "form.sendmail.dk"
     fn_print_buttons::
     {
         #$
-        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="submit" id="btn_submit" title="Cancelar cfdi"){$"Cancelar"}
+        button(class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" type="submit" id="btn_submit" title="Cancelar cfdi"){$"Confirmar"}
         #!
     }
     point print_buttons to fn_print_buttons
