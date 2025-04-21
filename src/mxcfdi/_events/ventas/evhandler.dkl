@@ -16,6 +16,7 @@ program "Controlador de eventos"
 
     // do file.wtext("___event_context.json", to.json(@event_context))
     // do rise_error(0,"stop!")
+    if dbr.num(db,"select count(*) from mxcfdi_emisor where predet",@null) < 1 { return }
 
     switch trim(@("$event"))
     {
