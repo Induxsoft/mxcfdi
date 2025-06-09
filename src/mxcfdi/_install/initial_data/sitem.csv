@@ -20,3 +20,5 @@ GX42,Editar orden de factura global,mxcfdi.factglobal
 GX43,Eliminar orden de factura global,mxcfdi.factglobal
 GX44,Cancelar orden de factura global,mxcfdi.factglobal
 GX45,Ejecutar orden de factura global,mxcfdi.factglobal
+
+GXF0,Relacionar UUID de complementos de pago,mxcfdi.emision

@@ -1,0 +1,163 @@
+#include "dkli.dkh"
+#!
+program "Relacionar en 'aplcxc' el uuid del complemento de pago a las facturas PPD aplicadas."
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+    #include "dbr.apps.dkl"
+    #include "dbr.security.dkl"
+    #include "batch.v12.dkl"
+
+    do @context.begin(@batch_context)
+
+    //#region >CONSTANTES
+    do errordet(@false)
+
+    @action = "GXF0"
+    @qname = @("$qname")
+    @token = @("$job/token")
+    @program = @("$job/program")
+    // cdocumentos (documentos de cuentas por cobrar)
+    @cRemision = 3
+    @cFactura = 4
+    @cNotaCredito = 5
+    @cTicket = 6
+    @cNotaCargo = 17
+    @cPagare = 18
+    @cRecibo = 19
+    //#endregion
+
+    //#region >FUNCIONES
+    ref lib_csv = _import_library("devkron.serialize.csv.dll")
+    do _map_function(lib_csv,"devkron.serialize.csv.csvHelper","CsvRead","csv.read","System.String,System.String","*")
+    do _map_function(lib_csv,"devkron.serialize.csv.csvHelper","CsvWrite","csv.write","System.String,*System.Object","void")
+
+    function Log(text)
+    {
+        do batch.saveLog(@("$job/token"),text)
+    }
+
+    function UpdatePercent(value)
+    {
+        new params
+        {
+            @"token":@("$job/token")
+        }
+        new data
+        {
+            @"percentage":value
+            @"progress_type":2
+        }
+        do dbr.update(batch.openDB(),"job",data,"sys_guid=@token",params)
+    }
+
+    function UserId(&db)
+    {
+        if isset("@_user_id") { return @_user_id }
+        
+        ref job = @("&job")
+        @_user_id = dbr.str(db,"SELECT tu.userid FROM job jb INNER JOIN tuser tu ON jb.sys_user = tu.userid WHERE jb.sys_guid = @token LIMIT 1",job)
+        exception
+        {
+            do pop_exception()
+            @_user_id = ""
+        }
+
+        return @_user_id
+    }
+
+    function RelacionarCompagos(&db,&data)
+    {
+        length = list.count(data)
+        if length < 1 {
+            do Log("Nada para importar/relacionar.")
+            do UpdatePercent(100)
+            return
+        }
+
+        do Log("> Relacionando UUID's...")
+        progress = (100 / length)
+        affected_rows = 0
+        percent = 0
+
+        for i = 0; i < length
+        {
+            ref item = record.caseinsensitive(list.obj(data,i))
+
+            item<"codigo"> : trim(@@(item,"$codigo"))
+            item<"referencia"> : trim(@@(item,"$referencia"))
+            item<"uuid"> : trim(@@(item,"$uuid"))
+
+            if item.codigo == "" { do rise_error(511,"No es establecio valor para 'codigo'.") }
+            if item.referencia == "" { do rise_error(512,"No se establecio valor para 'referencia'.") }
+            if item.uuid == "" { do rise_error(513,"No se establecio el valor del 'uuid' a relacionar.") }
+
+            ref dcxc = dbr.rec(db,"select sys_pk, documento, icliente from dcxc where (referencia = @referencia or sys_guid = @referencia)",item)
+            if isnull(dcxc) { do rise_error(514,"No se encontro el documento con la 'referencia' proporcionada.") }
+            icliente = dbr.num(db,"select sys_pk from cliente where (codigo = @codigo or sys_guid = @codigo)",item)
+            if icliente < 1 { do rise_error(515,"No se encontro el cliente con el 'codigo' proporcionado.") }
+            if @@(dcxc,"#icliente") != icliente { do rise_error(516,"La 'referencia' no pertenece al 'codigo' del cliente proporcionado.") }
+            if @@(dcxc,"#documento") != @cRecibo { do rise_error(517,"La 'referencia' no corresponde a un complemento de pago.") }
+            pk_cfd = dbr.num(db,"select sys_pk from ut_cfd where uf_foliosat = @uuid",item)
+            if pk_cfd < 1 { do rise_error(518,"No se encontro información del 'uuid' proporcionado.") }
+
+            dcxc<"uuid"> : @@(item,"$uuid")
+            do dbr.execute(db,"update aplcxc set uf_cfdi = @uuid where fk_dcxc_aplicadoa = @sys_pk",dcxc)
+            do dbr.execute(db,"update ut_cfd set uf_idcxc = @sys_pk where uf_foliosat = @uuid",dcxc)
+            
+            affected_rows = affected_rows + 1
+            
+            exception
+            {
+                code = last_error_code()
+                error = last_error()
+                do pop_exception()
+
+                if code >= 511 && code <= 589 {
+                    do Log(error)
+                }
+                else {
+                    do rise_error(code,error)
+                }
+            }
+
+            percent = percent + progress
+            do UpdatePercent(percent)
+        }
+
+        do Log("** UUID's Relacionados ("+str(affected_rows)+"/"+str(length)+")")
+    }
+    //#endregion
+
+    //#region >EJECUCIÓN
+    do batch.v12.grant(@action)
+
+    ref params = @("&params")
+    ref db = @("&database")
+
+    fsrc = @("$params/archivo")
+
+    if fsrc == "" { do rise_error(511,"El 'Archivo a importar' es requerido.") }
+    if not(file.exists(fsrc)) { do rise_error(512,"No se encontro el archivo a importar.") }
+    if file.extension(fsrc)!=".csv" { do rise_error(513,"Se esperaba un archivo de tipo `csv`.") }
+
+    ref data = csv.read(fsrc,"")
+    do RelacionarCompagos(db,data)
+    if file.exists(fsrc) { do file.delete(fsrc) }
+
+    exception
+    {
+        code = last_error_code()
+        error = last_error()
+
+        if file.exists(fsrc) { do file.delete(fsrc) }
+        if isset("db") {
+            if dbr.in_transaction(db){ do dbr.rollback(db) }
+        }
+        do rise_error(code,error)
+    }
+    //#endregion
+
+    do @context.end()
+}

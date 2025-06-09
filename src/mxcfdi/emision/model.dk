@@ -1378,9 +1378,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"uf_xml": cfdi_uuid
             @"uf_cadenaoriginal": ""
             @"uf_sellodigital": cfdi.attr(comprobante,"Sello")
-            // @"uf_iventa*": @null //PkVenta
-            // @"uf_idcxc*": @null //PkRecibo
-            // @"uf_aplcxc*": @null //PkAplicado
+            // @"uf_iventa*": @null
+            // @"uf_idcxc*": @null
+            // @"uf_aplcxc*": @null
             @"uf_fechahora*": dbr.sql("now()")
             // @"uf_tipo*": @null
             // @"uf_cfdi_info": dbr.num(db,"SELECT sys_pk FROM ut_cfdinfo WHERE NOT IFNULL(sys_deleted,0) ORDER BY sys_pk DESC LIMIT 1;",@null)

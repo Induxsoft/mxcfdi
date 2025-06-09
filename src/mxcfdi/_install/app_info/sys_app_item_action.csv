@@ -12,3 +12,5 @@ GX42,Editar orden de factura global,Editar,,/!/mxcfdi/fact-global/@_src_context_
 GX43,Eliminar orden de factura global,Eliminar,,"javascript:InduxsoftCrudlModel.Delete(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action
 GX44,Cancelar orden de factura global,Cancelar,,"javascript:fglist.cancelarOrden(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action
 GX45,Ejecutar orden de factura global,Timbrar,,"javascript:fglist.timbrarOrden(`@_src_context_item_id`);",0,mxcfdi.factglobal,DET094,1,action
+
+GXF0,Relacionar UUID de complementos de pago,Relacionar complementos,,/!/batch/taskman/GX/relacionar.compagos/?exit_url_encode=LyEvbXhjZmRpL2VtaXNpb24v,0,mxcfdi.emision,DET084,0,action
