@@ -720,7 +720,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     {
                         @"Impuesto": emision.getClaveImpuesto(imp_text)
                         @"TipoFactor": ifstr(@@(obj,"#exento_iva"),"Exento","Tasa")
-                        @"TasaOCuota": field.dnum(obj,imp_tasa,0)
+                        @"TasaOCuota": parse.num(format(@@(obj,"#"+imp_tasa),"0.000000"))
                         @"Base": field.num(obj,"subtotal")
                         @"Importe": field.num(obj,imp_value)
                     }
