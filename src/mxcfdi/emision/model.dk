@@ -292,6 +292,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     AND IFNULL(cxc.haber,0) > 0
                     AND IFNULL(cxc.xaplicar,0) = 0
                     AND cxc.iventa IS NULL
+					AND (SELECT count(*) FROM aplcxc a INNER JOIN dcxc b ON a.aplicadoa = b.sys_pk LEFT JOIN venta c ON b.iventa = c.sys_pk WHERE a.fk_dcxc_aplicadoa = cxc.sys_pk AND c.statusadministrativo != 99) > 0
                 "
                 break
             }
@@ -1585,7 +1586,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             "
             ref doc:dbr.rec(db,sql,params)
 
-            aplicados = dbr.num(db,"SELECT COUNT(apl.sys_pk) FROM dcxc cxc INNER JOIN aplcxc apl ON cxc.sys_pk = apl.aplicadoa WHERE cxc.iventa = @iventa;",doc)
+            aplicados = dbr.num(db,"SELECT COUNT(apl.sys_pk) FROM dcxc cxc INNER JOIN aplcxc apl ON cxc.sys_pk = apl.aplicadoa WHERE cxc.iventa = @iventa AND (TRIM(IFNULL(apl.uf_cfdi,''))!='' OR uf_cfdi!='0');",doc)
             if aplicados > 0 { do rise_error(513,"No es posible cancelar la factura porque tiene pagos relacionados.") }
         }
         else if _entity_id == "cxc" {
