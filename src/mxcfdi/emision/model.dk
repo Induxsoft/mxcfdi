@@ -196,6 +196,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         tname = ""
         show_tab = "ingresos"
         fil_doctype = @@(params,"#fil_doctype")
+        fil_status = @@(params,"#fil_status")
         mxcfdi_nventa = parse.bool(dbr.vars.get(db,"mxcfdi_nventa"))
         if trim(@@(params,"$_show")) == "egresos" { show_tab = "egresos" }
         if trim(@@(params,"$_show")) == "pagos" { show_tab = "pagos" }
@@ -207,8 +208,11 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if show_tab == "ingresos" && not(between(fil_doctype,1,10)) && mxcfdi_nventa { fil_doctype = 2 }
         if show_tab == "egresos" && not(between(fil_doctype,11,20)) && mxcfdi_nventa { fil_doctype = 12 }
         if show_tab == "pagos" && not(between(fil_doctype,21,30)) { fil_doctype = 21 }
+        if not(field.exist(params,"fil_status")){ fil_status = 1 }
+        
         params<"fil_doctype"> : fil_doctype
-        if not(field.exist(params,"fil_status")){ params<"fil_status"> : 1 }
+        params<"fil_status"> : fil_status
+        
         if not(field.exist(params,"fdr_field")){ params<"fdr_field"> : 1 }
         // fdr_init
         if not(field.exist(params,"fdr_mode")){ params<"fdr_mode"> : "month" }
@@ -241,7 +245,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cFactura>
-                    AND IF(IFNULL(@fil_status,'0')='0', vnt.statusadministrativo != 99, TRUE)
+                    AND IF(@fil_status = 0, vnt.statusadministrativo != 99, TRUE)
                 "
                 break
             }
@@ -274,7 +278,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 joins = "LEFT JOIN ut_cfd AS cfd ON vnt.sys_pk = cfd.uf_iventa"
                 conditions = "
                     AND vnt.documento = #<@cNotaCredito>
-                    AND IF(IFNULL(@fil_status,'0')='0', vnt.statusadministrativo != 99, TRUE)
+                    AND IF(@fil_status = 0, vnt.statusadministrativo != 99, TRUE)
                 "
                 break
             }
@@ -290,9 +294,11 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
                     AND IFNULL(cxc.haber,0) > 0
-                    AND IFNULL(cxc.xaplicar,0) = 0
+                    AND IF(@fil_status = 2, TRUE, IFNULL(cxc.xaplicar,0) = 0)
                     AND cxc.iventa IS NULL
-					AND (SELECT count(*) FROM aplcxc a INNER JOIN dcxc b ON a.aplicadoa = b.sys_pk LEFT JOIN venta c ON b.iventa = c.sys_pk WHERE a.fk_dcxc_aplicadoa = cxc.sys_pk AND c.statusadministrativo != 99) > 0
+                    AND IF(@fil_status = 2, TRUE,
+                            (SELECT COUNT(a.sys_pk) FROM aplcxc a INNER JOIN dcxc b ON a.aplicadoa = b.sys_pk LEFT JOIN venta c ON b.iventa = c.sys_pk WHERE a.fk_dcxc_aplicadoa = cxc.sys_pk AND IFNULL(c.statusadministrativo,0) != 99) > 0
+                        )
                 "
                 break
             }
@@ -385,7 +391,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         conditions = conditions + "
         AND (
-            CASE CONVERT(@fil_status,DECIMAL)
+            CASE @fil_status
                 WHEN 0 THEN IFNULL(cfd.sys_pk,0) = 0 OR (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
                 WHEN 1 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) != 1 AND IFNULL(cfd.uf_ackcancelacion_sat,'') != '1')
                 WHEN 2 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
@@ -1623,6 +1629,12 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         WHERE sys_pk = @icfd
         "
         if not(dbr.execute(db,sql_cancel_cfdi,doc)) { do rise_error(516,"No fue posible establecer la cancelación.") }
+
+        if _entity_id == "cxc"
+        {
+            sql_free_aplcxc = "UPDATE aplcxc SET uf_cfdi = '0' WHERE fk_dcxc_aplicadoa = @idcxc AND uf_cfdi = @uf_foliosat"
+            if not(dbr.execute(db,sql_free_aplcxc,doc)) { do rise_error(517,"No fue posible establecer la cancelación de cfdi a la aplicación del recibo (aplcxc).") }
+        }
 
         new header { @"Content-Type": "application/json; charset=UTF-8" }
         new payload
