@@ -293,8 +293,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 "
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
+                    AND cxc.documento = #<@cNotaCredito>
                     AND IFNULL(cxc.haber,0) > 0
-                    AND IF(@fil_status = 2, TRUE, IFNULL(cxc.xaplicar,0) = 0)
+                    AND IF(@fil_status = 0, IFNULL(cxc.xaplicar,0) = 0, TRUE)
                     AND cxc.iventa IS NULL
                     AND IF(@fil_status = 2, TRUE,
                             (SELECT COUNT(a.sys_pk) FROM aplcxc a INNER JOIN dcxc b ON a.aplicadoa = b.sys_pk LEFT JOIN venta c ON b.iventa = c.sys_pk WHERE a.fk_dcxc_aplicadoa = cxc.sys_pk AND IFNULL(c.statusadministrativo,0) != 99) > 0
@@ -313,8 +314,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 "
                 joins = "LEFT JOIN ut_cfd AS cfd ON cxc.sys_pk = cfd.uf_idcxc"
                 conditions = "
+                    AND cxc.documento = #<@cRecibo>
                     AND IFNULL(cxc.haber,0) > 0
-                    AND IFNULL(cxc.xaplicar,0) = 0
+                    AND IF(@fil_status = 0, IFNULL(cxc.xaplicar,0) = 0, TRUE)
                     AND (IFNULL(cxc.imovcuenta,0) > 0 OR IFNULL(cxc.imovcaja,0) > 0)
                 "
                 break
