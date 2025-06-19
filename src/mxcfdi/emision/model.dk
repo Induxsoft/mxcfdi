@@ -1635,7 +1635,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if _entity_id == "cxc"
         {
             sql_free_aplcxc = "UPDATE aplcxc SET uf_cfdi = '0' WHERE fk_dcxc_aplicadoa = @idcxc AND uf_cfdi = @uf_foliosat"
-            if not(dbr.execute(db,sql_free_aplcxc,doc)) { do rise_error(517,"No fue posible establecer la cancelación de cfdi a la aplicación del recibo (aplcxc).") }
+            do dbr.execute(db,sql_free_aplcxc,doc)
+            // if not(dbr.execute(db,sql_free_aplcxc,doc)) { do rise_error(517,"No fue posible establecer la cancelación de cfdi a la aplicación del recibo (aplcxc).") }
+            exception{ do pop_exception() }
         }
 
         new header { @"Content-Type": "application/json; charset=UTF-8" }
