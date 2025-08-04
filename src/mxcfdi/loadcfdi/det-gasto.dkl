@@ -1,0 +1,46 @@
+#$
+input(type="hidden" class="induxsoft-form-control" id="file-cfdi" name="file-cfdi" value="#<@('$parameters/file-cfdi')>")
+
+div
+{
+    label(class="form-label" "for"="proveedor"){$"Proveedor:"}
+    "input-key"(name="proveedor" id="proveedor" "data-key"="sys_pk" required="true" "data-search"="codigo" "data-text"="nombre" "data-source"="#<@URL_BUSCAR_PROVEEDOR>" "data-value"="#<to.json(@('&./proveedor'))>" columns="codigo,nombre" colcaptions="Código,Nombre" "control-styles"="#<ik_sm_style>"){$""}
+}
+
+div
+{
+    hr{}
+    
+    "edit-table"(id="tbl_datail" data="#<to.json(@('&./gastos'))>" "auto-confirm"="true" style="width:100%;"
+    "row-height"="1.2rem"
+    "control-styles"="
+        tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
+        tr td { font-size:.8rem; }
+        #__table_input { font-size:unset !important; }
+    ")
+    {
+        "edit-thead"
+        {
+            "edit-tr"
+            {
+                "edit-th"(type="Date" field="fecha"){$"Fecha"}
+                "edit-th"(type="Date"   field="vencimiento" "minwidth"="8rem"){$"Código"}
+                "edit-th"(type="Text"   field="referencia" "minwidth"="10rem"){$"Referencia"}
+                "edit-th"(type="Text" field="concepto" "minwidth"="10rem"){$"Concepto"}
+                "edit-th"(type="Select" field="categoria" keyfield="icategoria" options="#<to.json(@('&./categorias'))>" "minwidth"="10rem"){$"Categoría"}
+                // "edit-th"(type="Select" field="divisa" keyfield="iddivisa" options="#<to.json(@('&./divisas'))>" "minwidth"="10rem"){$"Divisa"}
+                "edit-th"(type="Number" field="total" readonly="true" align="end" format="true" thousandssep="true" prefix="$ " decs="4" "minwidth"="8rem"){$"Importe"}
+                "edit-th"(type="Number" field="retisr" readonly="true" align="end" format="true" thousandssep="true" prefix="$ " decs="4" "minwidth"="8rem"){$"Más ISR retenido"}
+                "edit-th"(type="Number" field="retiva" readonly="true" align="end" format="true" thousandssep="true" prefix="$ " decs="4" "minwidth"="8rem"){$"Más IVA retenido"}
+                "edit-th"(type="Number" field="iva" readonly="true"align="end" format="true" thousandssep="true" prefix="$ " decs="4" "minwidth"="8rem"){$"Menos IVA trasladado"}
+                "edit-th"(type="Number" field="subtotal" readonly="true" align="end" format="true" thousandssep="true" prefix="$ " decs="4" "minwidth"="8rem"){$"Subtotal"}
+
+                "edit-th"(type="Select" field="fpago" keyfield="pago" options="#<to.json(@('&./fpagos'))>"){$"Forma de pago"}
+                "edit-th"(type="Text" field="beneficiario" ){$"Beneficiario"}
+                "edit-th"(type="Select" field="documento" keyfield="iddocumento" options="#<to.json(@('&./documentos'))>" "minwidth"="10rem"){$"Documento"}
+                "edit-th"(type="Select" field="cuenta" keyfield="icuenta" options="#<to.json(@('&./cuentas'))>"){$"Cuenta"}
+                "edit-th"(type="Select" field="tipo_documento" keyfield="itipo_documento" options="#<to.json(@('&./tipo_documentos'))>"){$"Tipo de documento"}
+            }
+        }
+    }
+}

@@ -6,6 +6,7 @@ module ""
    #include "compras/_lib/config.dk"
    #include "compras/doc_compra/model.dk"
    #include "webshell.dkh"
+   #include "cxp/ut_gasto/model.dk"
 
    GetPathFile::idfile
    {
@@ -23,8 +24,23 @@ module ""
    {
       path_file=GetPathFile(@@(params,"$file-cfdi"))
       
-      ref entity=CreateDataFromCFDI(db,params,path_file,@null)
-
+      switch @@(params,"$module")
+      {
+         case "gasto"
+         {
+            ref entity=CreateDataGastoFromCFDI(db,params,path_file,@null)
+            entity<"title">:"Nuevos gastos"
+            break
+         }
+         default
+         {
+            ref entity=CreateDataFromCFDI(db,params,path_file,@null)
+            entity<"title">:"Registro de nuevos productos"
+            break
+         }
+      }
+      
+      
       return entity
    }
 
@@ -36,7 +52,11 @@ module ""
       }
       else 
       {
-         ref entity= CreateCompra(db,params,data)    
+         switch @@(params,"$module")
+         {
+             case "gasto"{ref entity=CreateGasto(db,params,data)}
+             default{ref entity= CreateCompra(db,params,data)}
+         }
       }
       
       return entity
@@ -74,15 +94,136 @@ module ""
       do file.copy(@@(file,"$temp_file"),path_file)
 
       params<"validate">:@true
+      ref entity=@null
+
+      switch @@(data,"$module")
+      {
+          case "gasto"
+          {
+              ref entity=CreateDataGastoFromCFDI(db,params,path_file,cfdi)
+              break
+          }
+          default
+          {
+              ref entity=CreateDataFromCFDI(db,params,path_file,cfdi)
+              break
+          }
+      }
       
-      ref compra=CreateDataFromCFDI(db,params,path_file,cfdi)
-      
-      if not(isnull(compra)){return compra}
+      if not(isnull(entity)){return entity}
 
       new rec
       {
-         @"url_redir":"./?file-cfdi="+uuid
+         @"url_redir":"./?module="+@@(data,"$module")+"&file-cfdi="+uuid
       }
+      return rec
+   }
+   CreateDataGastoFromCFDI::&db,&params,path_file,&cfdi
+   {
+      do dbr.apps.action.grant("GX34")
+      
+      if parse.bool(@@(params,"$validate")){return @null}
+
+      if isnull(cfdi){ref cfdi=parse.xmlStr(file.rtext(path_file))}
+      
+      if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es víalido")}
+
+      ref proveedor=cfdi.getElementByTagName(cfdi,"cfdi:Emisor")
+
+      params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
+      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre from proveedor where rfc=@proveedor",params)
+
+      ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
+      ref conceptos=cfdi.nodes(node_conceptos)
+
+      ref gastos=list.create()
+      fecha_cfdi=cfdi.attr(cfdi,"$Fecha")
+      serie=cfdi.attr(cfdi,"$Serie")
+      folio=cfdi.attr(cfdi,"$Folio")
+      for i = 0; i < @count(conceptos)
+      {
+         ref gasto=@item(conceptos,i)
+         
+         new g
+         {
+            @"referencia":serie+folio+"-"+cfdi.attr(gasto,"$NoIdentificacion")
+            @"fecha":fecha_cfdi
+            @"vencimiento":fecha_cfdi
+            @"concepto":cfdi.attr(gasto,"$Descripcion")
+            @"subtotal":cfdi.attr(gasto,"#Importe")
+            @"iva":0
+            @"retiva":0
+            @"retisr":0
+            @"total":0
+         }
+         //obtener impuestos traslados/retenciones
+         ref node_impuestos=cfdi.getElementByTagName(gasto,"cfdi:Impuestos")
+         ref impuestos=cfdi.nodes(node_impuestos)
+
+         iva=0
+         retiva=0
+         retisr=0
+
+         for j = 0; j < @count(impuestos)
+         {
+            ref obj_impuesto=@item(impuestos,j)
+            ref _impuesto=cfdi.nodes(obj_impuesto)
+
+            for a = 0; a < @count(_impuesto)
+            {
+               ref impuesto=@item(_impuesto,a)
+               cimpuesto=trim(cfdi.attr(impuesto,"$Impuesto"))
+               switch @@(impuesto,"$name")
+               {
+                  case "cfdi:Traslado"
+                  {
+                     if cimpuesto=="002"{iva=iva + cfdi.attr(impuesto,"#Importe")}
+                     break
+                  }
+                  case "cfdi:Retencion"
+                  {
+                     if cimpuesto=="002"{retiva=retiva + cfdi.attr(impuesto,"#Importe")}
+                     else if cimpuesto=="001"{retisr=retisr + cfdi.attr(impuesto,"#Importe")}
+
+                     break
+                  }
+               }
+            }
+            
+         }
+
+         using g
+         {
+            @"iva":iva
+            @"retiva":retiva
+            @"retisr":retisr
+            @"total": (@@(g,"#subtotal") + retisr + retiva) - iva
+         }
+         
+         do list.add(gastos,g)
+      }
+
+      sql = "SELECT sys_pk,descripcion FROM categoria WHERE tipo = 2 AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk;"
+      sql_documentos = "SELECT doc.id, doc.const FROM cdocumentos AS doc INNER JOIN cfg_cxp_docs AS cfg ON cfg.documento = doc.id WHERE IFNULL(cfg.pagable,0);"
+      
+      new rec
+      {
+         @"proveedor*":ifnull(dt_proveedor,record.create())
+         @"gastos*":gastos
+         @"categorias*" : RecFromList(dbr.list(db,sql,@null),"$sys_pk","$descripcion")
+         @"tipo_documentos*":RecFromList(dbr.list(db,sql_documentos,@null),"$id","$const")
+         @"fpagos*":from.json('{
+            "1":"Contado",
+            "2":"Crédito"
+         }')
+      }
+      sql = "SELECT c.sys_pk, CONCAT(c.nombre,' (',d.codigo,')') nombre, c.idivisa, d.codigo AS cdivisa, d.tcambio FROM chequera c INNER JOIN divisa d ON d.sys_pk = c.idivisa WHERE NOT IFNULL(c.sys_deleted,0) ORDER BY c.sys_pk;"
+      ref cuentas=dbr.list(db,sql,@null)
+      rec<"cuentas*"> : RecFromList(cuentas,"$sys_pk","$nombre")
+      sql = "SELECT doc.id,doc.const FROM cdocumentos doc INNER JOIN cfg_chq_docs cfg ON cfg.documento = doc.id WHERE IFNULL(cfg.retiros,0) ORDER BY doc.id;"
+      rec<"documentos*"> : RecFromList(dbr.list(db,sql,@null),"$id","$const")
+      rec<"datacuentas*">:cuentas
+
       return rec
    }
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
@@ -261,7 +402,55 @@ module ""
       }
       return rec
    }
+   CreateGasto::&db,&params,&data
+   {
+      ref detalle=from.json(@@(data,"$detalle"))
+      @use_transaction = @false
+         do dbr.apps.action.pre("GX34")
+      do dbr.begin(db)
+      
+      ref proveedor=dbr.rec(db,"SELECT p.sys_pk,p.codigo,d.sys_pk divisa,d.codigo coddivisa FROM proveedor p INNER JOIN divisa d ON p.idivisa=d.sys_pk where p.sys_pk=@proveedor",data)
+      if isnull(proveedor){do rise_error(500,"No se encontró el proveedor")}
 
+      @create_exclude_fields = ""
+      @update_exclude_fields = @create_exclude_fields
+      
+      for i = 0; i < @count(detalle)
+      {
+         ref gasto=@item(detalle,i)
+         using gasto
+         {
+            @"proveedor":@@(proveedor,"#sys_pk")
+            @"formapago":@@(gasto,"#pago")
+            @"documento":@@(gasto,"#iddocumento")
+            @"cuenta":@@(gasto,"#icuenta")
+            @"divisa":@@(proveedor,"#divisa")
+            @"importe":@@(gasto,"#total")
+         }
+         
+         new p{@"_entities_type":"ut_gasto"}
+         @table_name="ut_gasto"
+         do ut.agregarGasto(db,p,gasto)
+      }
+      
+         do dbr.apps.action.pos(@null)
+      do dbr.commit(db)
+         do dbr.apps.action.ext(@null)
+      
+      new rec
+      {
+         @"url_redir":@VIEW_LOAD_CFDI
+      }
+
+      return rec
+
+      exception
+      {
+         if dbr.in_transaction(db){ do dbr.rollback(db) }
+         do dbr.apps.action.log()
+         do rise_error(last_error_code(),last_error())
+      }
+   }
    CreateCompra::&db,&params,&data
    {
       do errordet(@false)

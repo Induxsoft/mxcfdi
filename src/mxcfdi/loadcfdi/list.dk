@@ -11,7 +11,7 @@ module ""
 
     new nav_config
     {
-        @"title": "Registro de nuevos productos"
+        @"title": @("$./title")
         @"buttons*": @null
         @"urlexit": "." //"javascript:window.history.back();"
         @"jscurrentcontext": "list.getCurrentContext"
@@ -22,7 +22,7 @@ module ""
     }
 
     #$
-    div(class="container v12-list-view" id="view")
+    div(class="container-fluid v12-list-view" id="view")
     {
         script(src="#<@JS_LOAD_CFDI>"){""}
         section(id="top_area")
@@ -49,75 +49,31 @@ module ""
                 }
             }
 
+            
             form(method="POST" id="form-detalle")
             {
-                input(type="hidden" class="induxsoft-form-control" id="productos_exist" name="productos_exist" value="#<to.json(@('&./productos_exist'))>")
-                input(type="hidden" class="induxsoft-form-control" id="file-cfdi" name="file-cfdi" value="#<@('$parameters/file-cfdi')>")
-
-                div
+                #!
+                switch @("$parameters/module")
                 {
-                    label(class="form-label" "for"="proveedor"){$"Proveedor:"}
-                    "input-key"(name="proveedor" id="proveedor" "data-key"="sys_pk" required="true" "data-search"="codigo" "data-text"="nombre" "data-source"="#<@URL_BUSCAR_PROVEEDOR>" "data-value"="#<to.json(@('&./proveedor'))>" columns="codigo,nombre" colcaptions="Código,Nombre" "control-styles"="#<ik_sm_style>"){$""}
-                }
-                div
-                {
-                    hr{}
-                    #!
-                    style=ifstr(@count(@('&./productos_noexist')) < 1,'display:none','')
-                    #$
-                    h6(style="#<style>"){"Los siguientes productos no se encuentran en el sistema. Complete la información para realizar el registro."}
-                    
-                    "edit-table"(id="tbl_datail" data="#<to.json(@('&./productos_noexist'))>" "auto-confirm"="true" style="width:100%;#<style>"
-                    "row-height"="1.2rem"
-                    "control-styles"="
-                        tr th { font-size:.9rem; outline:none !important; font-weight:500 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -o-text-overflow:ellipsis; }
-                        tr td { font-size:.8rem; }
-                        #__table_input { font-size:unset !important; }
-                    ")
+                    case "gasto"
                     {
-                        "edit-thead"
-                        {
-                            "edit-tr"
-                            {
-                                "edit-th"(type="NoEditable" field="codigoprod1"){$"CodigoProveedor1"}
-                                "edit-th"(type="Text"   field="codigo" "minwidth"="8rem"){$"Código"}
-                                "edit-th"(type="Text"   field="descripcion" "minwidth"="10rem"){$"Descripción"}
-                                "edit-th"(type="Select" field="linea" keyfield="idlinea" options="#<to.json(@('&./lineas'))>" "minwidth"="10rem"){$"Línea"}
-                                "edit-th"(type="Select" field="marca" keyfield="idmarca" options="#<to.json(@('&./marcas'))>" "minwidth"="10rem"){$"Marca"}
-                                "edit-th"(type="Select" field="departamento" keyfield="iddepartamento"  options="#<to.json(@('&./departamentos'))>" "minwidth"="10rem"){$"Departamento"}
-                                "edit-th"(type="Select" field="divisa" keyfield="iddivisa" options="#<to.json(@('&./divisas'))>" "minwidth"="10rem"){$"Divisa"}
-                                "edit-th"(type="Select" field="impuesto" keyfield="idimpuesto" options="#<to.json(@('&./impuestos'))>" "minwidth"="10rem"){$"Impuestos"}
-                                "edit-th"(type="Select" field="clase" keyfield="idclase"    options="#<to.json(@('&./clases'))>" "minwidth"="10rem" ){$"Clase"}
-                                "edit-th"(type="Select" field="tipo" keyfield="idtipo"     options="#<to.json(@('&./tipos'))>" "minwidth"="10rem"){$"Tipo"}
-                                "edit-th"(type="Select" field="metodovaluacion" keyfield="idmetodovaluacion" options="#<to.json(@('&./metodovaluacion'))>" "minwidth"="10rem"){$"MetodoValuación"}
-                                "edit-th"(type="Text"   field="codbar1" ){$"CódigoBarras1"}
-                                "edit-th"(type="Text"   field="codbar2" ){$"CódigoBarras2"}
-                                "edit-th"(type="Text"   field="codbar3" ){$"CódigoBarras3"}
-                                "edit-th"(type="Text"   field="unidad" ){$"UnidadEstandar"}
-                                "edit-th"(type="Text"   field="factor" ){$"Factor"}
-                                "edit-th"(type="Text"   field="unidadcompra" ){$"UnidadCompra"}
-                                "edit-th"(type="Number" field="ultimocosto" ){$"UltimoCosto"}
-                                "edit-th"(type="Number" field="precio1" ){$"Precio1"}
-                                "edit-th"(type="Number" field="precio2" ){$"Precio2"}
-                                "edit-th"(type="Number" field="precio3" ){$"Precio3"}
-                                "edit-th"(type="Number" field="precio4" ){$"Precio4"}
-                                "edit-th"(type="Number" field="precio5" ){$"Precio5"}
-                                "edit-th"(type="Number" field="preciopuntos" ){$"PrecioPuntos"}
-                                "edit-th"(type="Select" field="proveedor1" keyfield="idproveedor1"      options="#<to.json(@('&./proveedores'))>" "minwidth"="10rem"){$"Proveedor1"}
-                                "edit-th"(type="Number" field="maximo" ){$"Máximo"}
-                                "edit-th"(type="Number" field="mainimo" ){$"Mínimo"}
-                                "edit-th"(type="Number" field="puntoreorden" ){$"PuntoReorden"}
-                                "edit-th"(type="Number" field="diasentrega" ){$"DíasEntrega"}
-                                "edit-th"(type="Check" field="lote" ){$"Lote"}
-                                "edit-th"(type="Check" field="serie" ){$"Serie"}
-                                "edit-th"(type="Check" field="visible" ){$"Visible"}
-                                "edit-th"(type="Memo" field="nota" "minwidth"="20rem"){$"Notas"}
-                            }
-                        }
+                        #include "det-gasto.dkl"
+                        break
+                    }
+                    default
+                    {
+                        #include "det-compra.dkl"
+                        break
                     }
                 }
-                
             }
+        }
+        #$
+        script
+        {
+            $'
+            load_cfdi.module="#<@("$parameters/module")>";
+            '
         }
     }
 }

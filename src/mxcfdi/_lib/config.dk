@@ -34,6 +34,10 @@ module "Variables globales"
     @ToNegativeInfinity = 3
     @ToPositiveInfinity = 4
 
+	@STATUS_ADMINISTRATIVO = 3 // cProcesado
+    @FORMA_PAGO = 1 // cContado
+    @FORMA_PAGO_CREDITO = 2 // credito
+
 	@default_max_rows = 250 // limite de registros para las vistas de lista
 	@default_max_rows_fact_global = 100
 	@fact_global_start_rows = 0
@@ -55,7 +59,7 @@ module "Variables globales"
 	@sat_uso_cfdi = "sat.c_UsoCFDI.json"
 	@sat_meses = "sat.c_Mes.json"
 	@sat_peridicidad = "sat.c_Periodicidad.json"
-
+	@json_load_cfdi="mxcfdi/loadcfdi/loadcfdi.json"
 	// Sellar y timbrar CFDI 4.0 y CR 2.0
     // DOC: https://docs.induxsoft.net/es/api/cloud/factudesk/sellar-y-timbrar.md
 	@svc_fdsk_sellar_timbrar = "https://factudesk.api.induxsoft.net/comprobantes/sellar-y-timbrar/"

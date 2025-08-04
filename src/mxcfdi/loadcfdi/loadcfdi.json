@@ -1,0 +1,22 @@
+[
+    {
+        "title":"Compra",
+        "idform":"form-load-cfdi",
+        "fields-hidden":
+        {
+            "load-cfdi":true,
+            "module":"compra"
+        },
+        "text-btn":"SUBIR "
+    },
+    {
+        "title":"Gasto",
+        "idform":"form-load-cfdi-gasto",
+        "fields-hidden":
+        {
+            "load-cfdi":true,
+            "module":"gasto"
+        },
+        "text-btn":"SUBIR "
+    }
+]
