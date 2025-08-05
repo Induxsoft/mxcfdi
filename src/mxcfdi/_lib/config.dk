@@ -102,11 +102,13 @@ module "Variables globales"
 	@CFD_CXC_BONIFICACION = "/!/mxcfdi/emision/cxc/bonificacion/?doc=@doc"
 	@CFD_CXC_NOTA_CARGO = "/!/mxcfdi/emision/cxc/nota-cargo/?doc=@doc"
 	@VIEW_LOAD_CFDI="/!/mxcfdi/load-cfdi/"
+	@VIEW_FORM_GASTO="/!/cxp/gastos/_new/"
 	//compras
 	@statusadministrativo = 1
 	@DecimalesEnImportes= 6
 	@COMPRA_CONSULTAR = "/!/compras/compras/{_doc}/"
 	@DET_LOG_COMPRA="DET01B"
+	@_DET_GASTO="DET024"
 
 	//status orden factura
 	@status_creada= 0 //Creada

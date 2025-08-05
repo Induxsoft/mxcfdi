@@ -5,6 +5,7 @@ GX92,Editar configuración de emisor,Editar,,/!/mxcfdi/config/@_src_context_item
 GX93,Eliminar configuración de emisor,Eliminar,,"javascript:InduxsoftCrudlModel.Delete(`@_src_context_item_id`);",0,mxcfdi.config,DET083,1,action
 
 GX34,Importar CFDI de compra,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
+GXF1,Importar CFDI de gasto,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
 
 GX40,Orden de factura global,Factura Global,,/!/mxcfdi/fact-global/,0,mxcfdi.factglobal,DET094,0,shortcut
 GX41,Crear orden de factura global,Crear,,/!/mxcfdi/fact-global/_new/,0,mxcfdi.factglobal,DET094,0,action

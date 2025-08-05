@@ -6,7 +6,6 @@ module ""
    #include "compras/_lib/config.dk"
    #include "compras/doc_compra/model.dk"
    #include "webshell.dkh"
-   #include "cxp/ut_gasto/model.dk"
 
    GetPathFile::idfile
    {
@@ -54,7 +53,7 @@ module ""
       {
          switch @@(params,"$module")
          {
-             case "gasto"{ref entity=CreateGasto(db,params,data)}
+             case "gasto"{ref entity=@null}
              default{ref entity= CreateCompra(db,params,data)}
          }
       }
@@ -118,11 +117,10 @@ module ""
       }
       return rec
    }
+   //esto obtiene los datos del gasto, cada concepto es un gasto
    CreateDataGastoFromCFDI::&db,&params,path_file,&cfdi
    {
-      do dbr.apps.action.grant("GX34")
-      
-      if parse.bool(@@(params,"$validate")){return @null}
+      do dbr.apps.action.grant("GXF0")
 
       if isnull(cfdi){ref cfdi=parse.xmlStr(file.rtext(path_file))}
       
@@ -132,38 +130,27 @@ module ""
 
       params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
       ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre from proveedor where rfc=@proveedor",params)
-
       ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
       ref conceptos=cfdi.nodes(node_conceptos)
 
-      ref gastos=list.create()
       fecha_cfdi=cfdi.attr(cfdi,"$Fecha")
+      if trim(fecha_cfdi)!=""{fecha_cfdi=date_str(str2dt(fecha_cfdi),"yyyy-MM-dd")}
+      else{fecha_cfdi=date_str(now(),"yyyy-MM-dd")}
+
       serie=cfdi.attr(cfdi,"$Serie")
       folio=cfdi.attr(cfdi,"$Folio")
+      referencia=serie+folio
+
+      //obtener impuestos traslados/retenciones
+      iva=0
+      retiva=0
+      retisr=0
       for i = 0; i < @count(conceptos)
       {
          ref gasto=@item(conceptos,i)
-         
-         new g
-         {
-            @"referencia":serie+folio+"-"+cfdi.attr(gasto,"$NoIdentificacion")
-            @"fecha":fecha_cfdi
-            @"vencimiento":fecha_cfdi
-            @"concepto":cfdi.attr(gasto,"$Descripcion")
-            @"subtotal":cfdi.attr(gasto,"#Importe")
-            @"iva":0
-            @"retiva":0
-            @"retisr":0
-            @"total":0
-         }
          //obtener impuestos traslados/retenciones
          ref node_impuestos=cfdi.getElementByTagName(gasto,"cfdi:Impuestos")
          ref impuestos=cfdi.nodes(node_impuestos)
-
-         iva=0
-         retiva=0
-         retisr=0
-
          for j = 0; j < @count(impuestos)
          {
             ref obj_impuesto=@item(impuestos,j)
@@ -189,41 +176,32 @@ module ""
                   }
                }
             }
-            
          }
-
-         using g
-         {
-            @"iva":iva
-            @"retiva":retiva
-            @"retisr":retisr
-            @"total": (@@(g,"#subtotal") + retisr + retiva) - iva
-         }
-         
-         do list.add(gastos,g)
       }
+      new context
+      {
+         @"fecha":fecha_cfdi
+         @"vencimiento":fecha_cfdi
+         @"referencia":referencia
+         @"concepto":"Gastos del documento: "+referencia
+         @"importe":cfdi.attr(cfdi,"#Total")
+         @"retisr":retisr
+         @"retiva":retiva
+         @"iva":iva
+         @"subtotal":cfdi.attr(cfdi,"#SubTotal")
+         @"proveedor":@@(dt_proveedor,"#sys_pk")
+         @"sys_guid":uuid()
+         @"fmpago": if(toupper(cfdi.attr(cfdi,"MetodoPago"))=="PPD",2,1)
+      }
+      
+      do CreateLog(path_file,@@(context,"$sys_guid"),@_DET_GASTO)
 
-      sql = "SELECT sys_pk,descripcion FROM categoria WHERE tipo = 2 AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk;"
-      sql_documentos = "SELECT doc.id, doc.const FROM cdocumentos AS doc INNER JOIN cfg_cxp_docs AS cfg ON cfg.documento = doc.id WHERE IFNULL(cfg.pagable,0);"
+      url=@VIEW_FORM_GASTO + "?_context=#<url_encode(to.json(context))>&_from_url_e=#<url_encode(@VIEW_LOAD_CFDI)>"
       
       new rec
       {
-         @"proveedor*":ifnull(dt_proveedor,record.create())
-         @"gastos*":gastos
-         @"categorias*" : RecFromList(dbr.list(db,sql,@null),"$sys_pk","$descripcion")
-         @"tipo_documentos*":RecFromList(dbr.list(db,sql_documentos,@null),"$id","$const")
-         @"fpagos*":from.json('{
-            "1":"Contado",
-            "2":"Crédito"
-         }')
+         @"url_redir":ftext(url)
       }
-      sql = "SELECT c.sys_pk, CONCAT(c.nombre,' (',d.codigo,')') nombre, c.idivisa, d.codigo AS cdivisa, d.tcambio FROM chequera c INNER JOIN divisa d ON d.sys_pk = c.idivisa WHERE NOT IFNULL(c.sys_deleted,0) ORDER BY c.sys_pk;"
-      ref cuentas=dbr.list(db,sql,@null)
-      rec<"cuentas*"> : RecFromList(cuentas,"$sys_pk","$nombre")
-      sql = "SELECT doc.id,doc.const FROM cdocumentos doc INNER JOIN cfg_chq_docs cfg ON cfg.documento = doc.id WHERE IFNULL(cfg.retiros,0) ORDER BY doc.id;"
-      rec<"documentos*"> : RecFromList(dbr.list(db,sql,@null),"$id","$const")
-      rec<"datacuentas*">:cuentas
-
       return rec
    }
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
@@ -402,55 +380,7 @@ module ""
       }
       return rec
    }
-   CreateGasto::&db,&params,&data
-   {
-      ref detalle=from.json(@@(data,"$detalle"))
-      @use_transaction = @false
-         do dbr.apps.action.pre("GX34")
-      do dbr.begin(db)
-      
-      ref proveedor=dbr.rec(db,"SELECT p.sys_pk,p.codigo,d.sys_pk divisa,d.codigo coddivisa FROM proveedor p INNER JOIN divisa d ON p.idivisa=d.sys_pk where p.sys_pk=@proveedor",data)
-      if isnull(proveedor){do rise_error(500,"No se encontró el proveedor")}
-
-      @create_exclude_fields = ""
-      @update_exclude_fields = @create_exclude_fields
-      
-      for i = 0; i < @count(detalle)
-      {
-         ref gasto=@item(detalle,i)
-         using gasto
-         {
-            @"proveedor":@@(proveedor,"#sys_pk")
-            @"formapago":@@(gasto,"#pago")
-            @"documento":@@(gasto,"#iddocumento")
-            @"cuenta":@@(gasto,"#icuenta")
-            @"divisa":@@(proveedor,"#divisa")
-            @"importe":@@(gasto,"#total")
-         }
-         
-         new p{@"_entities_type":"ut_gasto"}
-         @table_name="ut_gasto"
-         do ut.agregarGasto(db,p,gasto)
-      }
-      
-         do dbr.apps.action.pos(@null)
-      do dbr.commit(db)
-         do dbr.apps.action.ext(@null)
-      
-      new rec
-      {
-         @"url_redir":@VIEW_LOAD_CFDI
-      }
-
-      return rec
-
-      exception
-      {
-         if dbr.in_transaction(db){ do dbr.rollback(db) }
-         do dbr.apps.action.log()
-         do rise_error(last_error_code(),last_error())
-      }
-   }
+   
    CreateCompra::&db,&params,&data
    {
       do errordet(@false)
@@ -574,7 +504,7 @@ module ""
       
       module "crear log"
       {
-         do CreateLog(@@(data,"$file-cfdi"),@@(_compra,"$sys_guid"))
+         do CreateLog(@@(data,"$file-cfdi"),@@(_compra,"$sys_guid"),@DET_LOG_COMPRA)
       }
 
       compra<"url_redir">: replace(@COMPRA_CONSULTAR,"{_doc}",@@(compra,"$sys_pk"))+"?_from_url_e="+url_encode(@VIEW_LOAD_CFDI)
@@ -595,7 +525,7 @@ module ""
       }
       
    }
-   CreateLog::idfile,guid
+   CreateLog::idfile,guid,det
    {
       path_file=GetPathFile(idfile)
       
@@ -610,7 +540,7 @@ module ""
       do list.add(files,file)
 
       @http_context<"request/files*">:files
-      do webshell.detlog.files.save(@DET_LOG_COMPRA,guid)
+      do webshell.detlog.files.save(det,guid)
       // exception{}
    }
    NewRec::

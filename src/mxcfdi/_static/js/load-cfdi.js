@@ -9,20 +9,6 @@ var load_cfdi=
         this.proveedor=document.getElementById("proveedor");
         this.tbl_datail=document.getElementById("tbl_datail");
         this.form_detalle=document.getElementById("form-detalle");
-
-        if(this.proveedor)this.proveedor.addEventListener("change",()=>
-        {
-            let data=this.proveedor.getValue();
-            if(this.module=="gasto" && data && Object.keys(data).length >0)
-            {
-                for (let i = 0; i < this.tbl_datail.DataArray.length; i++)
-                {
-                    var item = this.tbl_datail.DataArray[i];
-                    item["beneficiario"]=data.nombre;
-                    this.tbl_datail.UpdateRow(i);
-                }
-            }
-        });
     },
     ValidateModule()
     {
@@ -150,5 +136,6 @@ var load_cfdi=
         }
 
         InduxsoftCrudlModel.Submit(this.form_detalle,details);
-    }
+    },
+    
 }
