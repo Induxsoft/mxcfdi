@@ -6,7 +6,7 @@ module ""
    #include "compras/_lib/config.dk"
    #include "compras/doc_compra/model.dk"
    #include "webshell.dkh"
-
+   //obtiene la ruta del archivo subido con base a un id del archivo indicado
    GetPathFile::idfile
    {
       if file.exists(idfile){return idfile}
@@ -21,18 +21,22 @@ module ""
 
    list::&db,&params
    {
+      //obtenemos la ruta del archivo subido
       path_file=GetPathFile(@@(params,"$file-cfdi"))
       
       switch @@(params,"$module")
       {
          case "gasto"
          {
+            //preparamos los datos del gasto con base al CFDI y redireccionamos al formulario del gasto si todo fue correcto.
             ref entity=CreateDataGastoFromCFDI(db,params,path_file,@null)
             entity<"title">:"Nuevos gastos"
             break
          }
          default
          {
+            //preparamos los datos de la compra y redireccionamos a la compra creada si todo fue correcto
+            // si no redirigimos a una vista con detalles de los productos de la compra
             ref entity=CreateDataFromCFDI(db,params,path_file,@null)
             entity<"title">:"Registro de nuevos productos"
             break
@@ -47,6 +51,7 @@ module ""
    {
       if parse.bool(@@(data,"$load-cfdi"))
       {
+         //guardamos el cfdi subido por el usuario
          ref entity=SaveCfdiLoaded(db,params,data)
       }
       else 
@@ -66,33 +71,40 @@ module ""
    {
       return list.create()
    }
+   //Guarda y válida el archivo sudido por el usuario
    SaveCfdiLoaded::&db,&params,&data
    {
       do dbr.apps.action.grant("GX34")
-
+      
       ref files=@@(@http_context,"&request/files")
       if isnull(files) || @count(files)< 1{do rise_error(500,"No se recibío un CFDI")}
       if @count(files)> 1{do rise_error(500,"Solo puede subir un archivo")}
-
+      //obtenemos el primer archivo para procesar el CFDI
       ref file=@item(files,0)
       if not(file.exists(@@(file,"$temp_file"))) || @@(file,"#size")<1{do rise_error(500,"El archivo no es válido")}
 
       ref cfdi=parse.xmlStr(file.rtext(@@(file,"$temp_file")))
 
       if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es válido")}
-
+      //verificamos que el CFDI no sea una factura global
       ref nodo_global=cfdi.getElementByTagName(cfdi,"cfdi:InformacionGlobal")
       if not(isnull(nodo_global)){do rise_error(500,"El tipo de CFDI no es válido")}
 
       path_dir=replace(@default_path_cfdi_loaded,"@qname",@@(@http_context,"$session/idp/qname"))
       do dir.ensure(path_dir)
-
+      //quitamos cualquier simbolo raro del nombre del archivo
       uuid=CleanText(file.justname(@@(file,"$filename")))
       path_file=path.concat(path_dir,uuid+".xml")
 
       do file.copy(@@(file,"$temp_file"),path_file)
-
-      params<"validate">:@true
+      //parámetros para realizar validaciones de la referencia de la compra o gasto según el campo module
+      using params
+      {
+         @"validate":@true
+         @"confirmado":parse.bool(@@(data,"$confirmado"))
+         @"module": @@(data,"$module")
+      }
+      
       ref entity=@null
 
       switch @@(data,"$module")
@@ -104,17 +116,15 @@ module ""
           }
           default
           {
-              ref entity=CreateDataFromCFDI(db,params,path_file,cfdi)
-              break
+            ref entity=CreateDataFromCFDI(db,params,path_file,cfdi)
+            break
           }
       }
       
       if not(isnull(entity)){return entity}
 
-      new rec
-      {
-         @"url_redir":"./?module="+@@(data,"$module")+"&file-cfdi="+uuid
-      }
+      new rec{@"url_redir":"./?module="+@@(data,"$module")+"&file-cfdi="+uuid}
+
       return rec
    }
    //esto obtiene los datos del gasto, cada concepto es un gasto
@@ -125,26 +135,34 @@ module ""
       if isnull(cfdi){ref cfdi=parse.xmlStr(file.rtext(path_file))}
       
       if toupper(cfdi.attr(cfdi,"$TipoDeComprobante"))!="I" || trim(cfdi.attr(cfdi,"$TipoDeComprobante"))==""{do rise_error(500,"El tipo de CFDI no es víalido")}
-
+      //obtenermos el emisor(proveedor) del CFDI
       ref proveedor=cfdi.getElementByTagName(cfdi,"cfdi:Emisor")
 
       params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
-      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre from proveedor where rfc=@proveedor",params)
+      //obtenemos el proveedor de la base de datos con base al RFC del emisor(proveedor)
+      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre,rfc from proveedor where rfc=@proveedor",params)
+      //obtenemos el nodo conceptos del CFDI
       ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
+      //obtenemos los conceptos del CFDI
       ref conceptos=cfdi.nodes(node_conceptos)
-
+      
+      //obtenemos el attributo Fecha del CFDI
       fecha_cfdi=cfdi.attr(cfdi,"$Fecha")
       if trim(fecha_cfdi)!=""{fecha_cfdi=date_str(str2dt(fecha_cfdi),"yyyy-MM-dd")}
       else{fecha_cfdi=date_str(now(),"yyyy-MM-dd")}
 
-      serie=cfdi.attr(cfdi,"$Serie")
-      folio=cfdi.attr(cfdi,"$Folio")
-      referencia=serie+folio
-
+      //generamos la referencia con base al RFC proveedor / serie+folio
+      //Si la referencia ya existe en la tabla ut_gasto es porque el CFDI ya fue subido anteriormente y el sistema pregunta si ¿desea continuar?
+      ref data_referencia=GenReferencia(db,cfdi,dt_proveedor,params)
+      if trim(@@(data_referencia,"$message"))!=""{return data_referencia}
+      //obtenemos la referencia generado
+      referencia=@@(data_referencia,"$referencia")
+      
       //obtener impuestos traslados/retenciones
       iva=0
       retiva=0
       retisr=0
+      //recorremos los conceptos para obtener los impuestos iva,retisr,retiva
       for i = 0; i < @count(conceptos)
       {
          ref gasto=@item(conceptos,i)
@@ -164,6 +182,7 @@ module ""
                {
                   case "cfdi:Traslado"
                   {
+                     //en nodo de traslado solo tomamos en cuenta los impuestos 002 - IVA , no se consideran los impuestos IEPS
                      if cimpuesto=="002"{iva=iva + cfdi.attr(impuesto,"#Importe")}
                      break
                   }
@@ -178,6 +197,8 @@ module ""
             }
          }
       }
+      //Generamos el objeto que se le enviará al formulario de gasto cxp/gasto
+      // si el MetodoPago es PPD se define 2 - Crédito, si es PUE se define 1 - Contado.
       new context
       {
          @"fecha":fecha_cfdi
@@ -191,9 +212,9 @@ module ""
          @"subtotal":cfdi.attr(cfdi,"#SubTotal")
          @"proveedor":@@(dt_proveedor,"#sys_pk")
          @"sys_guid":uuid()
-         @"fmpago": if(toupper(cfdi.attr(cfdi,"MetodoPago"))=="PPD",2,1)
+         @"fmpago": if(toupper(cfdi.attr(cfdi,"$MetodoPago"))=="PPD",@fp_credito,@fp_contado)
       }
-      
+      //guardamos el archivo subido a la bitacora 
       do CreateLog(path_file,@@(context,"$sys_guid"),@_DET_GASTO)
 
       url=@VIEW_FORM_GASTO + "?_context=#<url_encode(to.json(context))>&_from_url_e=#<url_encode(@VIEW_LOAD_CFDI)>"
@@ -204,6 +225,7 @@ module ""
       }
       return rec
    }
+   //Prepará los datos de la compra de acuerdo a los datos del CFDI
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
    {
       do dbr.apps.action.grant("GX34")
@@ -215,7 +237,10 @@ module ""
       ref proveedor=cfdi.getElementByTagName(cfdi,"cfdi:Emisor")
 
       params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
-      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre from proveedor where rfc=@proveedor",params)
+      ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre,rfc from proveedor where rfc=@proveedor",params)
+      
+      ref data_referencia=GenReferencia(db,cfdi,dt_proveedor,params)
+      if trim(@@(data_referencia,"$message"))!=""{return data_referencia}
 
       ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
       ref conceptos=cfdi.nodes(node_conceptos)
@@ -324,7 +349,7 @@ module ""
             do list.add(array_productos_exist,p)
          }
       }
-
+      
       if @count(array_productos_noexist) < 1 && @count(array_productos_exist)> 0 && not(isnull(dt_proveedor))
       {
          //crear la compra y redirigir
@@ -334,7 +359,9 @@ module ""
             @"detalle":"[]"
             @"proveedor":@@(dt_proveedor,"#sys_pk")
             @"file-cfdi":path_file
+            @"referencia":trim(@@(data_referencia,"$referencia"))
          }
+         
          return CreateCompra(db,params,data)
       }
       
@@ -377,10 +404,11 @@ module ""
          @"marcas*": RecFromList(marca,"$sys_pk","$descripcion")
          @"departamentos*": RecFromList(departamento,"$sys_pk","$descripcion")
          @"proveedores*": RecFromList(proveedores,"$sys_pk","$nombre")
+         @"referencia":trim(@@(data_referencia,"$referencia"))
       }
       return rec
    }
-   
+   //crea la compra de acuerdo a los datos indicados en el campo data
    CreateCompra::&db,&params,&data
    {
       do errordet(@false)
@@ -389,7 +417,7 @@ module ""
       ref detalle=from.json(@@(data,"$detalle"))
       proveedor=@@(data,"#proveedor")
 
-      // ref nuevabd
+      // iniciamos transaccion
       do dbr.begin(db)
 
       //recorrer detalle para insertar productos
@@ -445,11 +473,13 @@ module ""
       for i = 0; i < @count(detalle)
       {
          ref dt=@item(detalle,i)
+         //preparamos los datos del nuevo producto
          ref producto=NewProd(dt)
-         
+         //verificamos si el producto ya existe
          ref prd=dbr.rec(db,sql_prod,dt)
          if not(isnull(prd))
          {
+            //realimos validaciones del producto
             if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
             else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
             else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
@@ -457,9 +487,9 @@ module ""
             else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
          }
          //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
-
+         //creamos el producto con los datos del CFDI
          do dbr.insert(db,"producto",producto)
-
+         //obtenemos la sys_pk del producto ya creado
          producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
          if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
 
@@ -468,12 +498,13 @@ module ""
             @"notas":@@(dt,"$nota")
             @"descuento":@@(dt,"#descuento")
          }
+         //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
          rec_dcompra<"tipocambio">:tcambio
          do list.add(dcompra,rec_dcompra)
       }
       
-
+      // recorremos el array de los producto existentes
       for j = 0; j < @count(productos_exist)
       {
          ref dt=@item(productos_exist,j)
@@ -486,14 +517,14 @@ module ""
             @"notas":@@(dt,"$nota")
             @"descuento":@@(dt,"#descuento")
          }
-
+         //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
          rec_dcompra<"tipocambio">:dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",producto)
 
          do list.add(dcompra,rec_dcompra)
       }
       if @count(dcompra)< 1{do rise_error(500,"No hay detalle de la compra")}
-      // compras.crear(db)
+
       //agregar detalle de la compra
       compra<"_detalle*">:dcompra
 
@@ -504,20 +535,19 @@ module ""
       
       module "crear log"
       {
+         //guardamos el archivo subido a la bitacora de la compra
          do CreateLog(@@(data,"$file-cfdi"),@@(_compra,"$sys_guid"),@DET_LOG_COMPRA)
       }
-
+      //asigamos la url de redirección, a la compra ya creada
       compra<"url_redir">: replace(@COMPRA_CONSULTAR,"{_doc}",@@(compra,"$sys_pk"))+"?_from_url_e="+url_encode(@VIEW_LOAD_CFDI)
 
       return compra
 
       exception
       {
-         // if trans njuevabd rooll
          if isset("db")
          {
             if dbr.in_transaction(db){do dbr.rollback(db)}
-            // dbr.close nuevabd
             do dbr.close(db)
          }
          
@@ -525,6 +555,7 @@ module ""
       }
       
    }
+   //Guarda el archivo subido a la bitacora de la compra o gasto
    CreateLog::idfile,guid,det
    {
       path_file=GetPathFile(idfile)
@@ -543,6 +574,7 @@ module ""
       do webshell.detlog.files.save(det,guid)
       // exception{}
    }
+   //Funciones de utilidad para crear una compra
    NewRec::
    {
       new rec
@@ -632,11 +664,12 @@ module ""
    {
       now=dbr.str(db,"select trim(DATE(NOW()))",@null)
 
+      referencia=ifstr(trim(@@(data,"$referencia"))!="",trim(@@(data,"$referencia")),toupper("C"+cut(uuid(),20)))
       new compra
       {
          @"iproveedor": @@(data,"#proveedor")
          @"documento": @cFactura
-         @"referencia": toupper("C"+cut(uuid(),20))
+         @"referencia": referencia
          @"fecha":now
          @"fentrega":now
          @"vencimiento": now
@@ -683,7 +716,46 @@ module ""
       
       return dcompra
    }
+   //validaciones
+   //Generar referencia de la compra o gasto de acuerdo al campo module de params
+   GenReferencia::&db,&cfdi,&proveedor,&params
+   {
+      new rec{}
+      serie=cfdi.attr(cfdi,"$Serie")
+      folio=cfdi.attr(cfdi,"$Folio")
+      //formamos la referencia con base a la serie y folio del CFDI
+      referencia=serie+folio
+      //si la referencia es vació se le asigna un uuid
+      if trim(referencia)==""{referencia=toupper(uuid())}
+      else{referencia=ifstr(trim(@@(proveedor,"$rfc"))!="",trim(@@(proveedor,"$rfc"))+"/","") + referencia}
 
+      @_table="compra"
+      cantidad_cortar= 25
+      if trim(@@(params,"$module"))=="gasto"
+      {
+         @_table="ut_gasto"
+         cantidad_cortar= 50
+      }
+      referencia=cut(referencia,cantidad_cortar)
+      
+      referencia >> rec
+      //buscamos si la referencia generada del cfdi ya se encuentra registrada en la tabla compra o ut_gasto segun sea el caso
+      cantidad_referencia_exist=dbr.num(db,ftext("SELECT COUNT(*) FROM #<@_table> t WHERE t.referencia LIKE concat('',@referencia,'%')"),rec)
+      //realizamos la validacion, si ya existe en la base de datos
+      if parse.bool(@@(params,"$validate")) && not(parse.bool(@@(params,"$confirmado"))) && cantidad_referencia_exist > 0
+      {
+         rec<"message">:"El CFDI ya fue subido anteriormente, ¿Desea continuar?"
+         return rec
+      }
+      // si la referencia ya existe en la tabla compra o ut_gasto, se le concatena _ más un número consecuito
+      if cantidad_referencia_exist > 0{referencia=referencia+"_"+str(cantidad_referencia_exist)}
+      //si la longitud de la referencia sobre pasa a la longitud del campo se realiza un corte de acuerdo a la longitud del campo referencia de cada tabla
+      referencia=cut(referencia,cantidad_cortar)
+      referencia >> rec
+
+      return rec
+   }
+   //funciones de utilidad
    function get_impuesto_info(&rec, precio, cantidad,field)
 	{
       @zonaImpuesto = 0 //0-Interior, 1-Frontera configuración

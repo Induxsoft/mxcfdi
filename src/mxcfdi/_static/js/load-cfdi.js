@@ -134,8 +134,46 @@ var load_cfdi=
         {
             detalle:this.tbl_datail.DataArray
         }
-
+        
         InduxsoftCrudlModel.Submit(this.form_detalle,details);
     },
-    
+    Submit(idform,confirmar,confirmado=false)
+    {
+        let success=null;
+        let details={confirmado:confirmado};
+        if(confirmar)
+        {
+            success= (data)=>
+            {
+                if(data.message)
+                {
+                    if(!confirm(data.message))
+                    {
+                        this.DisableControls(idform,false);
+                        return;
+                    }
+                    this.Submit(idform,confirmar,true);
+                    return;
+                }
+                if(data.url_redir)window.location.href = data.url_redir ?? "../";
+                else window.location.reload();
+            }
+        }
+
+        InduxsoftCrudlModel.Submit(idform,details,success);
+    },
+    DisableControls(formOrId,disable)
+    {
+        const form = (typeof formOrId === "string") ? document.getElementById(formOrId) : formOrId;
+
+        const v12FormBar = document.getElementById("v12FormBar_content");
+        if (v12FormBar) v12FormBar.querySelectorAll("button,a").forEach(v12btn => {
+            v12btn.style.pointerEvents = (disable) ? "none" : "";
+            v12btn.style.backgroundColor = (disable) ? "#e9ecef" : "";
+            v12btn.style.opacity = (disable) ? "1" : "";
+        });
+        form.querySelectorAll("button").forEach(frmbtn => {
+            frmbtn.disabled = disable;
+        });
+    }
 }

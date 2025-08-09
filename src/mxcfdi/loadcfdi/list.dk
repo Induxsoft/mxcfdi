@@ -20,7 +20,7 @@ module ""
             @"print":@true
         }
     }
-
+    if @count(@('&./productos_noexist'))<1{@crud_context<"./productos_noexist">:list.create()}
     #$
     div(class="container-fluid v12-list-view" id="view")
     {

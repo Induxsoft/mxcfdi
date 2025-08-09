@@ -4,8 +4,20 @@ input(type="hidden" class="induxsoft-form-control" id="file-cfdi" name="file-cfd
 
 div
 {
-    label(class="form-label" "for"="proveedor"){$"Proveedor:"}
-    "input-key"(name="proveedor" id="proveedor" "data-key"="sys_pk" required="true" "data-search"="codigo" "data-text"="nombre" "data-source"="#<@URL_BUSCAR_PROVEEDOR>" "data-value"="#<to.json(@('&./proveedor'))>" columns="codigo,nombre" colcaptions="Código,Nombre" "control-styles"="#<ik_sm_style>"){$""}
+    div(class="row")
+    {
+        div(class="col-md-8")
+        {
+            label(class="form-label" "for"="proveedor"){$"Proveedor:"}
+            "input-key"(name="proveedor" id="proveedor" "data-key"="sys_pk" required="true" "data-search"="codigo" "data-text"="nombre" "data-source"="#<@URL_BUSCAR_PROVEEDOR>" "data-value"="#<to.json(@('&./proveedor'))>" columns="codigo,nombre" colcaptions="Código,Nombre" "control-styles"="#<ik_sm_style>"){$""}
+        }
+        div(class="col-md-4")
+        {
+            label{"Referencia:"}
+            input(type="text" class="induxsoft-form-control" id="referencia" name="referencia" value="#<@('$./referencia')>" maxlength="25" required="true")
+        }
+    }
+    
 }
 div
 {

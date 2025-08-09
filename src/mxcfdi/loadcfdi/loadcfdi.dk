@@ -24,6 +24,7 @@ module ""
     #$
     div(class="container v12-list-view" id="view")
     {
+        script(src="#<@JS_LOAD_CFDI>"){""}
         section(id="top_area")
         {
             #!
@@ -67,7 +68,7 @@ module ""
                                 }
                                 div(class="col-md-2")
                                 {
-                                    button(type="button" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" onclick="InduxsoftCrudlModel.Submit('#<@@(data,'$idform')>')" style="height: 43px;")
+                                    button(type="button" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print" onclick="load_cfdi.Submit('#<@@(data,'$idform')>',#<@@(data,'confirm')>)" style="height: 43px;")
                                     {
                                         "SUBIR "
                                         $'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cloud-upload" viewBox="0 0 16 16">
