@@ -42,8 +42,6 @@ module ""
             break
          }
       }
-      
-      
       return entity
    }
 
@@ -225,6 +223,56 @@ module ""
       }
       return rec
    }
+   IdentificarImpuesto::&db,&impuestos
+   {
+      for j = 0; j < @count(impuestos)
+      {
+         ref obj_impuesto=@item(impuestos,j)
+         ref _impuesto=cfdi.nodes(obj_impuesto)
+         
+         for a = 0; a < @count(_impuesto)
+         {
+            ref impuesto=@item(_impuesto,a)
+            
+            cimpuesto=trim(cfdi.attr(impuesto,"$Impuesto"))
+            tasacuota=trun(cfdi.attr(impuesto,"#TasaOCuota") * 100)
+            
+            new p
+            {
+               @"tasacuota":tasacuota
+               @"cimpuesto":cimpuesto
+               @"name_imp":ifstr(cimpuesto=="003","ieps","iva")
+            }
+            sql="select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                     from cfgimpuesto c
+                     WHERE concat_ws(' ',c.i1compra,c.i2compra,c.i3compra,c.i4compra) LIKE CONCAT('%',@tasacuota,'%')
+                     ORDER BY c.sys_pk LIMIT 1"
+
+            ref imp=dbr.rec(db,sql,p)
+            
+            if isnull(imp)
+            {
+               ref imp=dbr.rec(db,"select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                  from cfgimpuesto c
+                  WHERE 
+                  c.nombre LIKE '%@cimpuesto%'
+                  ORDER BY c.sys_pk LIMIT 1",p)
+            }
+            if isnull(imp)
+            {
+               ref imp=dbr.rec(db,"select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                  from cfgimpuesto c
+                  WHERE 
+                  c.nombre LIKE '%@name_imp%'
+                  ORDER BY c.sys_pk LIMIT 1",p)
+            }
+
+            return imp
+         }
+      }
+
+      return @null
+   }
    //Prepará los datos de la compra de acuerdo a los datos del CFDI
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
    {
@@ -244,7 +292,9 @@ module ""
 
       ref node_conceptos=cfdi.getElementByTagName(cfdi,"cfdi:Conceptos")
       ref conceptos=cfdi.nodes(node_conceptos)
-
+      ref node_impuestos=cfdi.getElementByTagName(cfdi,"cfdi:Impuestos")
+      ref ndimpuestos=cfdi.nodes(node_impuestos)
+      
       new rec
       {
          @"proveedor*":ifnull(dt_proveedor,record.create())
@@ -254,7 +304,9 @@ module ""
       p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
       p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion 
       from producto p 
-      where p.codigo=@codigo
+      where #<@__conditional_search_prd>"
+
+      @__conditional_search_prd="p.codigo=@codigo
       or p.codbar1=@codigo
       or p.codbar2=@codigo
       or p.codbar3=@codigo
@@ -268,28 +320,40 @@ module ""
       for i = 0; i < @count(conceptos)
       {
          ref concepto=@item(conceptos,i)
-         params<"codigo">:cfdi.attr(concepto,"$NoIdentificacion")
+         codigo=cfdi.attr(concepto,"$NoIdentificacion")
+         descripcion=cfdi.attr(concepto,"$Descripcion")
 
-         ref producto=dbr.rec(db,sql,params)
+         params<"codigo">:codigo
+         if trim(@@(params,"$codigo"))==""
+         {
+            codigo=uuid()
+            if trim(descripcion)==""{descripcion=codigo}
+
+            @__conditional_search_prd="p.descripcion"
+            params<"codigo">:descripcion
+         }
+
+         ref producto=dbr.rec(db,ftext(sql),params)
+         
          if isnull(producto)
          {
             ref p=NewRec()
 
             ref def_divisa=dbr.rec(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where codigo='mxn'",@null)
-            ref def_impuesto=dbr.rec(db,"select sys_pk,nombre from cfgimpuesto ORDER BY sys_pk",@null)
+            ref def_impuesto=dbr.rec(db,"select sys_pk,nombre from cfgimpuesto ORDER BY sys_pk limit 1",@null)
             ref def_clase=dbr.rec(db,"select id sys_pk,const nombre from cclaseproducto where id =4",@null)
             ref def_tipo=dbr.rec(db,"select id sys_pk,const nombre from ctipoproducto where id=2",@null)
             ref def_metodovaluacion=dbr.rec(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
 
             using p
             {
-               @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",@@(params,"$codigo"),@@(producto,"$uf_codigoparaproveedor1"))
-               @"codigo":@@(params,"$codigo")
-               @"descripcion":cfdi.attr(concepto,"$Descripcion")
-               @"ultimocosto": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
-               @"precio1": parse.num(cfdi.attr(concepto,"$ValorUnitario"))
-               @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
-               @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
+               @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",codigo,@@(producto,"$uf_codigoparaproveedor1"))
+               @"codigo":codigo
+               @"descripcion":descripcion
+               @"ultimocosto": parse.num(cfdi.attr(concepto,"#ValorUnitario"))
+               @"precio1": parse.num(cfdi.attr(concepto,"#ValorUnitario"))
+               @"cantidad": parse.num(cfdi.attr(concepto,"#Cantidad"))
+               @"descuento": parse.num(cfdi.attr(concepto,"#Descuento"))
             }
             //divisa
             if not(isnull(def_divisa))
@@ -300,8 +364,19 @@ module ""
                   @"divisa": @@(def_divisa,"$descripcion")
                }
             }
+
             //impuesto
-            if not(isnull(def_impuesto))
+            ref impuesto_idnt=IdentificarImpuesto(db,ndimpuestos)
+            
+            if not(isnull(impuesto_idnt))
+            {
+               using p
+               {
+                  @"idimpuesto":@@(impuesto_idnt,"#sys_pk")
+                  @"impuesto":@@(impuesto_idnt,"$nombre")
+               }
+            }
+            else if not(isnull(def_impuesto))
             {
                using p
                {
@@ -365,6 +440,11 @@ module ""
          return CreateCompra(db,params,data)
       }
       
+      if @count(array_productos_noexist) < 1 && @count(array_productos_exist)< 1
+      {
+         do rise_error(500,"No se encontraron productos del xml")
+      }
+
       if parse.bool(@@(params,"$validate")){return @null}
 
       ref linea=@null
@@ -417,6 +497,8 @@ module ""
       ref detalle=from.json(@@(data,"$detalle"))
       proveedor=@@(data,"#proveedor")
 
+      ref dt_proveedor=dbr.rec(db,"select sys_pk,sys_guid,if(tasaiva=2,-1,1) AS zimpuesto from proveedor where sys_pk=@proveedor",data)
+      if isnull(dt_proveedor){do rise_error(500,"No se encontró los datos del proveedor")}
       // iniciamos transaccion
       do dbr.begin(db)
 
@@ -497,10 +579,11 @@ module ""
          {
             @"notas":@@(dt,"$nota")
             @"descuento":@@(dt,"#descuento")
+            @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
+            @"tcambio_compra":tcambio
          }
          //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
-         rec_dcompra<"tipocambio">:tcambio
          do list.add(dcompra,rec_dcompra)
       }
       
@@ -509,17 +592,18 @@ module ""
       {
          ref dt=@item(productos_exist,j)
          ref producto=dbr.rec(db,sql,dt)
-
+         
          if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
 
          using producto
          {
             @"notas":@@(dt,"$nota")
             @"descuento":@@(dt,"#descuento")
+            @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
+            @"tcambio_compra":tcambio
          }
          //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
-         rec_dcompra<"tipocambio">:dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",producto)
 
          do list.add(dcompra,rec_dcompra)
       }
@@ -529,6 +613,8 @@ module ""
       compra<"_detalle*">:dcompra
 
       ref _compra=doc.agregar(db,params,compra)
+      do doc.actualizarTotales(db,@@(_compra,"#sys_pk"))
+
       compra<"sys_pk">:@@(_compra,"#sys_pk")
 
       do dbr.commit(db)
@@ -688,10 +774,21 @@ module ""
    }
    NewDcompra::&db,&data
    {
-      ref imp=dbr.rec(db,"select sys_pk,i1compra,i2compra,i3compra from cfgimpuesto where sys_pk=@impuestos",data)
-      cantidad=if(field.exist(data,"cantidad"),@@(data,"#cantidad"),1)
-      ref impuestos=get_impuesto_info(imp,@@(data,"#precio1"),cantidad,"i3compra")
+      if not(field.exist(data,"zimpuesto")){do rise_error(500,"No ha definido la zona impuesto")}
 
+      ref imp=dbr.rec(db,"select sys_pk,i1compra,i2compra,i3compra, 
+      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i1compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i1_tasa,
+      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i2compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i2_tasa,
+      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i3compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i3_tasa,
+      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i4compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i4_tasa
+      from cfgimpuesto as i where sys_pk=@impuestos",data)
+
+      if isnull(imp){do rise_error(500,"No se encontró datos del impuesto indicado")}
+      
+      cantidad=if(field.exist(data,"cantidad"),@@(data,"#cantidad"),1)
+      tipocambio=dbr.num(db,"select ifnull(tcambio,0) from divisa where sys_pk=@idivisa",data)
+      ref impuestos=get_impuesto_info(db,imp,data,cantidad,tipocambio)
+      
       new dcompra
       {
          @"cantidad": cantidad
@@ -701,7 +798,7 @@ module ""
          @"descuento2": 0
          @"factor":@@(data,"#factorb")
          @"status": 1 //por recibir
-         @"tipocambio":dbr.num(db,"select ifnull(tcambio,0) from divisa where sys_pk=@idvisa",data)
+         @"tipocambio":tipocambio
          @"unidad":@@(data,"$unidad")
          @"xfacturar": 1
          @"doc_partida*":@null
@@ -712,7 +809,7 @@ module ""
          @"impuesto4": @@(impuestos,"#impuesto4")
          @"notas":@@(data,"$notas")
       }
-      dcompra<"costototal">:(@@(dcompra,"#cantidad") * @@(dcompra,"#precio")) + (@@(impuestos,"#impuesto1")+@@(impuestos,"#impuesto2")+@@(impuestos,"#impuesto3")+@@(impuestos,"#impuesto4"))
+      dcompra<"costototal">:@@(dcompra,"#precio") 
       
       return dcompra
    }
@@ -756,28 +853,54 @@ module ""
       return rec
    }
    //funciones de utilidad
-   function get_impuesto_info(&rec, precio, cantidad,field)
+   function get_impuesto_info(&db,&imp,&data,cantidad,tipocambio)
 	{
-      @zonaImpuesto = 0 //0-Interior, 1-Frontera configuración
-		importe_adicional=0
-		p_descuento1=0 //Porcentajes de descuento aplicables
-		p_descuento2=0
+      tcambio_compra=@@(data,"#tcambio_compra")
+      
+      if tcambio_compra<1{tcambio_compra=1}
+      if tipocambio<1{tipocambio=1}
 
-		desc1=0 //Importes totales a descontar con base en el porcentaje y la cantidad
-		desc2=0
+      //convertir a la divisa del producto con base a la divisa de la compra
+      factor=(tipocambio/tcambio_compra)
+      using data
+      {
+         @"precio1":@@(data,"#precio1") * factor
+         @"descuento":@@(data,"#descuento") * factor
+      }
+      //==========
+      costo = @@(data,"#precio1")
+      descuentos = @@(data,"#descuento")
+      i1_tasa = @@(imp,"#i1_tasa")
+      i2_tasa = @@(imp,"#i2_tasa")
+      i3_tasa = @@(imp,"#i3_tasa")
+      i4_tasa = @@(imp,"#i4_tasa")
 
-      subtotal=precio * cantidad
-      i3 = (subtotal * (parseImpuesto(field.dstr(rec,field,""),@zonaImpuesto)/100))
-      bruto = subtotal + i3
+      subtotal = (costo * cantidad)
+      sub_desc = (subtotal - descuentos)
+      impuesto1 = (sub_desc * i1_tasa)
+      impuesto2 = (sub_desc * i2_tasa)
 
-		new precioInfo
-		{
-         @"impuesto1": 0
-         @"impuesto2": 0
-         @"impuesto3": round(i3, @DecimalesEnImportes)
-         @"impuesto4": 0
-         @"precio_bruto": round(bruto, @DecimalesEnImportes)
-		}
+      i1_i2 = (impuesto1 + impuesto2)
+      sub_desc_i1_i2 = (sub_desc + i1_i2)
+      impuesto3 = (sub_desc_i1_i2 * i3_tasa)
+      impuesto4 = (sub_desc_i1_i2 * i4_tasa)
+      i3_i4 = (impuesto3 + impuesto4)
+      impuestos = (i1_i2 + i3_i4)
+      total = (sub_desc + impuestos)
+
+      new precioInfo
+      {
+         @"costo": costo
+         @"cantidad": cantidad
+         @"subtotal": subtotal
+         @"descuentos": descuentos
+         @"impuestos": impuestos
+         @"total": total
+         @"impuesto1": impuesto1
+         @"impuesto2": impuesto2
+         @"impuesto3": impuesto3
+         @"impuesto4": impuesto4
+      }
 
 		return precioInfo
 	}
