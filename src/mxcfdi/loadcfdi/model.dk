@@ -225,6 +225,8 @@ module ""
    }
    IdentificarImpuesto::&db,&impuestos
    {
+      ref impuestos=cfdi.nodes(impuestos)
+      
       for j = 0; j < @count(impuestos)
       {
          ref obj_impuesto=@item(impuestos,j)
@@ -233,7 +235,7 @@ module ""
          for a = 0; a < @count(_impuesto)
          {
             ref impuesto=@item(_impuesto,a)
-            
+
             cimpuesto=trim(cfdi.attr(impuesto,"$Impuesto"))
             tasacuota=trun(cfdi.attr(impuesto,"#TasaOCuota") * 100)
             
@@ -302,7 +304,8 @@ module ""
 
       sql="select 
       p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
-      p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion 
+      p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion,
+      unidad,unidadb,unidadc,unidadd,unidade
       from producto p 
       where #<@__conditional_search_prd>"
 
@@ -317,13 +320,29 @@ module ""
       ref array_productos_noexist=list.create()
       ref array_productos_exist=list.create()
       
+      ref def_divisa=dbr.rec(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where codigo='mxn'",@null)
+      ref def_impuesto=dbr.rec(db,"select sys_pk,nombre from cfgimpuesto ORDER BY sys_pk limit 1",@null)
+      ref def_clase=dbr.rec(db,"select id sys_pk,const nombre from cclaseproducto where id =4",@null)
+      ref def_tipo=dbr.rec(db,"select id sys_pk,const nombre from ctipoproducto where id=2",@null)
+      ref def_metodovaluacion=dbr.rec(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
+      
+      
       for i = 0; i < @count(conceptos)
       {
          ref concepto=@item(conceptos,i)
+         ref _impuestos=cfdi.getElementByTagName(concepto,"cfdi:Impuestos")
+         
          codigo=cfdi.attr(concepto,"$NoIdentificacion")
          descripcion=cfdi.attr(concepto,"$Descripcion")
+         unidad_prod=toupper(trim(cfdi.attr(concepto,"$Unidad")))
+         precio=parse.num(cfdi.attr(concepto,"$ValorUnitario"))
 
          params<"codigo">:codigo
+         using params
+         {
+            @"preciocfi":precio
+            @"unidad":unidad_prod
+         }
          if trim(@@(params,"$codigo"))==""
          {
             codigo=uuid()
@@ -338,13 +357,6 @@ module ""
          if isnull(producto)
          {
             ref p=NewRec()
-
-            ref def_divisa=dbr.rec(db,"select sys_pk,concat_ws(' - ',codigo,descripcion)descripcion from divisa where codigo='mxn'",@null)
-            ref def_impuesto=dbr.rec(db,"select sys_pk,nombre from cfgimpuesto ORDER BY sys_pk limit 1",@null)
-            ref def_clase=dbr.rec(db,"select id sys_pk,const nombre from cclaseproducto where id =4",@null)
-            ref def_tipo=dbr.rec(db,"select id sys_pk,const nombre from ctipoproducto where id=2",@null)
-            ref def_metodovaluacion=dbr.rec(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
-
             using p
             {
                @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",codigo,@@(producto,"$uf_codigoparaproveedor1"))
@@ -354,6 +366,8 @@ module ""
                @"precio1": parse.num(cfdi.attr(concepto,"#ValorUnitario"))
                @"cantidad": parse.num(cfdi.attr(concepto,"#Cantidad"))
                @"descuento": parse.num(cfdi.attr(concepto,"#Descuento"))
+               @"unidad":unidad_prod
+               @"unidadcompra":unidad_prod
             }
             //divisa
             if not(isnull(def_divisa))
@@ -364,9 +378,8 @@ module ""
                   @"divisa": @@(def_divisa,"$descripcion")
                }
             }
-
             //impuesto
-            ref impuesto_idnt=IdentificarImpuesto(db,ndimpuestos)
+            ref impuesto_idnt=IdentificarImpuesto(db,_impuestos)
             
             if not(isnull(impuesto_idnt))
             {
@@ -415,12 +428,25 @@ module ""
          }
          else 
          {
+            unidad=tolower(trim(@@(producto,"$unidad")))
+            unidadb=tolower(trim(@@(producto,"$unidadb")))
+            unidadc=tolower(trim(@@(producto,"$unidadc")))
+            unidadd=tolower(trim(@@(producto,"$unidadd")))
+            unidade=tolower(trim(@@(producto,"$unidade")))
+
             new p
             {
                @"sys_pk":@@(producto,"#sys_pk")
                @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
                @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
+               @"precio1": precio
             }
+            if unidad_prod!="" && unidad_prod!=unidad && unidad_prod!=unidadb && unidad_prod!=unidadc && unidad_prod!=unidadd && unidad_prod!=unidade
+            {
+               p<"notas">:"<span style='color:red'>Verifique unidad Y precio</span>"  
+            }
+            if unidad_prod!=""{p<"unidad">:toupper(unidad_prod)}
+
             do list.add(array_productos_exist,p)
          }
       }
@@ -545,9 +571,6 @@ module ""
       or p.descripcion=@descripcion
       "
 
-      // or p.uf_codigoparaproveedor1=@codigo
-      // or p.uf_codigoparaproveedor2=@codigo
-      // or p.uf_codigoparaproveedor3=@codigo
       ref compra=NewCompra(db,data)
       tcambio=dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",compra)
 
@@ -582,6 +605,7 @@ module ""
             @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
             @"tcambio_compra":tcambio
          }
+         if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
          //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
          do list.add(dcompra,rec_dcompra)
@@ -601,7 +625,11 @@ module ""
             @"descuento":@@(dt,"#descuento")
             @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
             @"tcambio_compra":tcambio
+            @"unidad":ifstr(trim(@@(dt,"$unidad"))!="",trim(@@(dt,"$unidad")),@@(producto,"$unidadb"))
+            @"notas":@@(dt,"$notas")
          }
+
+         if @@(dt,"#precio1")> 0{producto<"precio1">:@@(dt,"#precio1")}
          //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
 
@@ -759,7 +787,7 @@ module ""
          @"fecha":now
          @"fentrega":now
          @"vencimiento": now
-         @"idivisa": dbr.num(db,"select sys_pk from divisa where codigo='mxn'",@null)
+         @"idivisa": dbr.num(db,"SELECT d.sys_pk FROM divisa d INNER JOIN proveedor p ON d.sys_pk=p.sys_pk WHERE p.sys_pk=@proveedor",data)
          @"tipocambio": 1
          @"ialmacen": dbr.num(db,"select sys_pk from almacen limit 1",@null)
          @"indirectos": 0
@@ -813,6 +841,7 @@ module ""
       
       return dcompra
    }
+   
    //validaciones
    //Generar referencia de la compra o gasto de acuerdo al campo module de params
    GenReferencia::&db,&cfdi,&proveedor,&params
