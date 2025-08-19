@@ -600,7 +600,7 @@ module ""
 
          using producto
          {
-            @"notas":@@(dt,"$nota")
+            @"notas":@@(dt,"$nota") //nota agregado en la tabla de deatalles(det-compra.dkl)
             @"descuento":@@(dt,"#descuento")
             @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
             @"tcambio_compra":tcambio
@@ -621,12 +621,11 @@ module ""
 
          using producto
          {
-            @"notas":@@(dt,"$nota")
             @"descuento":@@(dt,"#descuento")
             @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
             @"tcambio_compra":tcambio
             @"unidad":ifstr(trim(@@(dt,"$unidad"))!="",trim(@@(dt,"$unidad")),@@(producto,"$unidadb"))
-            @"notas":@@(dt,"$notas")
+            @"notas":@@(dt,"$notas") //nota agregado al validar si el producto ya existe con base al código
          }
 
          if @@(dt,"#precio1")> 0{producto<"precio1">:@@(dt,"#precio1")}
