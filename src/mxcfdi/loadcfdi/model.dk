@@ -786,7 +786,7 @@ module ""
          @"fecha":now
          @"fentrega":now
          @"vencimiento": now
-         @"idivisa": dbr.num(db,"SELECT d.sys_pk FROM divisa d INNER JOIN proveedor p ON d.sys_pk=p.sys_pk WHERE p.sys_pk=@proveedor",data)
+         @"idivisa": dbr.num(db,"SELECT d.sys_pk FROM divisa d INNER JOIN proveedor p ON p.idivisa=d.sys_pk WHERE p.sys_pk=@proveedor",data)
          @"tipocambio": 1
          @"ialmacen": dbr.num(db,"select sys_pk from almacen limit 1",@null)
          @"indirectos": 0
