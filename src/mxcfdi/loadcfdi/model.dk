@@ -223,6 +223,111 @@ module ""
       }
       return rec
    }
+   IdentificarImpuestoByConcepto::&db,&impuestos,searchimp
+   {
+      i1_tasa= 0
+      i2_tasa= 0
+      i3_tasa= 0
+      i4_tasa= 0
+      i1= 0 //ieps
+      i2= 0
+      i3= 0 //iva
+      i4= 0 //retencion
+      ref _imp_idt=@null
+      ref impuestos=cfdi.nodes(impuestos)
+      for j = 0; j < @count(impuestos)
+      {
+         ref obj_impuesto=@item(impuestos,j)
+         ref _impuesto=cfdi.nodes(obj_impuesto)
+
+         for a = 0; a < @count(_impuesto)
+         {
+            ref impuesto=@item(_impuesto,a)
+            cimpuesto=trim(cfdi.attr(impuesto,"$Impuesto"))
+            tasacuota=cfdi.attr(impuesto,"#TasaOCuota")
+
+            if isnull(_imp_idt) && searchimp
+            {
+               new p
+               {
+                  @"tasacuota":tasacuota
+                  @"cimpuesto":cimpuesto
+                  @"name_imp":ifstr(cimpuesto=="003","ieps","iva")
+               }
+               sql="select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                        from cfgimpuesto c
+                        WHERE concat_ws(' ',c.i1compra,c.i2compra,c.i3compra,c.i4compra) LIKE CONCAT('%',@tasacuota,'%')
+                        ORDER BY c.sys_pk LIMIT 1"
+
+               ref _imp_idt=dbr.rec(db,sql,p)
+               
+               if isnull(_imp_idt)
+               {
+                  ref _imp_idt=dbr.rec(db,"select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                     from cfgimpuesto c
+                     WHERE 
+                     c.nombre LIKE '%@cimpuesto%'
+                     ORDER BY c.sys_pk LIMIT 1",p)
+               }
+               if isnull(_imp_idt)
+               {
+                  ref _imp_idt=dbr.rec(db,"select sys_pk,nombre,c.i1compra,c.i2compra,c.i3compra,c.i4compra 
+                     from cfgimpuesto c
+                     WHERE 
+                     c.nombre LIKE '%@name_imp%'
+                     ORDER BY c.sys_pk LIMIT 1",p)
+               }
+            }
+            switch @@(impuesto,"$name")
+            {
+               case "cfdi:Traslado"
+               {
+                  //en nodo de traslado solo tomamos en cuenta los impuestos 002 - IVA , no se consideran los impuestos IEPS
+                  if cimpuesto=="002" //iva
+                  {
+                     if i3_tasa== 0 && tasacuota>0{i3_tasa=tasacuota}
+                     i3=i3 + cfdi.attr(impuesto,"#Importe")
+                  }
+                  else if cimpuesto=="003" //ieps
+                  {
+                     if i1_tasa== 0 && tasacuota>0{i1_tasa=tasacuota}
+                     i1=i1 + cfdi.attr(impuesto,"#Importe")
+                  }
+                  else //si no se cononce y es traslado se asume iva i3
+                  {
+                     if i3_tasa== 0 && tasacuota>0{i3_tasa=tasacuota}
+                     i3=i3 + cfdi.attr(impuesto,"#Importe")
+                  }
+                  break
+               }
+               case "cfdi:Retencion"
+               {
+                  if i4_tasa==0 && tasacuota> 0{i4_tasa=tasacuota}
+
+                  i4=i4 + cfdi.attr(impuesto,"#Importe")
+
+                  break
+               }
+            }
+         }
+      }
+
+      new imp
+      {
+         @"i1_tasa": i1_tasa
+         @"i2_tasa": i2_tasa
+         @"i3_tasa": i3_tasa
+         @"i4_tasa": i4_tasa
+         @"i1": i1
+         @"i2": i2
+         @"i3": i3
+         @"i4": i4
+         @"impuesto*":_imp_idt
+         @"use_this":@true
+      }
+
+      return imp
+   }
    IdentificarImpuesto::&db,&impuestos
    {
       ref impuestos=cfdi.nodes(impuestos)
@@ -305,7 +410,8 @@ module ""
       sql="select 
       p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
       p.uf_codigoparaproveedor1,p.uf_codigoparaproveedor2,p.descripcion,
-      unidad,unidadb,unidadc,unidadd,unidade
+      unidad,unidadb,unidadc,unidadd,unidade,
+      factorb,factorc,factord,factore
       from producto p 
       where #<@__conditional_search_prd>"
 
@@ -353,7 +459,8 @@ module ""
          }
 
          ref producto=dbr.rec(db,ftext(sql),params)
-         
+         ref _impuesto_concepto=IdentificarImpuestoByConcepto(db,_impuestos,isnull(producto))
+
          if isnull(producto)
          {
             ref p=NewRec()
@@ -379,7 +486,7 @@ module ""
                }
             }
             //impuesto
-            ref impuesto_idnt=IdentificarImpuesto(db,_impuestos)
+            ref impuesto_idnt=@@(_impuesto_concepto,"&impuesto")
             
             if not(isnull(impuesto_idnt))
             {
@@ -424,10 +531,12 @@ module ""
                   @"metodovaluacion":@@(def_metodovaluacion,"$nombre")
                }
             }
+            p<"objimpuesto*">:_impuesto_concepto
             do list.add(array_productos_noexist,p)
          }
          else 
          {
+            unidad_prod=tolower(unidad_prod)
             unidad=tolower(trim(@@(producto,"$unidad")))
             unidadb=tolower(trim(@@(producto,"$unidadb")))
             unidadc=tolower(trim(@@(producto,"$unidadc")))
@@ -441,14 +550,22 @@ module ""
                @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
                @"precio1": precio
             }
-            if unidad_prod!="" && unidad_prod!=unidad && unidad_prod!=unidadb && unidad_prod!=unidadc && unidad_prod!=unidadd && unidad_prod!=unidade
+            if unidad_prod!="" 
             {
-               p<"notas">:"<span style='color:red'>Verifique unidad Y precio</span>"  
-            }
-            if unidad_prod!=""{p<"unidad">:toupper(unidad_prod)}
+               if unidad_prod==unidadb { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+      format(@@(producto,"$factorb"),"#.0")  }
+               else if unidad_prod==unidadc { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+ format(@@(producto,"$factorc"),"#.0")  }
+               else if unidad_prod==unidadd { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+ format(@@(producto,"$factord"),"#.0")  }
+               else if unidad_prod==unidade{ p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: " + format(@@(producto,"$factore"),"#.0") }
+               else if unidad_prod==unidad { /* no hacer nada */}
+               else{p<"notas">:"<span style='color:red'>Verifique unidad Y precio</span>" }
 
+               p<"unidad">:toupper(unidad_prod)
+            }
+
+            p<"objimpuesto*">:_impuesto_concepto
             do list.add(array_productos_exist,p)
          }
+         
       }
       
       if @count(array_productos_noexist) < 1 && @count(array_productos_exist)> 0 && not(isnull(dt_proveedor))
@@ -468,7 +585,7 @@ module ""
       
       if @count(array_productos_noexist) < 1 && @count(array_productos_exist)< 1
       {
-         do rise_error(500,"No se encontraron productos del xml")
+         do rise_error(500,"No se encontrarón productos del xml")
       }
 
       if parse.bool(@@(params,"$validate")){return @null}
@@ -604,6 +721,7 @@ module ""
             @"descuento":@@(dt,"#descuento")
             @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
             @"tcambio_compra":tcambio
+            @"objimpuesto*":@@(dt,"&objimpuesto")
          }
          if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
          //generamos los datos del detalle de la compra(dcompra)
@@ -626,6 +744,7 @@ module ""
             @"tcambio_compra":tcambio
             @"unidad":ifstr(trim(@@(dt,"$unidad"))!="",trim(@@(dt,"$unidad")),@@(producto,"$unidadb"))
             @"notas":@@(dt,"$notas") //nota agregado al validar si el producto ya existe con base al código
+            @"objimpuesto*":@@(dt,"&objimpuesto")
          }
 
          if @@(dt,"#precio1")> 0{producto<"precio1">:@@(dt,"#precio1")}
@@ -803,12 +922,16 @@ module ""
    {
       if not(field.exist(data,"zimpuesto")){do rise_error(500,"No ha definido la zona impuesto")}
 
-      ref imp=dbr.rec(db,"select sys_pk,i1compra,i2compra,i3compra, 
-      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i1compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i1_tasa,
-      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i2compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i2_tasa,
-      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i3compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i3_tasa,
-      (CONVERT(REPLACE(SUBSTRING_INDEX(i.i4compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i4_tasa
-      from cfgimpuesto as i where sys_pk=@impuestos",data)
+      ref imp=@@(data,"&objimpuesto")
+      if isnull(imp)
+      {
+         ref imp=dbr.rec(db,"select sys_pk,i1compra,i2compra,i3compra, 
+         (CONVERT(REPLACE(SUBSTRING_INDEX(i.i1compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i1_tasa,
+         (CONVERT(REPLACE(SUBSTRING_INDEX(i.i2compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i2_tasa,
+         (CONVERT(REPLACE(SUBSTRING_INDEX(i.i3compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i3_tasa,
+         (CONVERT(REPLACE(SUBSTRING_INDEX(i.i4compra, '|', @zimpuesto),'%',''), DECIMAL(18,6)) / 100) AS i4_tasa
+         from cfgimpuesto as i where sys_pk=@impuestos",data)
+      }
 
       if isnull(imp){do rise_error(500,"No se encontró datos del impuesto indicado")}
       
@@ -905,13 +1028,29 @@ module ""
 
       subtotal = (costo * cantidad)
       sub_desc = (subtotal - descuentos)
-      impuesto1 = (sub_desc * i1_tasa)
-      impuesto2 = (sub_desc * i2_tasa)
+      
+      if parse.bool(@@(imp,"use_this"))
+      {
+         impuesto1=@@(imp,"#i1") * factor
+         impuesto2=@@(imp,"#i2") * factor
+         impuesto3=@@(imp,"#i3") * factor
+         impuesto4=@@(imp,"#i4") * factor
+         
+         if impuesto4 > 0{impuesto4=impuesto4 * -1}
 
-      i1_i2 = (impuesto1 + impuesto2)
-      sub_desc_i1_i2 = (sub_desc + i1_i2)
-      impuesto3 = (sub_desc_i1_i2 * i3_tasa)
-      impuesto4 = (sub_desc_i1_i2 * i4_tasa)
+         i1_i2 = (impuesto1 + impuesto2)
+      }
+      else 
+      {
+         impuesto1 = (sub_desc * i1_tasa)
+         impuesto2 = (sub_desc * i2_tasa)
+
+         i1_i2 = (impuesto1 + impuesto2)
+         sub_desc_i1_i2 = (sub_desc + i1_i2)
+         impuesto3 = (sub_desc_i1_i2 * i3_tasa)
+         impuesto4 = (sub_desc_i1_i2 * i4_tasa)
+      }
+      
       i3_i4 = (impuesto3 + impuesto4)
       impuestos = (i1_i2 + i3_i4)
       total = (sub_desc + impuestos)
