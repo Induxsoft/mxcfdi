@@ -469,8 +469,8 @@ module ""
                @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",codigo,@@(producto,"$uf_codigoparaproveedor1"))
                @"codigo":codigo
                @"descripcion":descripcion
-               @"ultimocosto": parse.num(cfdi.attr(concepto,"#ValorUnitario"))
-               @"precio1": parse.num(cfdi.attr(concepto,"#ValorUnitario"))
+               @"ultimocosto": precio
+               @"precio1": precio
                @"cantidad": parse.num(cfdi.attr(concepto,"#Cantidad"))
                @"descuento": parse.num(cfdi.attr(concepto,"#Descuento"))
                @"unidad":unidad_prod
@@ -548,6 +548,7 @@ module ""
                @"sys_pk":@@(producto,"#sys_pk")
                @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
                @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
+               @"ultimocosto": precio
                @"precio1": precio
             }
             if unidad_prod!="" 
@@ -736,7 +737,11 @@ module ""
          ref producto=dbr.rec(db,sql,dt)
          
          if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
-
+         if field.exist(dt,"ultimocosto")
+         {
+            dt<"_prod">:@@(producto,"#sys_pk")
+            do dbr.execute(db,"update producto set costoultimo=@ultimocosto where sys_pk=@_prod",dt)
+         }
          using producto
          {
             @"descuento":@@(dt,"#descuento")
