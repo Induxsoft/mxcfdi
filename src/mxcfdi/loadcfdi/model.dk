@@ -542,24 +542,35 @@ module ""
             unidadc=tolower(trim(@@(producto,"$unidadc")))
             unidadd=tolower(trim(@@(producto,"$unidadd")))
             unidade=tolower(trim(@@(producto,"$unidade")))
-
+            cantidad=parse.num(cfdi.attr(concepto,"$Cantidad"))
             new p
             {
                @"sys_pk":@@(producto,"#sys_pk")
-               @"cantidad": parse.num(cfdi.attr(concepto,"$Cantidad"))
+               @"cantidad": cantidad
                @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
                @"ultimocosto": precio
                @"precio1": precio
             }
             if unidad_prod!="" 
             {
-               if unidad_prod==unidadb { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+      format(@@(producto,"$factorb"),"#.0")  }
-               else if unidad_prod==unidadc { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+ format(@@(producto,"$factorc"),"#.0")  }
-               else if unidad_prod==unidadd { p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: "+ format(@@(producto,"$factord"),"#.0")  }
-               else if unidad_prod==unidade{ p<"notas">:"Unidad: "+toupper(unidad_prod)+ " Factor: " + format(@@(producto,"$factore"),"#.0") }
-               else if unidad_prod==unidad { /* no hacer nada */}
-               else{p<"notas">:"<span style='color:red'>Verifique unidad Y precio</span>" }
+               factor= 1 //unidad estandar
+               show_notas=@true
 
+               str_notas="Uni: #<toupper(unidad_prod)> Factor: #<format(factor,'#.0')> x #<cantidad> = #<format(factor * cantidad,'#,0.00')> #<toupper(unidad)>"
+               
+               if unidad_prod==unidadb {factor= @@(producto,"#factorb")}
+               else if unidad_prod==unidadc { factor= @@(producto,"#factorc")}
+               else if unidad_prod==unidadd { factor= @@(producto,"#factord") }
+               else if unidad_prod==unidade { factor= @@(producto,"#factore")}
+               else if unidad_prod==unidad{/* show_notas=@false */ }
+               else
+               {
+                  show_notas=@false 
+                  p<"notas">:"<span style='color:red'>Verifique unidad y precio</span>" 
+               }
+
+               p<"factor">:factor
+               if show_notas{p<"notas">:ftext(str_notas)}
                p<"unidad">:toupper(unidad_prod)
             }
 
@@ -751,7 +762,7 @@ module ""
             @"notas":@@(dt,"$notas") //nota agregado al validar si el producto ya existe con base al código
             @"objimpuesto*":@@(dt,"&objimpuesto")
          }
-
+         if field.exist(dt,"factor"){producto<"factorb">:@@(dt,"#factor")}
          if @@(dt,"#precio1")> 0{producto<"precio1">:@@(dt,"#precio1")}
          //generamos los datos del detalle de la compra(dcompra)
          ref rec_dcompra=NewDcompra(db,producto)
@@ -955,7 +966,7 @@ module ""
          @"status": 1 //por recibir
          @"tipocambio":tipocambio
          @"unidad":@@(data,"$unidad")
-         @"xfacturar": 1
+         @"xfacturar": cantidad
          @"doc_partida*":@null
          @"documento*":@null
          @"impuesto1": @@(impuestos,"#impuesto1")
