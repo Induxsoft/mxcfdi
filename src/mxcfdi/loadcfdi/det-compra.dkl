@@ -1,7 +1,7 @@
 #$
 input(type="hidden" class="induxsoft-form-control" id="productos_exist" name="productos_exist" value="#<to.json(@('&./productos_exist'))>")
 input(type="hidden" class="induxsoft-form-control" id="file-cfdi" name="file-cfdi" value="#<@('$parameters/file-cfdi')>")
-
+input(type="hidden" class="induxsoft-form-control" id="_data" name="_data" value="#<to.json(@('&.'))>")
 div
 {
     div(class="row")

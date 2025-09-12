@@ -93,7 +93,7 @@ module "Funciones de propósito general"
 
         attr::&elemento,attrname
         {
-            return @@(@@(elemento,"&attributes"),attrname)
+            return @@(record.caseinsensitive(@@(elemento,"&attributes")),attrname)
         }
 
         nodes::&elemento

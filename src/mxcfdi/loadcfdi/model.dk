@@ -587,9 +587,11 @@ module ""
          {
             @"productos_exist":to.json(array_productos_exist)
             @"detalle":"[]"
+            @"_data":"[]"
             @"proveedor":@@(dt_proveedor,"#sys_pk")
             @"file-cfdi":path_file
             @"referencia":trim(@@(data_referencia,"$referencia"))
+            @"uuid_xml":trim(@@(data_referencia,"$uuid_xml"))
          }
          
          return CreateCompra(db,params,data)
@@ -640,6 +642,7 @@ module ""
          @"departamentos*": RecFromList(departamento,"$sys_pk","$descripcion")
          @"proveedores*": RecFromList(proveedores,"$sys_pk","$nombre")
          @"referencia":trim(@@(data_referencia,"$referencia"))
+         @"uuid_xml":trim(@@(data_referencia,"$uuid_xml"))
       }
       return rec
    }
@@ -647,7 +650,7 @@ module ""
    CreateCompra::&db,&params,&data
    {
       do errordet(@false)
-
+      ref _data=from.json(@@(data,"$_data"))
       ref productos_exist=from.json(@@(data,"$productos_exist"))
       ref detalle=from.json(@@(data,"$detalle"))
       proveedor=@@(data,"#proveedor")
@@ -701,6 +704,7 @@ module ""
       "
 
       ref compra=NewCompra(db,data)
+      compra<"uuid_xml">:@@(_data,"$uuid_xml")
       tcambio=dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",compra)
 
       ref dcompra=list.create()
@@ -985,32 +989,55 @@ module ""
    GenReferencia::&db,&cfdi,&proveedor,&params
    {
       new rec{}
-      serie=cfdi.attr(cfdi,"$Serie")
-      folio=cfdi.attr(cfdi,"$Folio")
+      serie=trim(cfdi.attr(cfdi,"$Serie"))
+      folio=trim(cfdi.attr(cfdi,"$Folio"))
       //formamos la referencia con base a la serie y folio del CFDI
       referencia=serie+folio
-      //si la referencia es vació se le asigna un uuid
-      if trim(referencia)==""{referencia=toupper(uuid())}
-      else{referencia=ifstr(trim(@@(proveedor,"$rfc"))!="",trim(@@(proveedor,"$rfc"))+"/","") + referencia}
 
-      @_table="compra"
-      cantidad_cortar= 25
-      if trim(@@(params,"$module"))=="gasto"
-      {
-         @_table="ut_gasto"
-         cantidad_cortar= 50
-      }
-      referencia=cut(referencia,cantidad_cortar)
-      
-      referencia >> rec
+      //obtenemos el uuid de la factura
+      ref complemento=cfdi.getElementByTagName(cfdi,"cfdi:Complemento")
+      ref timbrefiscal=cfdi.getElementByTagName(complemento,"tfd:TimbreFiscalDigital")
+      uuid=cfdi.attr(timbrefiscal,"$uuid")
+      rec<"uuid_xml">:uuid
+
       //buscamos si la referencia generada del cfdi ya se encuentra registrada en la tabla compra o ut_gasto segun sea el caso
-      cantidad_referencia_exist=dbr.num(db,ftext("SELECT COUNT(*) FROM #<@_table> t WHERE t.referencia LIKE concat('',@referencia,'%')"),rec)
+      sql="SELECT COUNT(*) FROM #<@_table> t WHERE t.referencia LIKE concat('',@referencia,'%')"
+      __validar=@false
+      switch trim(@@(params,"$module"))
+      {
+         case "gasto"
+         {
+            //si la referencia es vació se le asigna un uuid
+            @_table="ut_gasto"
+            cantidad_cortar= 50
+            if trim(referencia)==""{referencia=toupper(uuid())}
+            else{referencia=ifstr(trim(@@(proveedor,"$rfc"))!="",trim(@@(proveedor,"$rfc"))+"/","") + referencia}
+            break
+         }
+         default
+         {
+            @_table="compra"
+            cantidad_cortar= 25
+            if trim(referencia)==""{referencia=toupper(uuid())}
+            if trim(uuid)!=""{__validar=dbr.num(db,ftext("SELECT COUNT(*) FROM #<@_table> t WHERE t.uuid_xml=@uuid_xml"),rec)> 0}
+            break
+         }
+      }
+      
+      referencia=cut(referencia,cantidad_cortar)
+      referencia >> rec
+
+      cantidad_referencia_exist=dbr.num(db,ftext(sql),rec)
+      
+      if cantidad_referencia_exist > 0 && (@_table=="ut_gasto" || trim(uuid)==""){__validar=@true}
+
       //realizamos la validacion, si ya existe en la base de datos
-      if parse.bool(@@(params,"$validate")) && not(parse.bool(@@(params,"$confirmado"))) && cantidad_referencia_exist > 0
+      if parse.bool(@@(params,"$validate")) && not(parse.bool(@@(params,"$confirmado"))) && __validar
       {
          rec<"message">:"El CFDI ya fue subido anteriormente, ¿Desea continuar?"
          return rec
       }
+      
       // si la referencia ya existe en la tabla compra o ut_gasto, se le concatena _ más un número consecuito
       if cantidad_referencia_exist > 0{referencia=referencia+"_"+str(cantidad_referencia_exist)}
       //si la longitud de la referencia sobre pasa a la longitud del campo se realiza un corte de acuerdo a la longitud del campo referencia de cada tabla
