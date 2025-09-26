@@ -14,6 +14,7 @@ GX32,Emitir CFDI por cobros,mxcfdi.emision
 GX33,Emitir CFDI por bonificaciones,mxcfdi.emision
 GX34,Importar CFDI de compra,mxcfdi.emision
 GXF1,Importar CFDI de gasto,mxcfdi.emision
+GX35,Relacionar producto existente,mxcfdi.emision
 mxcfdi.factglobal,Orden de factura global,mxcfdi
 GX40,Orden de factura global,mxcfdi.factglobal
 GX41,Crear orden de factura global,mxcfdi.factglobal

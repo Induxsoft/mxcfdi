@@ -4,6 +4,7 @@ module ""
 {
     #include "functions.dkh"
     #include "serialize.dkh"
+    #include "uielements.dkl"
     #include "uielements.v12.dkl"
     #include "mxcfdi/_lib/config.dk"
 
@@ -61,6 +62,22 @@ module ""
                     }
                     default
                     {
+                        new sel_almacen
+                        {
+                            @"datatable*": ifnull(@("&./list_almacenes"),list.create())
+                            @"id": "sel_almacen"
+                            new member "attributes"
+                            {
+                                @"class": "form-select form-select-sm rounded-0"
+                                @"name": "ialmacen"
+                                @"required": ""
+                            }
+                            @"first_value": "0"
+                            @"first_text": "Seleccionar"
+                            @"value_field": "sys_pk"
+                            @"text_field": "descripcion"
+                            @"selected": @("#./ialmacen")
+                        }
                         #include "det-compra.dkl"
                         break
                     }
@@ -72,6 +89,7 @@ module ""
         {
             $'
             load_cfdi.module="#<@("$parameters/module")>";
+            load_cfdi.canrelacionar="#<@("$./canrelacionar")>";
             '
         }
     }

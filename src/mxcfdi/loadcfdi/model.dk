@@ -380,6 +380,46 @@ module ""
 
       return @null
    }
+   SetDataProducto::&producto,&p,precio,unidad_prod,cantidad,descuento
+   {
+      unidad_prod=tolower(unidad_prod)
+      unidad=tolower(trim(@@(producto,"$unidad")))
+      unidadb=tolower(trim(@@(producto,"$unidadb")))
+      unidadc=tolower(trim(@@(producto,"$unidadc")))
+      unidadd=tolower(trim(@@(producto,"$unidadd")))
+      unidade=tolower(trim(@@(producto,"$unidade")))
+      
+      using p
+      {
+         @"sys_pk":@@(producto,"#sys_pk")
+         @"cantidad": cantidad
+         @"descuento": descuento
+         @"ultimocosto": precio
+         @"precio1": precio
+      }
+      if unidad_prod!="" 
+      {
+         factor= 1 //unidad estandar
+         show_notas=@true
+
+         str_notas="Uni: #<toupper(unidad_prod)> Factor: #<format(factor,'#.0')> x #<cantidad> = #<format(factor * cantidad,'#,0.00')> #<toupper(unidad)>"
+         
+         if unidad_prod==unidadb {factor= @@(producto,"#factorb")}
+         else if unidad_prod==unidadc { factor= @@(producto,"#factorc")}
+         else if unidad_prod==unidadd { factor= @@(producto,"#factord") }
+         else if unidad_prod==unidade { factor= @@(producto,"#factore")}
+         else if unidad_prod==unidad{/* show_notas=@false */ }
+         else
+         {
+            show_notas=@false 
+            p<"notas">:"<span style='color:red'>Verifique unidad y precio</span>" 
+         }
+
+         p<"factor">:factor
+         if show_notas{p<"notas">:ftext(str_notas)}
+         p<"unidad">:toupper(unidad_prod)
+      }
+   }
    //Prepará los datos de la compra de acuerdo a los datos del CFDI
    CreateDataFromCFDI::&db,&params,path_file,&cfdi
    {
@@ -393,6 +433,7 @@ module ""
 
       params<"proveedor">:cfdi.attr(proveedor,"$Rfc")
       ref dt_proveedor=dbr.rec(db,"select sys_pk,codigo,nombre,rfc from proveedor where rfc=@proveedor",params)
+      params<"idproveedor">:@@(dt_proveedor,"#sys_pk")
       
       ref data_referencia=GenReferencia(db,cfdi,dt_proveedor,params)
       if trim(@@(data_referencia,"$message"))!=""{return data_referencia}
@@ -402,10 +443,7 @@ module ""
       ref node_impuestos=cfdi.getElementByTagName(cfdi,"cfdi:Impuestos")
       ref ndimpuestos=cfdi.nodes(node_impuestos)
       
-      new rec
-      {
-         @"proveedor*":ifnull(dt_proveedor,record.create())
-      }
+      new rec{@"proveedor*":ifnull(dt_proveedor,record.create())}
 
       sql="select 
       p.sys_pk,p.codigo,p.codbar1,p.codbar2,p.codbar3,p.costopromedio,p.costoultimo,p.uf_codigoparaproveedor3,
@@ -419,9 +457,9 @@ module ""
       or p.codbar1=@codigo
       or p.codbar2=@codigo
       or p.codbar3=@codigo
-      or p.uf_codigoparaproveedor1=@codigo
-      or p.uf_codigoparaproveedor2=@codigo
-      or p.uf_codigoparaproveedor3=@codigo"
+      or (p.uf_codigoparaproveedor1=@codigo and p.proveedor1=@idproveedor)
+      or (p.uf_codigoparaproveedor2=@codigo and p.proveedor2=@idproveedor)
+      or (p.uf_codigoparaproveedor3=@codigo and p.proveedor3=@idproveedor)"
 
       ref array_productos_noexist=list.create()
       ref array_productos_exist=list.create()
@@ -438,8 +476,8 @@ module ""
          ref concepto=@item(conceptos,i)
          ref _impuestos=cfdi.getElementByTagName(concepto,"cfdi:Impuestos")
          
-         codigo=cfdi.attr(concepto,"$NoIdentificacion")
-         descripcion=cfdi.attr(concepto,"$Descripcion")
+         codigo=trim(cfdi.attr(concepto,"$NoIdentificacion"))
+         descripcion=trim(cfdi.attr(concepto,"$Descripcion"))
          unidad_prod=toupper(trim(cfdi.attr(concepto,"$Unidad")))
          precio=parse.num(cfdi.attr(concepto,"$ValorUnitario"))
 
@@ -449,15 +487,19 @@ module ""
             @"preciocfi":precio
             @"unidad":unidad_prod
          }
+         //si el codigo (NoIdentificacion) es vacío , tomamos la decripcion para buscar el producto
+         //realizamos la busqueda con base a la descripción contra los campos definidos en al consulta, la descripcion lo cotamos a 50
+         //para poder buscar con los siguientes campos codigo,codbar1,codbar2,codbar3,uf_codigoparaproveedor1,uf_codigoparaproveedor2,uf_codigoparaproveedor3 y validamos su proveedor
          if trim(@@(params,"$codigo"))==""
          {
             codigo=uuid()
-            if trim(descripcion)==""{descripcion=codigo}
+            if descripcion==""{descripcion=codigo}
 
-            @__conditional_search_prd="p.descripcion"
-            params<"codigo">:descripcion
+            @__conditional_search_prd=@__conditional_search_prd + " or p.descripcion=@descripcion"
+            params<"codigo">:cut(descripcion,50) //cortamos a 50 , ya que la longitud de los campos uf_codigoparaproveedor1 es de 50
+            params<"descripcion">:descripcion
          }
-
+         // Buscamos el producto
          ref producto=dbr.rec(db,ftext(sql),params)
          ref _impuesto_concepto=IdentificarImpuestoByConcepto(db,_impuestos,isnull(producto))
 
@@ -468,6 +510,7 @@ module ""
             {
                @"codigoprod1":ifstr(trim(@@(producto,"$uf_codigoparaproveedor1"))=="",codigo,@@(producto,"$uf_codigoparaproveedor1"))
                @"codigo":codigo
+               @"codigomd5":md5(codigo)
                @"descripcion":descripcion
                @"ultimocosto": precio
                @"precio1": precio
@@ -536,58 +579,23 @@ module ""
          }
          else 
          {
-            unidad_prod=tolower(unidad_prod)
-            unidad=tolower(trim(@@(producto,"$unidad")))
-            unidadb=tolower(trim(@@(producto,"$unidadb")))
-            unidadc=tolower(trim(@@(producto,"$unidadc")))
-            unidadd=tolower(trim(@@(producto,"$unidadd")))
-            unidade=tolower(trim(@@(producto,"$unidade")))
-            cantidad=parse.num(cfdi.attr(concepto,"$Cantidad"))
-            new p
-            {
-               @"sys_pk":@@(producto,"#sys_pk")
-               @"cantidad": cantidad
-               @"descuento": parse.num(cfdi.attr(concepto,"$Descuento"))
-               @"ultimocosto": precio
-               @"precio1": precio
-            }
-            if unidad_prod!="" 
-            {
-               factor= 1 //unidad estandar
-               show_notas=@true
-
-               str_notas="Uni: #<toupper(unidad_prod)> Factor: #<format(factor,'#.0')> x #<cantidad> = #<format(factor * cantidad,'#,0.00')> #<toupper(unidad)>"
-               
-               if unidad_prod==unidadb {factor= @@(producto,"#factorb")}
-               else if unidad_prod==unidadc { factor= @@(producto,"#factorc")}
-               else if unidad_prod==unidadd { factor= @@(producto,"#factord") }
-               else if unidad_prod==unidade { factor= @@(producto,"#factore")}
-               else if unidad_prod==unidad{/* show_notas=@false */ }
-               else
-               {
-                  show_notas=@false 
-                  p<"notas">:"<span style='color:red'>Verifique unidad y precio</span>" 
-               }
-
-               p<"factor">:factor
-               if show_notas{p<"notas">:ftext(str_notas)}
-               p<"unidad">:toupper(unidad_prod)
-            }
-
+            new p{}
+            do SetDataProducto(producto,p,precio,unidad_prod,parse.num(cfdi.attr(concepto,"$Cantidad")),parse.num(cfdi.attr(concepto,"$Descuento")))
             p<"objimpuesto*">:_impuesto_concepto
             do list.add(array_productos_exist,p)
          }
          
       }
       
-      if @count(array_productos_noexist) < 1 && @count(array_productos_exist)> 0 && not(isnull(dt_proveedor))
+      if @count(array_productos_noexist) < 1 && @count(array_productos_exist)> 0 && not(isnull(dt_proveedor)) && @@(params,"#ialmacen") > 0
       {
          //crear la compra y redirigir
+         new _data{@"ialmacen":@@(params,"#ialmacen")}
          new data
          {
             @"productos_exist":to.json(array_productos_exist)
             @"detalle":"[]"
-            @"_data":"[]"
+            @"_data":to.json(_data)
             @"proveedor":@@(dt_proveedor,"#sys_pk")
             @"file-cfdi":path_file
             @"referencia":trim(@@(data_referencia,"$referencia"))
@@ -643,8 +651,16 @@ module ""
          @"proveedores*": RecFromList(proveedores,"$sys_pk","$nombre")
          @"referencia":trim(@@(data_referencia,"$referencia"))
          @"uuid_xml":trim(@@(data_referencia,"$uuid_xml"))
+         @"list_almacenes*":dbr.list(db,"SELECT sys_pk, descripcion FROM almacen where ifnull(sys_deleted,0)=0 ORDER BY sys_pk ASC;",@null)
+         @"canrelacionar":HashPrivileges("GX35")
       }
       return rec
+   }
+   HashPrivileges::idsitem
+   {
+      do dbr.apps.action.grant(idsitem)
+      return ""
+      exception{return last_error()}
    }
    //crea la compra de acuerdo a los datos indicados en el campo data
    CreateCompra::&db,&params,&data
@@ -689,7 +705,9 @@ module ""
                reqlote,
                reqserie,
                uf_sat_proser,
-               uf_sat_uniproser 
+               uf_sat_uniproser ,
+               unidad,unidadb,unidadc,unidadd,unidade,
+               factorb,factorc,factord,factore
                FROM producto where sys_pk=@sys_pk or sys_guid=@sys_guid"
 
       sql_prod="select 
@@ -705,44 +723,67 @@ module ""
 
       ref compra=NewCompra(db,data)
       compra<"uuid_xml">:@@(_data,"$uuid_xml")
+      compra<"ialmacen">:@@(data,"#ialmacen")
       tcambio=dbr.num(db,"select ifnull(tcambio,1) from divisa where sys_pk=@idivisa",compra)
 
       ref dcompra=list.create()
+      //recorremos los productos no existentes
       for i = 0; i < @count(detalle)
       {
          ref dt=@item(detalle,i)
-         //preparamos los datos del nuevo producto
-         ref producto=NewProd(dt)
-         //verificamos si el producto ya existe
-         ref prd=dbr.rec(db,sql_prod,dt)
-         if not(isnull(prd))
+         //la badera idrelacionado nos indica que el producto ya fue relacionado 
+         
+         if @@(dt,"#idrelacionado") < 1
          {
-            //realimos validaciones del producto
-            if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
-            else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
-            else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
-            else if trim(@@(prd,"$codbar3"))!="" && trim(@@(prd,"$codbar3"))==trim(@@(dt,"$codbar3")){do rise_error(500,"Ya existe un producto con el mismo código de barra 3: "+@@(dt,"$codbar3"))}
-            else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
-         }
-         //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
-         //creamos el producto con los datos del CFDI
-         do dbr.insert(db,"producto",producto)
-         //obtenemos la sys_pk del producto ya creado
-         producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
-         if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
+            //validar permiso de agregar producto
+            do dbr.apps.action.grant("CF11")
 
-         using producto
-         {
-            @"notas":@@(dt,"$nota") //nota agregado en la tabla de deatalles(det-compra.dkl)
-            @"descuento":@@(dt,"#descuento")
-            @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
-            @"tcambio_compra":tcambio
-            @"objimpuesto*":@@(dt,"&objimpuesto")
+            //preparamos los datos del nuevo producto
+            ref producto=NewProd(dt)
+            
+            //verificamos si el producto ya existe
+            ref prd=dbr.rec(db,sql_prod,dt)
+            if not(isnull(prd))
+            {
+               //realimos validaciones del producto
+               if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
+               else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
+               else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
+               else if trim(@@(prd,"$codbar3"))!="" && trim(@@(prd,"$codbar3"))==trim(@@(dt,"$codbar3")){do rise_error(500,"Ya existe un producto con el mismo código de barra 3: "+@@(dt,"$codbar3"))}
+               else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+            }
+            //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+            //creamos el producto con los datos del CFDI
+            do dbr.insert(db,"producto",producto)
+            //obtenemos la sys_pk del producto ya creado
+            producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
+            if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
+
+            using producto
+            {
+               @"notas":@@(dt,"$nota") //nota agregado en la tabla de deatalles(det-compra.dkl)
+               @"descuento":@@(dt,"#descuento")
+               @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
+               @"tcambio_compra":tcambio
+               @"objimpuesto*":@@(dt,"&objimpuesto")
+            }
+            if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
+            //generamos los datos del detalle de la compra(dcompra)
+            ref rec_dcompra=NewDcompra(db,producto)
+            do list.add(dcompra,rec_dcompra)
          }
-         if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
-         //generamos los datos del detalle de la compra(dcompra)
-         ref rec_dcompra=NewDcompra(db,producto)
-         do list.add(dcompra,rec_dcompra)
+         else
+         {
+            //agrgamos al array de productos existentes para ser agregado a la compra
+            dt<"sys_pk">:@@(dt,"#idrelacionado")
+            ref producto=dbr.rec(db,sql,dt)
+            new p{@"objimpuesto*":@@(dt,"&objimpuesto")}
+            if not(isnull(producto))
+            {
+               do SetDataProducto(producto,p,@@(dt,"#precio1"),@@(dt,"$unidadcompra"),@@(dt,"#cantidad"),@@(dt,"#descuento"))
+               do list.add(productos_exist,p)
+            }
+         }
       }
       
       // recorremos el array de los producto existentes
@@ -777,7 +818,7 @@ module ""
 
       //agregar detalle de la compra
       compra<"_detalle*">:dcompra
-
+      
       ref _compra=doc.agregar(db,params,compra)
       do doc.actualizarTotales(db,@@(_compra,"#sys_pk"))
 

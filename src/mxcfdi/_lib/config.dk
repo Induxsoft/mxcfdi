@@ -45,6 +45,7 @@ module "Variables globales"
 	@default_scfdi_path = "data/@qname/mxcfdi/success_cfdi/@emisor/"
 	@default_fcfdi_path = "data/@qname/mxcfdi/failure_cfdi/@emisor/"
 	@default_path_cfdi_loaded="data/@qname/mxcfdi/cfdis-loaded/" //crear compras desde un cfdi
+	@URL_BUSCAR_PRODUCTO = "/!/compras/compras/?_view=buscar-producto&search=@search"
 
 	@json_path = "mxcfdi/_static/json"
 	

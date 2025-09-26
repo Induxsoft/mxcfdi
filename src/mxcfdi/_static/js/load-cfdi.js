@@ -3,12 +3,40 @@ document.addEventListener("DOMContentLoaded",()=>{load_cfdi.init()});
 
 var load_cfdi=
 {
-    module:"",
+    module:"",canrelacionar:"",
     init()
     {
         this.proveedor=document.getElementById("proveedor");
         this.tbl_datail=document.getElementById("tbl_datail");
         this.form_detalle=document.getElementById("form-detalle");
+        this.sel_almacen=document.getElementById("sel_almacen");
+        this.ik_producto=document.getElementById("ik_producto");
+        if(this.ik_producto)this.ik_producto.change_event=(data)=>{this.ProdRelacionar(data);};
+        
+        if(this.tbl_datail)
+        {
+            const evt = this.tbl_datail.EdiTable.Const.Events;
+            this.tbl_datail.AutoAddRow = false;
+            this.tbl_datail.AutoDelRow = false;
+            this.tbl_datail.Events[evt.EnterCell] = (e) => 
+            {
+                let coldef = e.sender.GetColumnDefOfTd(e.td);
+                let curr_row = this.tbl_datail.RowIndexOfTd(e.td);
+                let curr_col = this.tbl_datail.ColIndexOfTd(e.td);
+                let producto = this.tbl_datail.DataArray[curr_row];
+
+                this.tbl_datail.Columns[curr_col].type = this.coldef[curr_col].type;
+                if (Object.keys(producto ?? {}).length < this.tbl_datail.Columns.length) return;
+                this.disableIncludedRows(curr_col,coldef.field,producto);
+            };
+
+            this.LoadColumns();
+        }
+    },
+    LoadColumns()
+    {
+        this.coldef = JSON.parse(JSON.stringify(this.tbl_datail.Columns));
+        if(this.coldef==null || this.coldef.length < 1)setTimeout(() => {this.LoadColumns();}, 100);
     },
     ValidateModule()
     {
@@ -61,6 +89,8 @@ var load_cfdi=
                 for (let i = 0; i < this.tbl_datail.DataArray.length; i++) 
                 {
                     var item = this.tbl_datail.DataArray[i];
+                    if((item.idrelacionado??0)>0)continue;
+
                     if((item.codigo??"").trim()=="")
                     {
                         alert(`Debe colocar un código del producto, fila ${i+1}`);
@@ -117,7 +147,12 @@ var load_cfdi=
             alert("Tabla no encontrado");
             return;
         }
-        
+        if(this.sel_almacen && Number(this.sel_almacen.value) < 1)
+        {
+            alert("Debe seleccionar un almacén");
+            this.sel_almacen.focus();
+            return;
+        }
 
         if (!this.form_detalle.reportValidity()) return;
 
@@ -175,5 +210,59 @@ var load_cfdi=
         form.querySelectorAll("button").forEach(frmbtn => {
             frmbtn.disabled = disable;
         });
-    }
+    },
+    ProdRelacionar(data)
+    {
+        if(!data || Object.keys(data).length < 1)return;
+        this.SetValueRow(data);
+    },
+    SetValueRow(data)
+    {
+        let index=this.tbl_datail.CurrentRowIndex();
+        let row=this.tbl_datail.DataArray[index];
+        if(!row)return;
+        
+        if(!data || Object.keys(data).length<1)
+        {
+            row["relproducto"]="";
+            row["idrelacionado"]=0;
+        }
+        else
+        {
+            row["relproducto"]=(data.codigo??"") +" - "+(data.descripcion??"");
+            row["idrelacionado"]=(data.sys_pk??0);
+        }
+        
+        this.tbl_datail._printRows();
+        this.tbl_datail.NavTo(index,0);
+    },
+    Relacionar(codigomd5,codigo,e)
+    {
+        if(this.canrelacionar!="")
+        {
+            alert(this.canrelacionar);
+            return;
+        }
+        // let index=this.tbl_datail.CurrentRowIndex();
+        // if(index < 0)e.stopPropagation();
+
+        if(!this.ik_producto)
+        {
+            console.log("No se encontró un elemento input-key");
+            return;
+        }
+
+        this.ik_producto.searchText(codigo,false)
+    },
+    Quitar(codigomd5,e)
+    {
+        //esperar mientras la tabla hace focus a la celda para poder obtener el indeice con CurrentRowIndex()
+        setTimeout(() => {this.SetValueRow({});}, 200);
+    },
+    disableIncludedRows(icol,field,data)
+    {
+        // Deshabilitar edición a las filas incluidas por un documento tercero.
+        if ((data.idrelacionado??0)>0) this.tbl_datail.Columns[icol].type = "NoEditable";
+        else this.tbl_datail.Columns[icol].type = this.coldef[icol].type;
+    },
 }
