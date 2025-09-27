@@ -136,7 +136,7 @@ var load_cfdi=
         }
         return true;
     },
-    Procesar()
+    Procesar(confirmado=false)
     {
         if(!this.proveedor)
         {
@@ -167,10 +167,28 @@ var load_cfdi=
 
         var details=
         {
-            detalle:this.tbl_datail.DataArray
+            detalle:this.tbl_datail.DataArray,
+            confirmado:confirmado
         }
-        
-        InduxsoftCrudlModel.Submit(this.form_detalle,details);
+        let success=(data)=>
+        {
+            if(data.confirmar)
+            {
+                let res=confirm(data.message);
+                if(!res)return;
+                tools.V12FormBarDisableControls(false,this.form_detalle);
+                this.Procesar(true);
+            }
+            if (!(data?.success??true) || (data?.message??"")!="") 
+            {
+				tools.FireError(data?.message ?? JSON.stringify(data),this.form_detalle);
+				tools.V12FormBarDisableControls(false,this.form_detalle);
+				return
+			}
+			// console.log(data)
+			if(data.url_redir)window.location.href = data.url_redir;
+        }
+        InduxsoftCrudlModel.Submit(this.form_detalle,details,success);
     },
     Submit(idform,confirmar,confirmado=false)
     {

@@ -490,19 +490,20 @@ module ""
          //si el codigo (NoIdentificacion) es vacío , tomamos la decripcion para buscar el producto
          //realizamos la busqueda con base a la descripción contra los campos definidos en al consulta, la descripcion lo cotamos a 50
          //para poder buscar con los siguientes campos codigo,codbar1,codbar2,codbar3,uf_codigoparaproveedor1,uf_codigoparaproveedor2,uf_codigoparaproveedor3 y validamos su proveedor
-         if trim(@@(params,"$codigo"))==""
+         ref producto=dbr.rec(db,ftext(sql),params)
+         if isnull(producto)
          {
-            codigo=uuid()
+            if codigo==""{codigo=uuid()}
             if descripcion==""{descripcion=codigo}
 
             @__conditional_search_prd=@__conditional_search_prd + " or p.descripcion=@descripcion"
             params<"codigo">:cut(descripcion,50) //cortamos a 50 , ya que la longitud de los campos uf_codigoparaproveedor1 es de 50
             params<"descripcion">:descripcion
+            ref producto=dbr.rec(db,ftext(sql),params)
          }
          // Buscamos el producto
-         ref producto=dbr.rec(db,ftext(sql),params)
+         
          ref _impuesto_concepto=IdentificarImpuestoByConcepto(db,_impuestos,isnull(producto))
-
          if isnull(producto)
          {
             ref p=NewRec()
@@ -736,41 +737,54 @@ module ""
          if @@(dt,"#idrelacionado") < 1
          {
             //validar permiso de agregar producto
-            do dbr.apps.action.grant("CF11")
-
-            //preparamos los datos del nuevo producto
-            ref producto=NewProd(dt)
-            
-            //verificamos si el producto ya existe
-            ref prd=dbr.rec(db,sql_prod,dt)
-            if not(isnull(prd))
+            can_add_prod=ValidateSitem("CF11")
+            if not(parse.bool(@@(data,"$confirmado"))) && not(can_add_prod)
             {
-               //realimos validaciones del producto
-               if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
-               else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
-               else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
-               else if trim(@@(prd,"$codbar3"))!="" && trim(@@(prd,"$codbar3"))==trim(@@(dt,"$codbar3")){do rise_error(500,"Ya existe un producto con el mismo código de barra 3: "+@@(dt,"$codbar3"))}
-               else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+               if dbr.in_transaction(db){do dbr.rollback(db)}
+               new res
+               {
+                  @"confirmar":@true
+                  @"message":"Denegado por falta de privilegio: CF11, la compra se creará con los productos econtrados, ¿Desea continuar? "
+               }
+               return res
             }
-            //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
-            //creamos el producto con los datos del CFDI
-            do dbr.insert(db,"producto",producto)
-            //obtenemos la sys_pk del producto ya creado
-            producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
-            if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
 
-            using producto
+            if can_add_prod
             {
-               @"notas":@@(dt,"$nota") //nota agregado en la tabla de deatalles(det-compra.dkl)
-               @"descuento":@@(dt,"#descuento")
-               @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
-               @"tcambio_compra":tcambio
-               @"objimpuesto*":@@(dt,"&objimpuesto")
+               //preparamos los datos del nuevo producto
+               ref producto=NewProd(dt)
+               
+               //verificamos si el producto ya existe
+               ref prd=dbr.rec(db,sql_prod,dt)
+               if not(isnull(prd))
+               {
+                  //realimos validaciones del producto
+                  if trim(@@(prd,"$codigo"))!="" && trim(@@(prd,"$codigo"))==trim(@@(dt,"$codigo")){do rise_error(500,"Ya existe un producto con el mismo código: "+@@(dt,"$codigo"))}
+                  else if trim(@@(prd,"$codbar1"))!="" && trim(@@(prd,"$codbar1"))==trim(@@(dt,"$codbar1")){do rise_error(500,"Ya existe un producto con el mismo código de barra 1: "+@@(dt,"$codbar1"))}
+                  else if trim(@@(prd,"$codbar2"))!="" && trim(@@(prd,"$codbar2"))==trim(@@(dt,"$codbar2")){do rise_error(500,"Ya existe un producto con el mismo código de barra 2: "+@@(dt,"$codbar2"))}
+                  else if trim(@@(prd,"$codbar3"))!="" && trim(@@(prd,"$codbar3"))==trim(@@(dt,"$codbar3")){do rise_error(500,"Ya existe un producto con el mismo código de barra 3: "+@@(dt,"$codbar3"))}
+                  else if trim(@@(prd,"$descripcion"))!="" && trim(@@(prd,"$descripcion"))==trim(@@(dt,"$descripcion")){do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+               }
+               //if dbr.str(db,"select descripcion from producto where descripcion=@descripcion",dt)!=""{do rise_error(500,"Ya existe un producto con la misma descripción: "+@@(dt,"$descripcion"))}
+               //creamos el producto con los datos del CFDI
+               do dbr.insert(db,"producto",producto)
+               //obtenemos la sys_pk del producto ya creado
+               producto<"sys_pk">:dbr.num(db,"select sys_pk from producto where sys_guid=@sys_guid",producto)
+               if field.exist(dt,"cantidad"){producto<"cantidad">:@@(dt,"#cantidad")}
+
+               using producto
+               {
+                  @"notas":@@(dt,"$nota") //nota agregado en la tabla de deatalles(det-compra.dkl)
+                  @"descuento":@@(dt,"#descuento")
+                  @"zimpuesto":@@(dt_proveedor,"#zimpuesto")
+                  @"tcambio_compra":tcambio
+                  @"objimpuesto*":@@(dt,"&objimpuesto")
+               }
+               if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
+               //generamos los datos del detalle de la compra(dcompra)
+               ref rec_dcompra=NewDcompra(db,producto)
+               do list.add(dcompra,rec_dcompra)
             }
-            if @@(dt,"#ultimocosto")> 0{producto<"precio1">:@@(dt,"#ultimocosto")}
-            //generamos los datos del detalle de la compra(dcompra)
-            ref rec_dcompra=NewDcompra(db,producto)
-            do list.add(dcompra,rec_dcompra)
          }
          else
          {
@@ -847,6 +861,13 @@ module ""
          do rise_error(last_error_code(),last_error())
       }
       
+   }
+   ValidateSitem::idsitem
+   {
+      do dbr.apps.action.grant(idsitem)
+      return @true
+      exception{}
+      return @false
    }
    //Guarda el archivo subido a la bitacora de la compra o gasto
    CreateLog::idfile,guid,det
