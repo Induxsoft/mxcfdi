@@ -20,21 +20,34 @@ div
         }
         div(class="col-md-2")
         {
-            label{"Referencia:"}
+            label(class="fw-bold"){"Referencia:"}
             input(type="text" class="induxsoft-form-control" id="referencia" name="referencia" value="#<@('$./referencia')>" maxlength="25" required="true")
         }
     }
-    
 }
 div
 {
     hr{}
     #!
-    style=ifstr(@count(@('&./productos_noexist')) < 1,'display:none','')
+    nohashproducto=@count(@('&./productos_noexist')) < 1
+    style=ifstr(nohashproducto,'display:none','')
     template='<button style="width: 60%;height: 100%;padding: 0;margin: 0;" onclick="load_cfdi.Relacionar(\'${DataRow.codigomd5}\',\'${DataRow.codigo}\',event)"> Relacionar </button> 
             <button style="width: 35%;height: 100%;padding: 0;margin-left: 3px;" onclick="load_cfdi.Quitar(\'${DataRow.codigomd5}\',event)"> Quitar </button>'
     #$
-    h6(style="#<style>"){"Los siguientes productos no se encuentran en el sistema. Complete la información para realizar el registro."}
+    div(class="d-flex gap-2")
+    {
+        h6(style="color: green;"){"Productos no encontrados: #<@count(@('&./productos_noexist'))> |"}
+        h6(style="color: green;"){"Productos encontrados: #<@count(@('&./productos_exist'))> "}
+    }
+    
+    #!
+    if nohashproducto
+    {
+        #$
+        h1(class="text-center" style="margin-top:4.5rem"){"No hay productos por registrar."}
+    }
+    #$
+    h6(style="#<style>" class="mt-2"){"Los siguientes productos no se encuentran en el sistema. Complete la información para realizar el registro."}
     
     "edit-table"(id="tbl_datail" data="#<to.json(@('&./productos_noexist'))>" "auto-confirm"="true" style="width:100%;#<style>"
     "row-height"="1.5rem"

@@ -451,8 +451,9 @@ module ""
       unidad,unidadb,unidadc,unidadd,unidade,
       factorb,factorc,factord,factore
       from producto p 
-      where #<@__conditional_search_prd>"
+      where #<@__conditional_search_prd> #<@__conditional>"
 
+      @__conditional=""
       @__conditional_search_prd="p.codigo=@codigo
       or p.codbar1=@codigo
       or p.codbar2=@codigo
@@ -469,7 +470,6 @@ module ""
       ref def_clase=dbr.rec(db,"select id sys_pk,const nombre from cclaseproducto where id =4",@null)
       ref def_tipo=dbr.rec(db,"select id sys_pk,const nombre from ctipoproducto where id=2",@null)
       ref def_metodovaluacion=dbr.rec(db,"select id sys_pk,const nombre from cmetodosvaluacion",@null)
-      
       
       for i = 0; i < @count(conceptos)
       {
@@ -488,18 +488,22 @@ module ""
             @"unidad":unidad_prod
          }
          //si el codigo (NoIdentificacion) es vacío , tomamos la decripcion para buscar el producto
-         //realizamos la busqueda con base a la descripción contra los campos definidos en al consulta, la descripcion lo cotamos a 50
-         //para poder buscar con los siguientes campos codigo,codbar1,codbar2,codbar3,uf_codigoparaproveedor1,uf_codigoparaproveedor2,uf_codigoparaproveedor3 y validamos su proveedor
+         //realizamos la busqueda con base a la descripción contra los campos definidos en la consulta, la descripcion lo cortamos a 50
+         //para poder buscar con los siguientes campos codigo,codbar1,codbar2,codbar3,uf_codigoparaproveedor1,uf_codigoparaproveedor2,uf_codigoparaproveedor3 
+         // y validamos su proveedor
+         @__conditional=""
          ref producto=dbr.rec(db,ftext(sql),params)
          if isnull(producto)
          {
             if codigo==""{codigo=uuid()}
             if descripcion==""{descripcion=codigo}
-
-            @__conditional_search_prd=@__conditional_search_prd + " or p.descripcion=@descripcion"
+            //rescatar el sql anterior
+            @__conditional=" or p.descripcion=@descripcion"
             params<"codigo">:cut(descripcion,50) //cortamos a 50 , ya que la longitud de los campos uf_codigoparaproveedor1 es de 50
             params<"descripcion">:descripcion
             ref producto=dbr.rec(db,ftext(sql),params)
+            //removemos la descripcion caprturada para no tener errores al tratar de buscar el siguiente producto
+            do field.remove(params,"descripcion")
          }
          // Buscamos el producto
          
