@@ -748,7 +748,7 @@ module ""
                new res
                {
                   @"confirmar":@true
-                  @"message":"Denegado por falta de privilegio: CF11, la compra se creará con los productos econtrados, ¿Desea continuar? "
+                  @"message":"Denegado por falta de privilegio: CF11, la compra se creará con los productos encontrados, ¿Desea continuar? "
                }
                return res
             }
