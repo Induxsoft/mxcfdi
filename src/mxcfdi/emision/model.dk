@@ -722,19 +722,21 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 imp_text = field.str(obj,ftext("i#<tipo>_text")) // ISR | IVA | IEPS
                 imp_tasa = ftext("i#<tipo>_tasa") //i(1-4)_tasa => 0.160000 | 0.080000 | ...
                 imp_value = ftext("impuesto#<tipo>") //impuesto(1-4)
-
+                
                 if imp_text != "" && field.str(obj,"objetoimp") == "02"
                 {
+                    // del sutotal se quitan los descuento, formando la base de los impuestos
+                    _subtotal=field.num(obj,"subtotal") - @@(obj,"#descuentos")
                     new traslado
                     {
                         @"Impuesto": emision.getClaveImpuesto(imp_text)
                         @"TipoFactor": ifstr(@@(obj,"#exento_iva"),"Exento","Tasa")
                         @"TasaOCuota": parse.num(format(@@(obj,"#"+imp_tasa),"0.000000"))
-                        @"Base": field.num(obj,"subtotal")
+                        @"Base": _subtotal
                         @"Importe": field.num(obj,imp_value)
                     }
 
-                    if tipo > 2 { traslado<"Base"> : RoundTo(@@(obj,"#subtotal") + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
+                    if tipo > 2 {traslado<"Base"> : RoundTo(_subtotal + (@@(obj,"#impuesto1") + @@(obj,"#impuesto2")), 6, @AwayFromZero) }
                     do emision.agruparImpuestos(_traslados,traslado)
                     TotalImpuestosTrasladados = TotalImpuestosTrasladados + @@(traslado,"#Importe")
 
