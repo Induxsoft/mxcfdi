@@ -6,6 +6,8 @@ module ""
     #include "serialize.dkh"
     #include "../_lib/config.dk"
     #include "uielements.v12.dkl"
+    #include "dbr.dkh"
+    #include "dbr.vars.dkl"
 
     do @context.begin(@crud_context)
 
@@ -50,6 +52,23 @@ module ""
                         {
                             div(class="row justify-content-center")
                             {
+                                #! if @@(data,'$idform') == "form-load-cfdi"
+                                {
+                                    int_imp = parse.bool(dbr.vars.get(@("&database"), "cmp_int_imp_costo"))
+                                    if field.exist(ifnull(@("&parameters"), record.create()),"int_imp")
+                                    {
+                                        int_imp = parse.bool(@("#parameters/int_imp"))
+                                    }
+                                    checked = ifstr(int_imp, "checked", "")
+                                    
+                                    #$ div(class="d-flex gap-2 align-items-center mb-3 col-md-10")
+                                    {
+                                        input(type="hidden" name="int_imp" value="#<int_imp>" id="ipt_int_imp")
+                                        input(class="form-check-input" type="checkbox" id="chk_int_imp" "#<checked>"="")
+                                        label(class="form-check-label" "for"="chk_int_imp"){$"Integrar Impuesto al costo en Cardex."}
+                                    }
+                                }
+
                                 #!
                                 ref fields_hidden=@@(data,"&fields-hidden")
                                 ref fields=list.create_from_fields(fields_hidden)
@@ -91,6 +110,13 @@ module ""
                 {
                     v12FormBar_title.style.height="30px";
                 }
+                
+                const chk_int_imp = document.querySelector("#chk_int_imp");
+                const ipt_int_imp = document.querySelector("#ipt_int_imp");
+
+                chk_int_imp.addEventListener("change", () => {
+                    ipt_int_imp.value = (chk_int_imp.checked ? 1 : 0);
+                });
             '
         }
     }

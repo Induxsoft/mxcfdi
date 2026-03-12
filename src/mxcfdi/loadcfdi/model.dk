@@ -121,7 +121,7 @@ module ""
       
       if not(isnull(entity)){return entity}
 
-      new rec{@"url_redir":"./?module="+@@(data,"$module")+"&file-cfdi="+uuid}
+      new rec{@"url_redir":url_param_ensure("./?module="+@@(data,"$module")+"&file-cfdi="+uuid, data, "int_imp")}
 
       return rec
    }
@@ -851,7 +851,7 @@ module ""
       }
       //asigamos la url de redirección, a la compra ya creada
       compra<"url_redir">: replace(@COMPRA_CONSULTAR,"{_doc}",@@(compra,"$sys_pk"))+"?_from_url_e="+url_encode(@VIEW_LOAD_CFDI)
-
+      compra<"url_redir">: url_param_ensure(@@(compra, "url_redir"), params, "int_imp")
       return compra
 
       exception
@@ -1187,4 +1187,13 @@ module ""
 		return val(replace(list.str(l,zona),"%",""))
 		exception{ return 0 }
 	}
+   // --------------------------------------------
+   function url_param_ensure(url, &data, param)
+   {
+      if not(isnull(data)) && field.exist(data, param) && not(contains(url,param+"="))
+      {
+         return url + ifstr(contains(url,"?"),"&","?") + param+"="+str(@@(data,param))
+      }
+      return url
+   }
 }
