@@ -243,6 +243,7 @@ module "Lista de consultas MySQL"
         cxc.documento,
         cxc.referencia,
         DATE_FORMAT(cxc.fecha,'%Y-%m-%d') AS fecha,
+        DATE_FORMAT(cxc.aplicacion,'%Y-%m-%d') AS fecha_pago,
         IFNULL(DATE_FORMAT(cxc.aplicacion,'%Y-%m-%d'),'') AS vencimiento,
         ROUND(IFNULL(cxc.bonificaciones,0),6) AS bonificaciones,
         ROUND(IFNULL(cxc.debe,0),6) AS debe,

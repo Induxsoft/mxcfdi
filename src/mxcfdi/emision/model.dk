@@ -583,7 +583,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref domicilio = cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
         
         if isnull(domicilio) { ref domicilio:getDomicilioEmisor(emisor)}
-
+        fecha=trim(@@(documento,"$fecha"))
+        fecha=ifstr(fecha!="",date_str(str2dt(fecha),"yyyy-MM-ddTHH:mm:ss"),hoy("yyyy-MM-ddTHH:mm:ss"))
+        
         program_path = "mxcfdi/emision"
         program_name = "cfdi40.dkl"
         
@@ -591,7 +593,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         {
             @"Serie": field.dstr(documento,"serie","")
             @"Folio": field.dstr(documento,"folio","")
-            @"Fecha": hoy("yyyy-MM-ddTHH:mm:ss")
+            @"Fecha": fecha
             @"MetodoPago": field.dstr(data,"metodo_pago","PPD")
             @"FormaPago": field.dstr(data,"forma_pago","99")
             @"CondicionesDePago": field.dstr(data,"cond_pago","")
@@ -1256,7 +1258,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         //#region setComplementoP()
         // do rise_error(0,"Pendiente por implementar...")
         ref documento = field.obj(data,"documento")
-
+        fechapago=trim(@@(documento,"$fecha_pago"))
+        fechapago=ifstr(fechapago!="",date_str(str2dt(fechapago),"yyyy-MM-ddTHH:mm:ss"),hoy("yyyy-MM-ddTHH:mm:ss"))
         using cfdi
         {
             member @"Complemento"
@@ -1268,7 +1271,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 }
                 member @"Pago"
                 {
-                    @"FechaPago": hoy("yyyy-MM-ddTHH:mm:ss")
+                    @"FechaPago": fechapago
                     @"MonedaP": field.str(documento,"cdivisa")
                     @"TipoCambioP": field.num(documento,"tipocambio")
                     @"Monto": RoundTo(field.num(documento,"importe"),2,@AwayFromZero)
