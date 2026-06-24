@@ -31,9 +31,12 @@ module ""
     @isnew = (@_entity_id == "_new")
     @status = @@(data,"#status")
     
-    fechaini = ifstr(@("$parameters/fechaini")!="",@("$parameters/fechaini"),date_str(now(),'yyyy-MM-dd'))
-    fechafin = ifstr(@("$parameters/fechafin")!="",@("$parameters/fechafin"),date_str(now(),'yyyy-MM-dd'))
-    
+    fechaini = ifstr(@("$parameters/fechaini")!="", @("$parameters/fechaini"), date_str(now(),'yyyy-MM-dd'))
+    fechafin = ifstr(@("$parameters/fechafin")!="", @("$parameters/fechafin"), date_str(now(),'yyyy-MM-dd'))
+
+    // do list.ins(cconsumos,0,from.json('{ "sys_pk":-1, "descripcion":"Todos" }'))
+    do list.ins(cconsumos,0,from.json('{ "sys_pk":0, "descripcion":"Ninguno" }'))
+
     if not(field.exist(@("&parameters"),"fechaini"))
     {
         check_remision=@true
@@ -100,6 +103,7 @@ module ""
             @"refresh": @true
         }
     }
+
     //selects
     new _divisas
     {
@@ -146,13 +150,15 @@ module ""
             @"class": "form-select form-select-sm rounded-0 no-shadow"
             @"required": ""
             @"readonly": ""
-            @"defaultValue": @("$parameters/cconsumo")
+            @"defaultValue": @("#parameters/cconsumo")
         }
         @"value_field": "sys_pk"
         @"text_field": "descripcion"
-        @"first_text":"(*) Todos"
-        @"first_value":"*"
-        @"selected": @("$parameters/cconsumo")
+        @"selected": @("#parameters/cconsumo")
+        member "attr_options"
+        {
+            @"#<ifstr(@@(row,'#sys_pk')==0, 'disabled', '')>": ""
+        }
     }
 
     new _obj_impuestos
@@ -328,7 +334,7 @@ module ""
                             }
                             div(class="col-md-3")
                             {
-                                label{"C. Consumo:"}
+                                label(class="fw-bold"){"C. Consumo:"}
                                 #!
                                 do uie.dbSelect(_cconsumos)
                                 #$

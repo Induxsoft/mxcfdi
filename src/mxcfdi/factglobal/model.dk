@@ -11,16 +11,24 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
 
         if parse.bool(@@(params,"$from-filter"))
         {
-            if parse.bool(@@(params,"$check_ticket")) && parse.bool(@@(params,"$check_remision")){sql=@list_query_tic_rem}
-            else if parse.bool(@@(params,"$check_ticket")){sql=@list_query_tic}
-            else if parse.bool(@@(params,"$check_remision")){sql=@list_query_rem}
-            else {do rise_error(500,"Es necesario indique al menos un tipo de documento Ticket y/o Remisión.")}
+            incluir_tickets = parse.bool(@@(params,"$check_ticket"))
+            incluir_remisiones = parse.bool(@@(params,"$check_remision"))
+
+            if incluir_tickets && incluir_remisiones { sql = @list_query_tic_rem }
+            else if incluir_tickets { sql = @list_query_tic }
+            else if incluir_remisiones { sql = @list_query_rem }
+            else { do rise_error(500,"Es necesario indique al menos un tipo de documento Ticket y/o Remisión.") }
 
             @fact_global_start_rows = @@(params,"#start")
             @fact_global_end_rows = @@(params,"#end")
             if @fact_global_end_rows < 1 { @fact_global_end_rows = @default_max_rows_fact_global }
+
+            cconsumo = @@(params,"#cconsumo")
+            cconsumo >> params
+
+            if cconsumo > 0 { entity<"ventas*"> : dbr.list(db,ftext(sql),params) }
+            else { entity<"ventas*"> : list.create() }
             
-            entity<"ventas*"> : dbr.list(db,ftext(sql),params)
             params<"from-filter"> : @true
         }
         if parse.bool(@@(params,"$only-list")) { return entity }

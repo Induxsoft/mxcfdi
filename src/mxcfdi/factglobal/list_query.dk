@@ -70,27 +70,22 @@ module ""
 	"
 
 	@list_query_tic_rem = "
-	select
-		distinct v.sys_pk,
+	select distinct
+		v.sys_pk,
 		v.sys_dtcreated as created,
 		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
 		v.formapago,
-		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
-		@descuento := (
-			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)
-		) as descuento,
-		@totalimpuesto := (
-			round(
-				(
-					v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
-				) / mc.tipocambio,
-				2
-			)
-		) as totalimpuesto,
-		(@subtotal - @descuento + @totalimpuesto) total
+		round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2) as totalimpuesto,
+		round(
+			round(v.subtotal / mc.tipocambio, 2) -
+			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) +
+			round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2)
+		, 2) total
 	from
 		venta as v
 		inner join cliente as c on v.icliente = c.sys_pk
@@ -113,11 +108,11 @@ module ""
 		and v.aplicadoa is null
 		and v.statusfacturacion = 1
 		and v.statusadministrativo = 3
-		and v.statusfinanciero = 2
+		and (v.statusfinanciero = 2 or (v.documento=6 and v.statusfinanciero=0))
 		and mc.idivisa = @divisa
 		and (mc.documento != 34 and mc.documento != 99)
-		and d.xfacturar > 0
-		and if(ifnull(@cconsumo, 0) = 0, true, cc.sys_pk = @cconsumo)
+		and ifnull(d.xfacturar,d.cantidad) > 0
+		and cc.sys_pk = @cconsumo
 	having total > 0
 	order by
 		v.sys_dtcreated,
@@ -126,21 +121,22 @@ module ""
 	"
 
 	@list_query_tic = "
-	select
-		distinct v.sys_pk,
+	select distinct
+		v.sys_pk,
 		v.sys_dtcreated as created,
 		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
 		v.formapago,
-		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
-		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
-		@totalimpuesto := round(
-			(v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
-			2
-		) as totalimpuesto,
-		(@subtotal - @descuento + @totalimpuesto) total
+		round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2) as totalimpuesto,
+		round(
+			round(v.subtotal / mc.tipocambio, 2) -
+			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) +
+			round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2)
+		, 2) total
 	from
 		venta v
 		inner join cliente as c on v.icliente = c.sys_pk
@@ -163,11 +159,11 @@ module ""
 		and v.aplicadoa is null
 		and v.statusfacturacion = 1
 		and v.statusadministrativo = 3
-		and v.statusfinanciero = 2
+		and (v.statusfinanciero = 2 or v.statusfinanciero = 0)
 		and mc.idivisa = @divisa
 		and (mc.documento != 34 and mc.documento != 99)
-		and d.xfacturar > 0
-		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+		and ifnull(d.xfacturar,d.cantidad) > 0
+		and cc.sys_pk = @cconsumo
 	having total > 0
 	order by
 		v.sys_dtcreated,
@@ -176,21 +172,22 @@ module ""
 	"
 
 	@list_query_rem = "
-	select
-		distinct v.sys_pk,
+	select distinct
+		v.sys_pk,
 		v.sys_dtcreated as created,
 		trim(date(v.fecha)) fecha,
 		'No' as incluir,
 		v.referencia,
 		v.documento,
 		v.formapago,
-		@subtotal := round(v.subtotal / mc.tipocambio, 2) as subtotal,
-		@descuento := round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
-		@totalimpuesto := round(
-			(v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio,
-			2
-		) as totalimpuesto,
-		(@subtotal - @descuento + @totalimpuesto) total
+		round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2) as totalimpuesto,
+		round(
+			round(v.subtotal / mc.tipocambio, 2) -
+			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) +
+			round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2)
+		, 2) total
 	from
 		venta as v
 		inner join cliente as c on v.icliente = c.sys_pk
@@ -216,8 +213,8 @@ module ""
 		and v.statusfinanciero = 2
 		and mc.idivisa = @divisa
 		and (mc.documento != 34 and mc.documento != 99)
-		and d.xfacturar > 0
-		and if(ifnull(@cconsumo, 0) = 0 or ifnull(@cconsumo, '*')='*', true, cc.sys_pk = @cconsumo)
+		and ifnull(d.xfacturar,d.cantidad) > 0
+		and cc.sys_pk = @cconsumo
 	having total > 0
 	order by
 		v.sys_dtcreated,
@@ -231,17 +228,14 @@ module ""
 		'Sí' as incluir,
 		v.referencia,
 		trim(date(v.fecha)) fecha,
-		@subtotal := (round(v.subtotal / mc.tipocambio, 2)) as subtotal,
-		@descuento := (round((v.descuento1 + v.descuento2) / mc.tipocambio, 2)) as descuento,
-		@totalimpuesto := (
-			round(
-				(
-						v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4
-				) / mc.tipocambio,
-				2
-			)
-		) as totalimpuesto,
-		(@subtotal - @descuento + @totalimpuesto) total
+		round(v.subtotal / mc.tipocambio, 2) as subtotal,
+		round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) as descuento,
+		round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2) as totalimpuesto,
+		round(
+			round(v.subtotal / mc.tipocambio, 2) -
+			round((v.descuento1 + v.descuento2) / mc.tipocambio, 2) +
+			round((v.impuesto1 + v.impuesto2 + v.impuesto3 + v.impuesto4) / mc.tipocambio, 2)
+		, 2) total
 	from mxcfdi_ordenfac_det od
 		inner join venta v on od.venta=v.sys_pk
 		inner join movcaja mc on v.imovcaja = mc.sys_pk
@@ -335,7 +329,7 @@ module ""
 		dv.`status`,
 		mc.tipocambio,
 		dv.unidad,
-		dv.xfacturar,
+		IFNULL(dv.xfacturar,dv.cantidad) AS xfacturar,
 		dv.xsalir,
 		IFNULL(dv.documento,0) documento,
 		dv.ialmacen,
@@ -345,7 +339,7 @@ module ""
 		INNER JOIN venta v ON dv.fk_venta_detalle = v.sys_pk
 		INNER JOIN movcaja mc ON v.imovcaja = mc.sys_pk
 		LEFT JOIN venta vcancel ON dv.fk_venta_detalle = vcancel.aplicadoa
-	WHERE (IFNULL(dv.notas,'') != '$DP$' AND IFNULL(dv.xfacturar,0) > 0)
+	WHERE (IFNULL(dv.notas,'') != '$DP$' AND IFNULL(dv.xfacturar,dv.cantidad) > 0)
 		AND dv.fk_venta_detalle = @vta
 	GROUP BY dv.sys_pk;
 	"

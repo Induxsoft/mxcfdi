@@ -158,20 +158,21 @@ var fglobal=
     },
     SaveDetalle()
     {
-        if (!this.objimp || this.objimp.value == "00")
-        {
+        if (!this.objimp || this.objimp.value == "00") {
             alert('No se selecciono el "Objeto de impuesto" para las ventas');
             return
         }
-        if(this.fechaini && this.fechaini.value.trim()=="")
-        {
-            alert("Debe seleccionar una fecha de inicio");
-            return;
+        if (!this.cconsumo || Number(this.cconsumo.value) < 1) {
+            alert("Debe seleccionar un centro de consumo");
+            return
         }
-        if(this.fechafin && this.fechafin.value.trim()=="")
-        {
+        if (!this.fechaini && this.fechaini.value.trim() == "") {
+            alert("Debe seleccionar una fecha de inicio");
+            return
+        }
+        if (!this.fechafin && this.fechafin.value.trim() == "") {
             alert("Debe seleccionar una fecha fin");
-            return;
+            return
         }
         
         let DataArray = Object.values(this.page_data).flat().filter(item => tools.ParseBool(item?.incluir));
