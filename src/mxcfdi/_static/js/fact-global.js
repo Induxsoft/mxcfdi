@@ -174,6 +174,10 @@ var fglobal=
             alert("Debe seleccionar una fecha fin");
             return
         }
+        if (!this.fpago || this.fpago.value.trim() == "") {
+            alert("Debe seleccionar la forma de pago");
+            return
+        }
         
         let DataArray = Object.values(this.page_data).flat().filter(item => tools.ParseBool(item?.incluir));
         if(DataArray.length < 1) {
@@ -238,12 +242,12 @@ var fglobal=
             }
         });
 
-        let docs = array.filter(item => (item.total == mayor && item.formapago != 1 && tools.ParseBool(item.incluir)));
-        if (docs.length >= 1) {
-            this.div_formapago.hidden = false;
-        } else {
-            this.div_formapago.hidden = true;
-        }
+        // let docs = array.filter(item => (item.total == mayor && item.formapago != 1 && tools.ParseBool(item.incluir)));
+        // if (docs.length >= 1) {
+        //     this.div_formapago.hidden = false;
+        // } else {
+        //     this.div_formapago.hidden = true;
+        // }
         
         let data="";
         if(this.divisa)

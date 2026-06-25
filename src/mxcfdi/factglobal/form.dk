@@ -34,8 +34,9 @@ module ""
     fechaini = ifstr(@("$parameters/fechaini")!="", @("$parameters/fechaini"), date_str(now(),'yyyy-MM-dd'))
     fechafin = ifstr(@("$parameters/fechafin")!="", @("$parameters/fechafin"), date_str(now(),'yyyy-MM-dd'))
 
-    // do list.ins(cconsumos,0,from.json('{ "sys_pk":-1, "descripcion":"Todos" }'))
     do list.ins(cconsumos,0,from.json('{ "sys_pk":0, "descripcion":"Ninguno" }'))
+    // do list.ins(cconsumos,1,from.json('{ "sys_pk":-1, "descripcion":"Todos" }'))
+    do list.ins(formaspagos,0,from.json('{ "clave":"", "valor":"Selecione..." }'))
 
     if not(field.exist(@("&parameters"),"fechaini"))
     {
@@ -191,8 +192,12 @@ module ""
         @"value_field": "clave"
         @"text_field": "valor"
         @"selected": fd('forma_pago','tx',data)
+        member "attr_options"
+        {
+            @"#<ifstr(@@(row,'$clave')=='', 'disabled', '')>": ""
+        }
     }
-    if @@(_forma_pago,"$selected") == "" { _forma_pago<"selected"> : "01" }
+    // if @@(_forma_pago,"$selected") == "" { _forma_pago<"selected"> : "01" }
 
     new _regimen
     {
@@ -283,7 +288,7 @@ module ""
     }
     
     #$
-    div(class="container v12-list-view" id="view")
+    div(class="container-lg v12-list-view" id="view")
     {
         script(src="#<@JS_FACT_GLOBAL>"){""}
         link(href="#<@CSS_MAIN>" rel="stylesheet"){""}
@@ -316,30 +321,30 @@ module ""
                     {
                         div(class="text-center"){ span(class="fw-bolder"){"Selección de ventas"} }
                         // Filtros
-                        div(class="row gx-2")
+                        div(class="row gx-2 gy-1")
                         {
-                            div(class="col-md-3")
+                            div(class="col-8 col-md-5 col-lg-3")
                             {
                                 label{"Divisa:"}
                                 #!
                                 do uie.dbSelect(_divisas)
                                 #$
                             }
-                            div(class="col-md-1")
+                            div(class="col-4 col-md-2 col-lg-1")
                             {
                                 label{"Serie:"}
                                 #!
                                 do uie.dbSelect(_series)
                                 #$
                             }
-                            div(class="col-md-3")
+                            div(class="col-sm-5 col-md-5 col-lg-3")
                             {
                                 label(class="fw-bold"){"C. Consumo:"}
                                 #!
                                 do uie.dbSelect(_cconsumos)
                                 #$
                             }
-                            div(class="col-md-4")
+                            div(class="col-sm-5 col-lg-4")
                             {
                                 label(class="fw-bold"){"Fecha:"}
                                 fieldset(class="input-group input-group-sm p-0" id="fecha_range" readonly="")
@@ -354,7 +359,7 @@ module ""
                             if parse.bool(@('#./enable'))
                             {
                                 #$
-                                div(class="col-md-1 align-self-end")
+                                div(class="col-sm-2 col-lg-1 align-self-end flex-fill")
                                 {
                                     div(class="d-flex justify-content-end gap-1")
                                     {
@@ -391,41 +396,62 @@ module ""
                                 }
                                 
                             }
-                            div(class="row gx-2 pe-2 ps-2")
+
+                            div(class="row px-2 gy-1 gx-1 gx-sm-2")
                             {
-                                div(class="col-md-3")
+                                div(class="col-sm-12 col-md-3")
                                 {
                                     label("for"="regfiscal"){"Régimen fiscal:"}
                                     #!
                                     do uie.dbSelect(_regimen)
                                     #$
                                 }
-                                div(class="col-md-3")
+                                div(class="col-sm-4 col-md-3")
                                 {
                                     label("for"="periodicidad"){"Periocidad:"}
                                     #!
                                     do uie.dbSelect(_periocidad)
                                     #$
                                 }
-                                div(class="col-md-3")
+                                div(class="col-sm-4 col-md-3")
                                 {
                                     label("for"="mes"){"Mes:"}
                                     #!
                                     do uie.dbSelect(_meses)
                                     #$
                                 }
-                                div(class="col-md-3")
+                                div(class="col-sm-4 col-md-3")
                                 {
                                     label("for"="anio"){"Año:"}
                                     #!
                                     do uie.dbSelect(_anio)
                                     #$
                                 }
+
+                                div(class="col-sm-6 col-md-3")
+                                {
+                                    label(class="fw-bold" "for"="objeto_impuesto"){"Obj. Impuesto:"}
+                                    #!
+                                    do uie.dbSelect(_obj_impuestos)
+                                    #$
+                                }
+                                div(class="col-sm-6 col-md-3" id="div_formapago")
+                                {
+                                    label(class="fw-bold" "for"="forma_pago"){"F. Pago:"}
+                                    #!
+                                    do uie.dbSelect(_forma_pago)
+                                    #$
+                                }
+                                div(class="col-sm-4 col-md-3")
+                                {
+                                    label("for"="fecha_cfdi"){"Fecha (CFDI):"}
+                                    input(class="form-control form-control-sm rounded-0 no-shadow" type="date" name="fecha_cfdi" value="#<fecha_cfdi>" id="fecha_cfdi")
+                                }
                             }
                         }
+                        // Detalles
                         section(class="mt-2")
                         {
-                            // Preferencias
                             div(class="row gx-2 gy-1 py-1")
                             {
                                 div(class="col-auto align-self-end")
@@ -439,34 +465,7 @@ module ""
                                         label(class="form-check-label" "for"="check_all"){"Seleccionar todas."}
                                     }
                                 }
-                                div(class="col-auto")
-                                {
-                                    div(class="d-flex align-items-center gap-1")
-                                    {
-                                        label(class="fw-bold" "for"="objeto_impuesto"){"Obj.Impuesto:"}
-                                        #!
-                                        do uie.dbSelect(_obj_impuestos)
-                                        #$
-                                    }
-                                }
-                                div(class="col-auto" id="div_formapago" hidden="")
-                                {
-                                    div(class="d-flex align-items-center gap-1")
-                                    {
-                                        label(class="fw-bold" "for"="forma_pago"){"F.Pago:"}
-                                        #!
-                                        do uie.dbSelect(_forma_pago)
-                                        #$
-                                    }
-                                }
-                                div(class="col-auto")
-                                {
-                                    div(class="d-flex align-items-center gap-1")
-                                    {
-                                        label("for"="fecha_cfdi"){"Fecha(CFDI):"}
-                                        input(class="form-control form-control-sm rounded-0 no-shadow" type="date" name="fecha_cfdi" value="#<fecha_cfdi>" id="fecha_cfdi")
-                                    }
-                                }
+                                
                                 div(class="col-auto ms-auto")
                                 {""
                                 #!
