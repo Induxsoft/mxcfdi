@@ -185,14 +185,15 @@ module "Ordenes de timbrado (Facturación Global). :factglobal"
 
     DumpOrderDet::&db,iorden,&data
     {
-        sql = "INSERT INTO mxcfdi_ordenfac_det (sys_guid,sys_dtcreated,sys_timestamp,sys_recver,orden,venta) VALUES "
+        sql = "INSERT INTO mxcfdi_ordenfac_det (sys_guid,sys_dtcreated,sys_timestamp,sys_recver,orden,venta,objimp) VALUES "
         values = ""
         for i = 0; i < list.count(data); i+1
         {
             ref vnt = list.obj(data,i)
             iventa = @@(vnt,"#sys_pk")
+            objimp = @@(vnt,"$objimp")
 
-            values = values + ftext("('#<uuid()>',now(),now(),0,#<iorden>,#<iventa>),")
+            values = values + ftext("('#<uuid()>',now(),now(),0,#<iorden>,#<iventa>,'#<objimp>'),")
         }
         if values != "" {
             sql = sql + rremove(values,1)

@@ -142,7 +142,8 @@ module "Lista de consultas MySQL"
             FROM venta
             WHERE aplicadoa = v.sys_pk
         ),6) AS Descuento,
-        IFNULL(@objimp,'') AS ObjetoImp,
+        -- IFNULL(@objimp,'') AS ObjetoImp,
+        d.objimp AS ObjetoImp,
         v.impuesto1 - (
             SELECT if((v.documento=3 OR v.documento=6), 0, IFNULL(SUM(impuesto1),0)) AS ieps
             FROM venta
@@ -154,6 +155,7 @@ module "Lista de consultas MySQL"
             WHERE aplicadoa = v.sys_pk
         ) AS iva
     FROM venta v
+        INNER JOIN mxcfdi_ordenfac_det d ON d.venta = v.sys_pk
     WHERE v.aplicadoa = @ifactura
     GROUP BY v.sys_pk;
     "

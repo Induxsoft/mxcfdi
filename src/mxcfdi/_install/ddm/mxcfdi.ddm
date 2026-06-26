@@ -128,6 +128,7 @@ model "mxcfdi"
     {
         @"venta" ref:"venta" required //Ticket o Remisión que se incluye en la orden de factura global.
         @"orden" ref:"mxcfdi_ordenfac" required
+        @"objimp" string(2)
         
         index "mxcfdi_ordenfac_det_uq1" unique
         {

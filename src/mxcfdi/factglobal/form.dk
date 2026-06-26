@@ -36,6 +36,7 @@ module ""
 
     do list.ins(cconsumos,0,from.json('{ "sys_pk":0, "descripcion":"Ninguno" }'))
     // do list.ins(cconsumos,1,from.json('{ "sys_pk":-1, "descripcion":"Todos" }'))
+    // do list.ins(objimpuestos,0,from.json('{ "clave":"00", "valor":"Ninguno" }'))
     do list.ins(formaspagos,0,from.json('{ "clave":"", "valor":"Selecione..." }'))
 
     if not(field.exist(@("&parameters"),"fechaini"))
@@ -268,7 +269,7 @@ module ""
                 @"caption": "Incluir"
                 @"align": "center"
             }
-            member @"referencia" { @"caption": "Ticket/Remision" }
+            member @"referencia" { @"caption": "Ticket / Remision" }
             member @"fecha"
             {
                 @"caption": "Fecha"
@@ -282,6 +283,11 @@ module ""
                 @"thousandssep": @true
                 @"decs": 6
                 @"prefix":"$ "
+            }
+            member @"objimp"
+            {
+                @"caption": "Obj. Impuesto"
+                @"align": "center"
             }
         }
         @"table_footer": "Mostrando los primeros # registros"
@@ -608,6 +614,7 @@ module ""
             fglobal.text_notas = "#<text_notas>";
             fglobal.default_max_rows = #<@default_max_rows_fact_global>;
             fglobal.params = #<to.json(@("&parameters"))>;
+            fglobal._objimpuestos = #<to.json(objimpuestos)>;
             '
         }
     }

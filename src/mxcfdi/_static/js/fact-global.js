@@ -8,6 +8,7 @@ var fglobal=
     stop_paging:false,
     page_data:{},
     params:{},
+    _objimpuestos:[],
 
     init()
     {
@@ -57,7 +58,16 @@ var fglobal=
             this.from_filter.value = "true";
             this.form_factura_global.submit();
         });
+
         if(this.check_all) this.check_all.addEventListener("change", () => { this.CheckedAll(); });
+        if (this.objimp) this.objimp.addEventListener("change", (e) => {
+            for (const venta of this.factura_global_detalle.DataArray) {
+                const selected = e.target.selectedOptions[0];
+                venta["objimp"] = selected.value;
+                venta["objeto_impuesto"] = selected.textContent;
+            }
+            this.factura_global_detalle._printRows();
+        });
 
         if(this.btn_change) this.btn_change.addEventListener("click", () => { this.ChangeFilter(); });
         if(this.btn_cancel) this.btn_cancel.addEventListener("click", () => { this.CancelFilter(); });
@@ -74,6 +84,17 @@ var fglobal=
                     field: "incluir",
                     textalign: "center",
                     default: "No"
+                };
+
+                let objimpuestos = {};
+                this._objimpuestos.forEach(o => { objimpuestos[o.clave] = o.valor });
+                this.factura_global_detalle.Columns[4] = {
+                    type: this.factura_global_detalle.EdiTable.Const.Columns.Types.Select,
+                    field: "objeto_impuesto",
+                    keyfield: "objimp",
+                    options: objimpuestos,
+                    default: this.objimp.value,
+                    textalign: "center"
                 };
     
                 this.page_data["p1"] = this.factura_global_detalle.DataArray;
