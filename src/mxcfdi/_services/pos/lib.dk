@@ -15,6 +15,7 @@ module ":pos"
         ref lib_precfdi = _import_library("precfdi4lib.dll")
 
         do _map_function(lib_precfdi, "precfdi4lib.proc", "setDatabase", "ticket.set_db", "*System.Object", "void")
+        do _map_function(lib_precfdi, "precfdi4lib.proc", "setData", "ticket.setData", "*System.Object", "void")
         do _map_function(lib_precfdi, "precfdi4lib.proc", "GenCodeTicket", "ticket.encode_folio", "*System.Object,*System.Object,*System.Object", "$") 
         do _map_function(lib_precfdi, "precfdi4lib.proc", "DecodeTicket", "ticket.decode_folio", "System.String, System.Boolean", "#") 
         do _map_function(lib_precfdi, "precfdi4lib.proc", "VentaXml", "ticket.xml", "System.Int32", "$")
@@ -28,6 +29,18 @@ module ":pos"
         if tkt_folio == "" { do rise_error(511,"Es necesario indicar el `folio` del Ticket.") }
         do ticket.set_db(db)
         
+        /*
+         * Summary:
+         * - establecer datos si lo hubiese
+        */
+        ref data_ticket=record.create()
+        if trim(@@(data,"$emisor")) !=""{data_ticket<"rfc">:trim(@@(data,"$emisor"))}
+        if trim(@@(data,"$nombre_emisor")) !=""{data_ticket<"emisor">:trim(@@(data,"$nombre_emisor"))}
+        if trim(@@(data,"$regimen_emisor")) !=""{data_ticket<"regimen">:trim(@@(data,"$regimen_emisor"))}
+        if trim(@@(data,"$lugar_expedicion")) !=""{data_ticket<"lugar_expedicion">:trim(@@(data,"$lugar_expedicion"))}
+        
+        if @count(list.create_from_fields(data_ticket)){do ticket.setData(data_ticket)}
+
         tkt_pk = ticket.decode_folio(@@(data,"$folio"), @false)
         if tkt_pk < 1 { do rise_error(512,"No se encontro información del `folio` proporcionado.") }
         new params { @"iticket": tkt_pk }
