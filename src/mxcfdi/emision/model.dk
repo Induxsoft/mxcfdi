@@ -67,7 +67,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         
         if isnull(emisor) { ref emisor:dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null) }
 
-        if isnull(emisor) { do rise_error(511,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de `Facturacón electrónica`.") }
+        if isnull(emisor) { do rise_error(511,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de 'Variables globales -> Emisión de CFDI -> Config. emisores'") }
         else
         {
             ref result=getEmisorFactudesk(emisor)
@@ -1351,7 +1351,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         //#region descargar()
         ref emisor = dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null)
-        
+        if isnull(emisor){do rise_error(500,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de 'Variables globales -> Emisión de CFDI -> Config. emisores'")}
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
         new payload
         {
