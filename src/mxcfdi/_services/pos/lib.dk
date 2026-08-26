@@ -155,7 +155,18 @@ module ":pos"
 
         do dbr.execute(db,"UPDATE venta SET aplicadoa = @ifactura WHERE sys_pk = @iticket",params)
 
-        if @@(factura,"#formapago") == @fp_contado { do erp.ventas.procesos.setStatus(db,ifactura,@fp_contado) }
+        if @@(factura,"#formapago") == @fp_contado
+        {
+            sql = "
+            UPDATE
+                dventa df
+                INNER JOIN dventa dr ON df.doc_partida = dr.sys_pk
+            SET dr.xfacturar = 0
+            WHERE df.fk_venta_detalle = @ifactura
+            "
+            do dbr.execute(db,sql,params)
+            do erp.ventas.procesos.setStatus(db,ifactura,@fp_contado)
+        }
         else if @@(factura,"#formapago") == @fp_credito
         {
             using params
