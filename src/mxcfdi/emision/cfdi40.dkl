@@ -207,7 +207,7 @@ program "Generar comprobante xml"
                     "xsi:schemaLocation"="http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd"
                     "xmlns:xsi"="http://www.w3.org/2001/XMLSchema-instance"
                     "xmlns:induxsoft"="http://dev.induxsoft.net/xsd/cfdi/addendas/addendabasica.xsd"
-                    notas=""
+                    notas="#<@('$notas')>"
                 )
                 {
                     #!

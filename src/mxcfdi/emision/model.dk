@@ -751,7 +751,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 @"ClaveProdServ": field.str(obj,"uf_sat_proser")
                 @"ClaveUnidad": field.str(obj,"uf_sat_uniproser")
                 @"NoIdentificacion": field.str(obj,"codigo")
-                @"Descripcion": field.str(obj,"descripcion")
+                @"Descripcion": field.str(obj,"descripcion") + ifstr(trim(@@(obj,"$notas"))=="",""," "+@@(obj,"$notas"))
                 @"Unidad": field.str(obj,"unidad")
                 @"ValorUnitario": field.num(obj,"precio")
                 @"Cantidad": field.num(obj,"cantidad")
@@ -785,6 +785,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         using cfdi
         {
+            @"notas":dbr.str(db,"SELECT ifnull(notas,'') FROM venta WHERE sys_pk=@doc;",params)
             @"SubTotal": SubTotal
             @"Descuento": Descuento
             @"Total": Total

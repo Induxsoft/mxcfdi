@@ -113,7 +113,8 @@ module "Lista de consultas MySQL"
         TRIM(IFNULL(i.uf_tipoi3,'')) AS i3_text,
         TRIM(IFNULL(i.uf_tipoi4,'')) AS i4_text,
         i.tasa AS exento_iva,
-        i.objetoimp
+        i.objetoimp,
+        dt.notas
         #<selects>
     FROM dventa AS dt
         INNER JOIN producto AS p ON dt.iproducto = p.sys_pk
