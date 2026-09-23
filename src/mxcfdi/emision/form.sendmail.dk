@@ -4,13 +4,16 @@ module "form.sendmail.dk"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
+    #include "dbr.dkh"
     #include "uielements.v12.dkl"
+    #include "dbr.vars.dkl"
     #include "../_lib/config.dk"
 
     do @context.begin(@crud_context)
 
     ref cliente = ifnull(@("&./cliente"),record.create())
-
+    subject="CFDI "+@("$./entity/referencia")+" Factura electronica"
+    // do file.wtext("/usr/dkl_mxcvxii/_data/d.json",to.json(@crud_context))
     fn_print_buttons::
     {
         #$
@@ -25,7 +28,7 @@ module "form.sendmail.dk"
         @"buttons*": print_buttons
         member @"hidden" { @"print": @true }
     }
-
+    mxcfdi_modif_subject_email=parse.bool(dbr.vars.get(@("&database"),"mxcfdi_modif_subject_email"))
     #$
     div(class="container")
     {
@@ -42,6 +45,14 @@ module "form.sendmail.dk"
                 input(type="hidden" name="" value="#<@@(cliente,'$correo')>" id="txt_correos")
                 ##
                 do uie.print_from_url_field()
+                #!
+                if mxcfdi_modif_subject_email
+                {
+                    #$
+                    label(class="fw-bold" "for"=""){"Asunto:"}
+                    input(class="form-control rounded-0" type="" name="subject" value="#<subject>" id="")
+                    #!
+                }
                 ##
                 div(class="row")
                 {
@@ -50,7 +61,7 @@ module "form.sendmail.dk"
                         label(class="form-label" "for"="txt_email"){$"Ingrese un correo electrónico válido:"}
                         div(class="input-group input-group-sm")
                         {
-                            input(class="form-control rounded-0" type="email" name="" value="" id="txt_emails" placeholder="name1@example1.com; name2@example2.com; name3@example3.com ...")
+                            input(class="form-control rounded-0" type="text" name="" value="" id="txt_emails" placeholder="name1@example1.com; name2@example2.com; name3@example3.com ...")
                             button(class="btn btn-secondary rounded-0" type="button" id="btn_add_mail"){$"Agregar"}
                         }
                     }

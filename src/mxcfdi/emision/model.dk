@@ -1556,12 +1556,14 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
 
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
+        subject=trim(@@(data,"$subject"))
+        if subject == ""{subject="CFDI "+@@(doc,"$referencia")+" ("+@@(params,"$_entity_id")+")"}
         new payload
         {
             @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
             @"pwd": field.str(emisor,"pwd") // Contraseña de la cuenta de timbrado.
             @"to": trim(@@(data,"$emails")) // Dirección de correo del destinatario.
-            @"subject": "CFDI "+@@(doc,"$referencia")+" ("+@@(params,"$_entity_id")+")" // Asunto del correo.
+            @"subject":subject  // Asunto del correo.
             @"doc": @@(doc,"$uf_foliosat") // UUID del CFDI o Idd [doc]
             @"res": "zip" // Tipo de resultado deseado.
             @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
