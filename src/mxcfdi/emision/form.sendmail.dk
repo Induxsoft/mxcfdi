@@ -51,6 +51,17 @@ module "form.sendmail.dk"
                     #$
                     label(class="fw-bold" "for"=""){"Asunto:"}
                     input(class="form-control rounded-0" type="" name="subject" value="#<subject>" id="")
+
+                    div(class="d-flex gap-2 mt-1")
+                    {
+                        input(type="checkbox" id="check_show_body" onchange="document.getElementById('section_email').classList.toggle('d-none', !this.checked);
+                                                                    if (!this.checked) document.getElementById('body').value = '';")
+                        label(class="" "for"="check_show_body"){"Cuerpo"}
+                    }
+                    div(class="d-none" id="section_email")
+                    {
+                        textarea(class="form-control rounded-0" name="body" id="body" placeholder="Cuerpo ....."){$""}
+                    }
                     #!
                 }
                 ##

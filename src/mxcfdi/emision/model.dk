@@ -1557,6 +1557,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
         subject=trim(@@(data,"$subject"))
+        body=trim(@@(data,"$body"))
         if subject == ""{subject="CFDI "+@@(doc,"$referencia")+" ("+@@(params,"$_entity_id")+")"}
         new payload
         {
@@ -1567,6 +1568,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"doc": @@(doc,"$uf_foliosat") // UUID del CFDI o Idd [doc]
             @"res": "zip" // Tipo de resultado deseado.
             @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
+            @"body":body
+            @"plantilla":trim(dbr.vars.get(db,"mxcfdi_template_email"))
         }
 
         ref response = from.json(http.post(@svc_fdsk_enviar,payload))

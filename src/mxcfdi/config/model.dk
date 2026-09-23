@@ -40,7 +40,28 @@ module "Configuración de emisores y cuentas de timbrado. :config"
     WHERE cfg.#<@keyfield> = @_entity_id
         #<conditions>
     "
-
+    @template_email_def='<html>
+        <body style="width:100%;background: #ffffff; padding: 10px;">
+            <h3 style="margin-top:10px;margin-bottom: 10px;">@subject</h3>
+            <hr style=" margin-top: 5px; margin-bottom: 5px;border: 0; border-top: 1px solid rgba(31, 27, 27, 0.15);">
+            <div>
+                @body
+            </div>
+            <hr style=" margin-top: 5px; margin-bottom: 5px;border: 0; border-top: 1px solid rgba(31, 27, 27, 0.15);">
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <th>
+                            <a href="http://induxsoft.net/" style="margin: 0 0 0 0px;"><img src="http://induxsoft.net/img/Logo.png" /></a>
+                        </th>	
+                        <th>
+                        <b>Esta factura electrónica (CFDI) fue emitida a través de la plataforma de Induxsoft.</b>
+                        </th>
+                    </tr>
+                </tbody>		
+            </table>
+        </body>
+    </html>'
     evaluateFilters::&params
     {
         conditions = ""
@@ -180,6 +201,28 @@ module "Configuración de emisores y cuentas de timbrado. :config"
         if isset("@@_action_context"){ do dbr.apps.action.log() }
         // do config.prepareView(db,params,data)
         do rise_error(code,error)
+    }
+    
+    /*
+     * Summary:
+     * - seccion de correo
+    */
+    template_email::&db,&params
+    {
+        template=dbr.vars.get(db,"mxcfdi_template_email")
+        if trim(template) == ""{template=@template_email_def}
+        new entity
+        {
+            @"template":template
+        }
+        return entity
+    }
+
+    save.template::&db,&params,&data
+    {
+        do dbr.vars.set(db,"mxcfdi_template_email",@@(data,"$template"))
+        @url_redir="/!/dbext/globalvar/"
+        return data
     }
 
     point @list to config.list

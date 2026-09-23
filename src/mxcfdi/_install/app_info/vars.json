@@ -54,7 +54,18 @@
                         "keyfield":"val"
                     }
                 }
-            }
+            },
+            {
+                "varname": "mxcfdi_config_template_email",
+                "vardefault": "",
+                "varvalue": "/!/mxcfdi/config/email/template-email/",
+                "varcaption": "Plantilla correo",
+                "varhelp": "Ir a configuración de plantilla de correo.",
+                "vartype": "string",
+                "varinput": {
+                    "control": "button"
+                }
+            },
         ]
     }
 ]

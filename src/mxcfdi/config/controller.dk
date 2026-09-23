@@ -1,0 +1,18 @@
+#include "dkli.dkh"
+#!
+module ""
+{
+    switch @@(params,"$_view")
+    {
+        case "template-email"
+        {
+            @form_view="template_email.dk"
+            @list_view="template_email.dk"
+            point @blank to config.template_email
+            point @read to config.template_email
+            point @create to config.save.template
+            point @update to config.save.template
+            break
+        }
+    }
+}
