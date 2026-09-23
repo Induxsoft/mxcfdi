@@ -261,11 +261,15 @@ module "Lista de consultas MySQL"
         ROUND(cxc.tipocambio,6) AS tipocambio,
         dvs.sys_pk AS idivisa,
         dvs.codigo AS cdivisa,
-        IFNULL(cxc.notas,'') AS concepto
+        IFNULL(cxc.notas,'') AS concepto,
+        trim(ifnull(fd.folio,''))folio,
+        ifnull(bd.serie,'')serie
         #<selects>
     FROM dcxc AS cxc
         INNER JOIN cliente AS cte ON cte.sys_pk = cxc.icliente
         INNER JOIN divisa AS dvs ON dvs.sys_pk = cte.idivisa
+        LEFT JOIN foliosdocumentos fd ON cxc.ifolio=fd.sys_pk
+        LEFT JOIN blockdocumentos bd ON fd.`block`=bd.sys_pk
         #<joins>
     WHERE cxc.#<@keyfield> = @doc
     "
