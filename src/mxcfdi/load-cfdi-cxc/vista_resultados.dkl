@@ -1,0 +1,105 @@
+#include "dkli.dkh"
+#!
+module "vista_resultados.dkl"
+{
+    /*
+    Página 2 — Resultados (SPEC §7). Compartida por CxC y CxP.
+    Recibe en output:
+    {
+        proceso,
+        resumen: { recibidos, importados, no_importados, altas },
+        filas*: [ { archivo, uuid, tipo, metodo, serie_folio, fecha, rfc_emisor, rfc_receptor,
+                    entidad, alta, moneda, total, estatus, resultado } ]
+    }
+    */
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+    ref resumen = ifnull(@@(entity,"&resumen"),record.create())
+    ref filas = ifnull(@@(entity,"&filas"),list.create())
+
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+    es_cxp = (@@(entity,"$proceso") == "cxp")
+
+    titulo = ifstr(es_cxp,"Importar CFDI a CxP - Resultados","Importar CFDI a CxC - Resultados")
+    caption_entidad = ifstr(es_cxp,"Proveedor","Cliente")
+    caption_altas = ifstr(es_cxp,"Proveedores dados de alta","Clientes dados de alta")
+
+    header_act::
+    {
+        #$
+        a(href="./" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"){$"Nueva importación"}
+        #!
+    }
+    point general_act to header_act
+
+    new nav_config
+    {
+        @"title": titulo
+        @"buttons*": general_act
+        member @"hidden"
+        {
+            @"send":@true
+            @"paste":@true
+            @"copy":@false
+            @"csv":@false
+        }
+    }
+
+    new table_definition
+    {
+        @"datatable*": filas
+        @"table_footer": "# archivos procesados"
+        @"tableheight": "60vh"
+        member @"columns"
+        {
+            member @"archivo" { @"caption": "Archivo" }
+            member @"uuid" { @"caption": "UUID" }
+            member @"tipo" { @"caption": "Tipo" }
+            member @"metodo" { @"caption": "Método de pago" }
+            member @"serie_folio" { @"caption": "Serie y folio" }
+            member @"fecha" { @"caption": "Fecha" }
+            member @"rfc_emisor" { @"caption": "RFC emisor" }
+            member @"rfc_receptor" { @"caption": "RFC receptor" }
+            member @"entidad" { @"caption": caption_entidad }
+            member @"alta" { @"caption": "Alta" }
+            member @"moneda" { @"caption": "Moneda" }
+            member @"total"
+            {
+                @"caption": "Total"
+                @"align": "end"
+                @"format": @true
+                @"thousandssep": @true
+                @"decs": 2
+            }
+            member @"estatus" { @"caption": "Estatus" }
+            member @"resultado" { @"caption": "Resultado" }
+        }
+    }
+
+    #$ div(class="container-fluid")
+    {
+        #! do uie.printV12FormBar(nav_config)
+
+        #$
+        div(id="work_area" class="container-section")
+        {
+            div(class="row mb-3")
+            {
+                div(class="col"){ label(class="fw-bold"){"Archivos recibidos: "} span{"#<@@(resumen,'#recibidos')>"} }
+                div(class="col"){ label(class="fw-bold"){"Importados: "} span{"#<@@(resumen,'#importados')>"} }
+                div(class="col"){ label(class="fw-bold"){"No importados: "} span{"#<@@(resumen,'#no_importados')>"} }
+                div(class="col"){ label(class="fw-bold"){"#<caption_altas>: "} span{"#<@@(resumen,'#altas')>"} }
+            }
+
+            #! do uie.dbeditable(table_definition,"tbl_resultados")
+            #$
+        }
+    }
+}

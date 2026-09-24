@@ -1,0 +1,87 @@
+#include "dkli.dkh"
+#!
+module "list.dk"
+{
+    /*
+    Lista de RFC autorizados para importar CFDI (mxcfdi_rfc).
+    Recibe en output: { data: [ { sys_pk, rfc, importar_compras, importar_cxc, importar_cxp } ] }
+    */
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+
+    do @context.begin(@crud_context)
+
+    ref data = ifnull(@("&./data"),list.create())
+
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+    tbtn_style = "border:1px solid #999;background:transparent;padding:2px 8px;cursor:pointer;text-decoration:none;color:inherit;"
+
+    header_act::
+    {
+        #$
+        a(href="./_new/" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"){$"Nuevo"}
+        #!
+    }
+    point general_act to header_act
+
+    new nav_config
+    {
+        @"title": "RFC autorizados para importar CFDI"
+        @"buttons*": general_act
+        member @"hidden"
+        {
+            @"send":@true
+            @"paste":@true
+        }
+    }
+
+    new table_definition
+    {
+        @"datatable*": data
+        member @"columns"
+        {
+            member @"rfc" { @"caption":"RFC" }
+            member @"importar_compras"
+            {
+                @"caption":"Importar a compras"
+                @"align":"center"
+            }
+            member @"importar_cxc"
+            {
+                @"caption":"Importar a CxC"
+                @"align":"center"
+            }
+            member @"importar_cxp"
+            {
+                @"caption":"Importar a CxP"
+                @"align":"center"
+            }
+            member @"_actions"
+            {
+                @"caption":"Acciones"
+                @"template":ftext('
+                    <div style="display:flex;gap:8px;justify-content:center;width:100%;" class="no-print">
+                        <a href="./${DataRow.sys_pk}/" style="#<tbtn_style>">Editar</a>
+                        <button onclick="InduxsoftCrudlModel.Delete(${DataRow.sys_pk})" style="#<tbtn_style>">Eliminar</button>
+                    </div>')
+                @"no-print":@true
+            }
+        }
+        @"table_footer": "Mostrando # registros"
+    }
+
+    #$ div(class="container")
+    {
+        #! do uie.printV12FormBar(nav_config)
+
+        #$
+        div(id="work_area" class="container-section")
+        {
+            #! do uie.dbeditable(table_definition,"tbl_mxcfdi_rfc")
+            #$
+        }
+    }
+}

@@ -7,7 +7,8 @@ GX93,Eliminar configuración de emisor,Eliminar,,"javascript:InduxsoftCrudlModel
 GX34,Importar CFDI de compra,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
 GX35,Relacionar producto existente,Relacionar producto,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,1,action
 GXF1,Importar CFDI de gasto,Importar CFDI,,/!/mxcfdi/load-cfdi/,0,mxcfdi.emision,DET084,0,action
-
+GXF2,Importar CFDI de CXC,Importar CFDI,,/!/mxcfdi/load-cfdi-cxc/,0,mxcfdi.emision,DET084,0,action
+GXF5,"RFC autorizados para importar CFDI","RFC AUTH","","/!/mxcfdi/mxcfdi_rfc/",0,mxcfdi.emision,DET084,0,action
 GX40,Orden de factura global,Factura Global,,/!/mxcfdi/fact-global/,0,mxcfdi.factglobal,DET094,0,shortcut
 GX41,Crear orden de factura global,Crear,,/!/mxcfdi/fact-global/_new/,0,mxcfdi.factglobal,DET094,0,action
 GX42,Editar orden de factura global,Editar,,/!/mxcfdi/fact-global/@_src_context_item_id/,0,mxcfdi.factglobal,DET094,1,action

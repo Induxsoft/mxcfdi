@@ -66,6 +66,39 @@
                     "control": "button"
                 }
             },
+            {
+                "varname": "MXCFDI_IMP_TIPOCLIENTE",
+                "vardefault": "1",
+                "varvalue": "1",
+                "varcaption": "T. de cliente default para clientes al importar",
+                "varhelp": "T. de cliente default para clientes al importar",
+                "vartype": "string",
+                "varinput": {
+                    "control": "select",
+                    "source":{
+                        "type":"query",
+                        "query":"SELECT t.sys_pk,CONCAT(t.codigo,' - ',t.descripcion)descripcion FROM tipocliente t WHERE IFNULL(t.sys_deleted,0)=0;",
+                        "keyfield":"sys_pk",
+                        "showfield":"descripcion"
+                    }
+                }
+            },{
+                "varname": "MXCFDI_IMP_TIPOPROVEEDOR",
+                "vardefault": "1",
+                "varvalue": "1",
+                "varcaption": "T. de proveedor default para prov. al importar",
+                "varhelp": "T. de proveedor default para proveedores al importar",
+                "vartype": "string",
+                "varinput": {
+                    "control": "select",
+                    "source":{
+                        "type":"query",
+                        "query":"SELECT t.sys_pk,CONCAT(t.codigo,' - ',t.descripcion)descripcion FROM tipoproveedor t WHERE IFNULL(t.sys_deleted,0)=0;",
+                        "keyfield":"sys_pk",
+                        "showfield":"descripcion"
+                    }
+                }
+            }
         ]
     }
 ]

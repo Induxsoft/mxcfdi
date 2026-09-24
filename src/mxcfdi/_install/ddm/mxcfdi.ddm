@@ -27,6 +27,14 @@ model "mxcfdi"
 
     strict compatibility
     //* ======================================== [ ENTIDADES PRINCIPALES ]
+    entity "mxcfdi_rfc" : "TableModel"
+    {
+        @"rfc" string(15) unique required
+        @"importar_compras" bool
+        @"importar_cxc" bool
+        @"importar_cxp" bool
+    }
+    
     entity "ut_cfdinfo" : "TableModel"
     {
         @"uf_nocertificado" string(20) unique required

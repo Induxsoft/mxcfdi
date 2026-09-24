@@ -1,0 +1,325 @@
+#include "dkli.dkh"
+#!
+module "xml"
+{
+    tipoDocNumerico::txt
+    {
+        switch(tolower(txt))
+        {
+            case "i"{ return 0 }
+            case "e"{ return 1 }
+            case "t"{ return 2 }
+            case "n"{ return 3 }
+            case "p"{ return 4 }
+        }
+
+        return 0
+    }
+
+
+    cfdi.totalRetenciones:: &cfdi
+    {
+        ref impuestos=primerElementoHijoPorNombre(cfdi,"cfdi:Impuestos")
+
+        if isnull(impuestos) {return 0 }
+        return parse.num(atributoElemento(impuestos,"TotalImpuestosRetenidos"))
+    }
+
+    cfdi.totalTraslados:: &cfdi
+    {
+        ref impuestos=primerElementoHijoPorNombre(cfdi,"cfdi:Impuestos")
+
+        if isnull(impuestos) {return 0 }
+        return parse.num(atributoElemento(impuestos,"TotalImpuestosTrasladados"))
+    }
+
+    cfdi.isrRetenido::&cfdi
+    {
+        return cfdi.sumaImpuesto(cfdi,"cfdi:Retenciones","001")
+    }
+
+    cfdi.ivaRetenido::&cfdi
+    {
+        return cfdi.sumaImpuesto(cfdi,"cfdi:Retenciones","002")
+    }
+
+    cfdi.ivaTrasladado::&cfdi
+    {
+        return cfdi.sumaImpuesto(cfdi,"cfdi:Traslados","002")
+    }
+
+    cfdi.iepsTrasladado::&cfdi
+    {
+        return cfdi.sumaImpuesto(cfdi,"cfdi:Traslados","003")
+    }
+
+    cfdi.sumaImpuesto::&cfdi,clase,clave
+    {
+        total=0
+        ref impuestos=primerElementoHijoPorNombre(cfdi,"cfdi:Impuestos")
+        if isnull(impuestos){return 0}
+
+        ref clase_impuestos=primerElementoHijoPorNombre(impuestos,clase)
+        if isnull(clase_impuestos){return 0}
+
+        if isnull(@@(clase_impuestos,"&nodes")){ return 0}
+
+        for i=0;i<@count(@@(clase_impuestos,"&nodes"))
+        {
+            ref impuesto=@item(@@(clase_impuestos,"&nodes"),i)
+            if atributoElemento(impuesto,"Impuesto")==clave { total=total+parse.num(atributoElemento(impuesto,"Importe")) }
+        }
+
+        return total
+    }
+
+
+    primerTexto::&elemento
+    {
+        if isnull(elemento) { return "" }
+        if isnull(@@(elemento,"&nodes")) { return "" }
+
+        for i=0; i<@count(@@(elemento,"&nodes"))
+        {
+            if @@( @item(@@(elemento,"&nodes"),i),"type")=="text" { return @@( @item(@@(elemento,"&nodes"),i),"data") }
+        }
+        return ""
+    }
+
+    // MEJORA: si el elemento o sus atributos son nulos devuelve "" en lugar de fallar.
+    atributoElemento::&elemento, name
+    {
+        if isnull(elemento) { return "" }
+        if isnull(@@(elemento,"&attributes")) { return "" }
+        return @@(@@(elemento,"&attributes"),name)
+    }
+
+    primerElementoHijoPorNombre::&elemento, tagname
+    {
+        if isnull(elemento) { return @null }
+        if isnull(@@(elemento,"&nodes")) { return @null }
+
+        for i=0; i<@count(@@(elemento,"&nodes"))
+        {
+            if @@( @item(@@(elemento,"&nodes"),i),"name")==tagname { return @item(@@(elemento,"&nodes"),i) }
+        }
+
+        return @null
+    }
+
+    reemplazarPrimerElementoHijoPorNombre::&elemento, tagname, &child
+    {
+        if isnull(elemento) { return @null }
+        if isnull(@@(elemento,"&nodes")) { return @null }
+
+        for i=0; i<@count(@@(elemento,"&nodes"))
+        {
+            if @@( @item(@@(elemento,"&nodes"),i),"name")==tagname
+            {
+                do list.set(@@(elemento,"&nodes"),i,child)
+                return child
+            }
+        }
+
+        return @null
+    }
+
+
+
+    //////////funciones para comprobante cr
+     cr.sumaImpuesto::&cr,clave
+    {
+        total=0
+        ref totales=primerElementoHijoPorNombre(cr,"retenciones:Totales")
+        if isnull(@@(totales,"&nodes")){return 0}
+
+        //ref impRetenidos=primerElementoHijoPorNombre(totales,"retenciones:ImpRetenidos")
+
+        for i=0;i<@count(@@(totales,"&nodes"))
+        {
+            ref attr=@item(@@(totales,"&nodes"),i)
+            if atributoElemento(attr,"ImpuestoRet")==clave{total=total+parse.num(atributoElemento(attr,"MontoRet"))}
+        }
+        return total
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // MEJORAS: funciones agregadas para la importación de CFDI (mxcfdi)
+    //////////////////////////////////////////////////////////////////////////
+
+    // Devuelve una lista con todos los hijos directos del elemento que tienen el nombre indicado.
+    elementosHijosPorNombre::&elemento, tagname
+    {
+        ref lista=list.create()
+        if isnull(elemento) { return lista }
+        if isnull(@@(elemento,"&nodes")) { return lista }
+
+        for i=0; i<@count(@@(elemento,"&nodes"))
+        {
+            if @@( @item(@@(elemento,"&nodes"),i),"name")==tagname { do list.add(lista,@item(@@(elemento,"&nodes"),i)) }
+        }
+
+        return lista
+    }
+
+    // Valor numérico de un atributo (0 si no existe).
+    atributoElementoNum::&elemento, name
+    {
+        return parse.num(atributoElemento(elemento,name))
+    }
+
+    // Devuelve el nodo cfdi:Comprobante a partir del resultado de parse.xmlStr / parse.xmlFile
+    // (acepta tanto el documento como el propio nodo Comprobante).
+    cfdi.comprobante::&xml
+    {
+        if isnull(xml) { return @null }
+        if @@(xml,"name")=="cfdi:Comprobante" { return xml }
+        return primerElementoHijoPorNombre(xml,"cfdi:Comprobante")
+    }
+
+    cfdi.version::&cfdi
+    {
+        return trim(atributoElemento(cfdi,"Version"))
+    }
+
+    // Tipo de comprobante en mayúsculas: I, E, T, N o P
+    cfdi.tipo::&cfdi
+    {
+        return toupper(trim(atributoElemento(cfdi,"TipoDeComprobante")))
+    }
+
+    cfdi.tipoDescripcion::txt
+    {
+        switch(toupper(txt))
+        {
+            case "I"{ return "Ingreso" }
+            case "E"{ return "Egreso" }
+            case "T"{ return "Traslado" }
+            case "N"{ return "Nómina" }
+            case "P"{ return "Pago" }
+        }
+
+        return txt
+    }
+
+    // Fecha del comprobante en formato yyyy-MM-dd
+    cfdi.fecha::&cfdi
+    {
+        return cut(trim(atributoElemento(cfdi,"Fecha")),10)
+    }
+
+    cfdi.emisor::&cfdi
+    {
+        return primerElementoHijoPorNombre(cfdi,"cfdi:Emisor")
+    }
+
+    cfdi.receptor::&cfdi
+    {
+        return primerElementoHijoPorNombre(cfdi,"cfdi:Receptor")
+    }
+
+    // Devuelve el hijo indicado dentro de cfdi:Complemento
+    cfdi.complemento::&cfdi, tagname
+    {
+        ref complemento=primerElementoHijoPorNombre(cfdi,"cfdi:Complemento")
+        if isnull(complemento) { return @null }
+        return primerElementoHijoPorNombre(complemento,tagname)
+    }
+
+    cfdi.timbre::&cfdi
+    {
+        return cfdi.complemento(cfdi,"tfd:TimbreFiscalDigital")
+    }
+
+    // UUID del TimbreFiscalDigital ("" si no está timbrado)
+    cfdi.uuid::&cfdi
+    {
+        return trim(atributoElemento(cfdi.timbre(cfdi),"UUID"))
+    }
+
+    // Lista de cadenas con los UUID de todos los nodos cfdi:CfdiRelacionados/cfdi:CfdiRelacionado
+    cfdi.uuidsRelacionados::&cfdi
+    {
+        ref uuids=list.create()
+        ref grupos=elementosHijosPorNombre(cfdi,"cfdi:CfdiRelacionados")
+
+        for i=0; i<list.count(grupos)
+        {
+            ref relacionados=elementosHijosPorNombre(list.obj(grupos,i),"cfdi:CfdiRelacionado")
+            for j=0; j<list.count(relacionados)
+            {
+                uuid=trim(atributoElemento(list.obj(relacionados,j),"UUID"))
+                if uuid!="" { do list.add(uuids,uuid) }
+            }
+        }
+
+        return uuids
+    }
+
+    //////////funciones para complemento de pagos 2.0
+    cfdi.pagos::&cfdi
+    {
+        return cfdi.complemento(cfdi,"pago20:Pagos")
+    }
+
+    // Lista de nodos pago20:Pago
+    cfdi.pagos.lista::&cfdi
+    {
+        return elementosHijosPorNombre(cfdi.pagos(cfdi),"pago20:Pago")
+    }
+
+    // Suma del atributo Monto de todos los nodos pago20:Pago
+    cfdi.pagos.montoTotal::&cfdi
+    {
+        total=0
+        ref pagos=cfdi.pagos.lista(cfdi)
+        for i=0; i<list.count(pagos)
+        {
+            total=total+atributoElementoNum(list.obj(pagos,i),"Monto")
+        }
+        return total
+    }
+
+    // Lista de registros con los datos de cada pago20:DoctoRelacionado (de todos los pagos)
+    cfdi.pagos.doctosRelacionados::&cfdi
+    {
+        ref doctos=list.create()
+        ref pagos=cfdi.pagos.lista(cfdi)
+
+        for i=0; i<list.count(pagos)
+        {
+            ref pago=list.obj(pagos,i)
+            ref relacionados=elementosHijosPorNombre(pago,"pago20:DoctoRelacionado")
+
+            for j=0; j<list.count(relacionados)
+            {
+                ref dr=list.obj(relacionados,j)
+                new docto
+                {
+                    @"iddocumento": trim(atributoElemento(dr,"IdDocumento"))
+                    @"serie": atributoElemento(dr,"Serie")
+                    @"folio": atributoElemento(dr,"Folio")
+                    @"monedadr": atributoElemento(dr,"MonedaDR")
+                    @"equivalenciadr": atributoElementoNum(dr,"EquivalenciaDR")
+                    @"numparcialidad": atributoElementoNum(dr,"NumParcialidad")
+                    @"impsaldoant": atributoElementoNum(dr,"ImpSaldoAnt")
+                    @"imppagado": atributoElementoNum(dr,"ImpPagado")
+                    @"impsaldoinsoluto": atributoElementoNum(dr,"ImpSaldoInsoluto")
+                    @"fechapago": cut(trim(atributoElemento(pago,"FechaPago")),10)
+                    @"monedap": atributoElemento(pago,"MonedaP")
+                    @"tipocambiop": atributoElementoNum(pago,"TipoCambioP")
+                }
+                do list.add(doctos,docto)
+            }
+        }
+
+        return doctos
+    }
+
+    //////////funciones para complemento de nómina 1.2
+    cfdi.nomina::&cfdi
+    {
+        return cfdi.complemento(cfdi,"nomina12:Nomina")
+    }
+}

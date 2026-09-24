@@ -1,0 +1,105 @@
+#include "dkli.dkh"
+#!
+module "form.dk"
+{
+    /*
+    Alta y edición de un RFC autorizado para importar CFDI (mxcfdi_rfc).
+    Recibe en output: { sys_pk, sys_recver, rfc, importar_compras, importar_cxc, importar_cxp }
+    Si falla el guardado, el marco vuelve a mostrar esta vista con el error y lo capturado.
+    */
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+
+    @ICON_SAVE='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-floppy2-fill" viewBox="0 0 16 16">
+            <path d="M12 2h-2v3h2z"></path>
+            <path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v13A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5V2.914a1.5 1.5 0 0 0-.44-1.06L14.147.439A1.5 1.5 0 0 0 13.086 0zM4 6a1 1 0 0 1-1-1V1h10v4a1 1 0 0 1-1 1zM3 9h10a1 1 0 0 1 1 1v5H2v-5a1 1 0 0 1 1-1"></path>
+        </svg>
+        '
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+    ref error = @@(@crud_context,"&error")
+
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+	is_new = (@_entity_id == "_new")
+
+    // En lectura llegan 0 o 1; si falla el guardado llega lo capturado ("1" o nada)
+    v_compras = tolower(trim(@@(entity,"$importar_compras")))
+    v_cxc = tolower(trim(@@(entity,"$importar_cxc")))
+    v_cxp = tolower(trim(@@(entity,"$importar_cxp")))
+    chk_compras = (v_compras == "1" || v_compras == "true")
+    chk_cxc = (v_cxc == "1" || v_cxc == "true")
+    chk_cxp = (v_cxp == "1" || v_cxp == "true")
+
+    header_act::
+    {
+        #$
+        button(type="submit" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"){$"#<@ICON_SAVE>"}
+        #!
+    }
+    point general_act to header_act
+
+    new nav_config
+    {
+        @"title": ifstr(is_new,"Nuevo RFC autorizado","RFC autorizado")
+        @"buttons*": general_act
+        @"urlexit": "../"
+        member @"hidden"
+        {
+            @"print": @true
+            @"send":@true
+            @"paste":@true
+            @"copy":@true
+            @"csv":@true
+        }
+    }
+
+    #$ div(class="container")
+    {
+        form(method="POST" action="./" id="form")
+        {
+            #! do uie.printV12FormBar(nav_config)
+
+            #$
+            div(id="work_area" class="container-section")
+            {
+                #!
+                if not(isnull(error))
+                {
+                    #$ div(class="alert alert-danger"){"#<@@(error,'$message')>"}
+                    #!
+                }
+                #$
+
+                input(type="hidden" name="sys_recver" value="#<@@(entity,'#sys_recver')>"){}
+
+                div(class="mb-3")
+                {
+                    label(class="fw-bold" "for"="rfc"){"RFC:"}
+                    input(type="text" class="induxsoft-form-control" name="rfc" id="rfc" maxlength="15" required="required" style="text-transform:uppercase;" value="#<@@(entity,'$rfc')>"){}
+                }
+
+                div(class="form-check")
+                {
+                    input(class="form-check-input" type="checkbox" name="importar_compras" id="chk_compras" value="1" "#<ifstr(chk_compras,'checked','')>"="checked"){}
+                    label(class="form-check-label" "for"="chk_compras"){"Importar CFDI a compras"}
+                }
+
+                div(class="form-check")
+                {
+                    input(class="form-check-input" type="checkbox" name="importar_cxc" id="chk_cxc" value="1" "#<ifstr(chk_cxc,'checked','')>"="checked"){}
+                    label(class="form-check-label" "for"="chk_cxc"){"Importar a CxC los CFDI emitidos por este RFC"}
+                }
+
+                div(class="form-check")
+                {
+                    input(class="form-check-input" type="checkbox" name="importar_cxp" id="chk_cxp" value="1" "#<ifstr(chk_cxp,'checked','')>"="checked"){}
+                    label(class="form-check-label" "for"="chk_cxp"){"Importar a CxP los CFDI recibidos por este RFC (y la nómina que emite)"}
+                }
+            }
+        }
+    }
+}

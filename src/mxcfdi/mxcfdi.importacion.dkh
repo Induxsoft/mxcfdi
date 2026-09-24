@@ -1,0 +1,1374 @@
+#include "dkli.dkh"
+#!
+module "Importación de CFDI a CxC y CxP:mxcfdi.importacion"
+{
+    /*
+    Importación de CFDI a CxC y CxP (SPEC_mxcfdi_importacion_cxc_cxp.md v1.1)
+    =======================================================================
+
+    Funciones públicas (las únicas que usan los programas):
+        mxcfdi.importacion.paginaCargaCxC(&db)                          -> datos para vista_carga.dkl
+        mxcfdi.importacion.paginaCargaCxP(&db)                          -> datos para vista_carga.dkl
+        mxcfdi.importacion.importarCxC(&db,&data,&files,&parametros)    -> datos para vista_resultados.dkl
+        mxcfdi.importacion.importarCxP(&db,&data,&files,&parametros)    -> datos para vista_resultados.dkl
+
+        &data       Campos del formulario: alta, pue, nomina (checks)
+        &files      Lista request.files de @http_context  (temp_file, filename, size, field)
+        &parametros { crear_movcuenta, categoria_banco, cuenta_banco, documento_banco }
+                    crear_movcuenta: @false (predeterminado) -> los CFDI de pago NO generan
+                    movimiento en movcuenta (se envía _sin_movcuenta = @true a movimientos.dkh).
+                    Con @true se usan categoria_banco, cuenta_banco y documento_banco
+                    (cobrarCxC o cobrarCliente en CxC, pagarCxP o pagarProveedor en CxP).
+
+    Dependencias que deben estar cargadas antes (normalmente desde entry-point.dkl):
+        functions.dkh, serialize.dkh, dbr.dkh, dbr.vars.dkl
+        xmlcfdi.dk                      (lectura del XML)
+        movimientos.dkh de CxC          (erp.cxc.movimientos.*)
+        movimientos.dkh de CxP          (erp.cxp.movimientos.*)
+        movimientos de efectivo         (erp.efectivo.movimientos.*, los usan cobrarCxC o pagarCxP)
+
+    Decisiones acordadas:
+        - Los ingresos PUE se registran como cargo SIN liquidar.
+        - Toda la afectación de saldos se hace con las funciones de movimientos.dkh (opción A):
+            Ingreso o Nómina   -> crearCxC o crearCxP                     (documento 4 Factura)
+            Egreso relacionado -> bonificarCxC o bonificarCxP por documento, en orden hasta cubrir
+                                  el saldo de cada uno; el resto queda por aplicar con
+                                  bonificarCliente o bonificarProveedor    (documento 5 Nota de crédito)
+            Egreso sin relac.  -> bonificarCliente o bonificarProveedor
+            Pago relacionado   -> cobrarCxC o pagarCxP por cada DoctoRelacionado (ImpPagado)
+            Pago sin relac.    -> cobrarCliente o pagarProveedor           (documento 19 Recibo)
+        - UUID en CxC: tabla ut_cfd (uf_foliosat) relacionada con dcxc (uf_idcxc) y aplcxc (uf_aplcxc).
+        - UUID en CxP: campo dcxp.uuid_fiscal.
+        - notas de cada movimiento: leyenda con el UUID del CFDI de origen.
+        - referencia: serie-folio del CFDI (UUID si no trae serie ni folio). Si la referencia ya
+          existe en dcxc o dcxp se agrega un consecutivo: REF-1, REF-2... El UUID va en notas.
+        - aplicacion (fecha límite) = fecha + días de crédito del cliente o proveedor.
+        - Tipo de cambio: tabla divisa, según @MXCFDI_TCAMBIO_ORIGEN (ver tipoCambio).
+    */
+
+    //* ======================================== [ CONSTANTES ]
+
+    // Destinos de aplicación en aplcxc (los usa erp.cxc.movimientos: cobrarCxC, bonificarCxC, aplicarIntMor)
+    @CXC_DESTINO_APLICACION_INT_FINANCIEROS = 1
+    @CXC_DESTINO_APLICACION_INT_MORATORIOS = 2
+    @CXC_DESTINO_APLICACION_BONIFICACIONES = 3
+    @CXC_DESTINO_APLICACION_PAGOS = 4
+
+    // Documentos (cdocumentos)
+    @MXCFDI_DOC_FACTURA = 4
+    @MXCFDI_DOC_NOTA_CREDITO = 5
+    @MXCFDI_DOC_RECIBO = 19
+
+    // Claves de las configuraciones de MxCFDI (dbr.vars.get)
+    // TODO: reemplazar por las claves reales de las variables cuando se den de alta.
+    @MXCFDI_VAR_TIPO_CLIENTE = "MXCFDI_IMP_TIPOCLIENTE"             // Tipo de cliente predeterminado (sys_pk de tipocliente)
+    @MXCFDI_VAR_TIPO_PROVEEDOR = "MXCFDI_IMP_TIPOPROVEEDOR"         // Tipo de proveedor predeterminado (sys_pk de tipoproveedor)
+    @MXCFDI_VAR_TIPO_PROV_NOMINA = "MXCFDI_IMP_TIPOPROVNOMINA"      // Tipo de proveedor para nómina (sys_pk de tipoproveedor)
+    @MXCFDI_VAR_PROVEEDOR_NOMINA = "MXCFDI_IMP_PROVNOMINA"          // Proveedor fijo para nómina (sys_pk de proveedor)
+    @MXCFDI_VAR_MAX_ARCHIVOS = "MXCFDI_IMP_MAXARCHIVOS"             // Máximo de archivos por lote
+    @MXCFDI_VAR_DIVISA_PRED = "FXCA013"                             // Divisa predeterminada del sistema
+
+    @MXCFDI_MAX_ARCHIVOS_PRED = 100
+
+    // Nombre del campo <input type="file"> del formulario de carga
+    @MXCFDI_CAMPO_ARCHIVOS = "xmls"
+
+    // Origen del tipo de cambio de los movimientos:
+    //   "predeterminada" -> tcambio de la divisa predeterminada (FXCA013)
+    //   "documento"      -> tcambio de la divisa del CFDI (Moneda), o la predeterminada si no existe
+    @MXCFDI_TCAMBIO_ORIGEN = "predeterminada"
+
+    // Estatus
+    @MXCFDI_ST_IMPORTADO = "Importado"
+    @MXCFDI_ST_NO_IMPORTADO = "No importado"
+
+    // Motivos de rechazo (SPEC §5.4 y §6.5)
+    @MXCFDI_M_NO_RECONOCIDO = "Archivo no reconocido como CFDI 4.0 / Pagos 2.0"
+    @MXCFDI_M_RFC = "RFC no autorizado para la importación"
+    @MXCFDI_M_TIPO_CXC = "No es un CFDI de ingreso PPD, de egreso o de pago"
+    @MXCFDI_M_TIPO_CXP = "No es un CFDI de ingreso PPD, de egreso, de pago o de nómina"
+    @MXCFDI_M_PUE_CXC = "CFDI PUE y la opción Importar CFDI PUE como CxC no está marcada"
+    @MXCFDI_M_PUE_CXP = "CFDI PUE y la opción Importar CFDI PUE como CxP no está marcada"
+    @MXCFDI_M_NOMINA = "CFDI de nómina y la opción Importar CFDI de nómina como CxP no está marcada"
+    @MXCFDI_M_DUPLICADO = "CFDI ya existente en la base de datos"
+    @MXCFDI_M_SIN_CLIENTE = "Cliente inexistente y sin marca de dar de alta"
+    @MXCFDI_M_SIN_PROVEEDOR = "Proveedor inexistente y sin marca de dar de alta"
+    @MXCFDI_M_REFERENCIADO = "CFDI referenciado no encontrado"
+    @MXCFDI_M_ERROR = "Error al guardar"
+
+
+    //* ======================================== [ CONFIGURACIÓN Y CONTEXTO ]
+
+    leerConfiguracion::&db
+    {
+        new cfg
+        {
+            @"tipo_cliente": parse.num(trim(dbr.vars.get(db,@MXCFDI_VAR_TIPO_CLIENTE)))
+            @"tipo_proveedor": parse.num(trim(dbr.vars.get(db,@MXCFDI_VAR_TIPO_PROVEEDOR)))
+            @"tipo_proveedor_nomina": parse.num(trim(dbr.vars.get(db,@MXCFDI_VAR_TIPO_PROV_NOMINA)))
+            @"proveedor_nomina": parse.num(trim(dbr.vars.get(db,@MXCFDI_VAR_PROVEEDOR_NOMINA)))
+            @"max_archivos": parse.num(trim(dbr.vars.get(db,@MXCFDI_VAR_MAX_ARCHIVOS)))
+        }
+        if @@(cfg,"#max_archivos") <= 0 { cfg<"max_archivos">: @MXCFDI_MAX_ARCHIVOS_PRED }
+        return cfg
+    }
+
+    crearContexto::&db,proceso,&data,&parametros
+    {
+        namespace "mxcfdi.importacion"
+
+        if isnull(data) { ref data = record.create() }
+        if isnull(parametros) { ref parametros = record.create() }
+
+        new ctx
+        {
+            @"proceso": proceso
+            @"alta": parse.bool(trim(@@(data,"$alta")))
+            @"pue": parse.bool(trim(@@(data,"$pue")))
+            @"nomina": parse.bool(trim(@@(data,"$nomina")))
+            @"crear_movcuenta": @@(parametros,"#crear_movcuenta")
+            @"categoria_banco": @@(parametros,"#categoria_banco")
+            @"cuenta_banco": @@(parametros,"#cuenta_banco")
+            @"documento_banco": @@(parametros,"#documento_banco")
+        }
+        if proceso != "cxp" { ctx<"nomina">: @false }
+
+        ctx<"cfg*">: leerConfiguracion(db)
+        ctx<"vistos*">: record.create()
+        return ctx
+    }
+
+    // Reglas para iniciar el proceso (SPEC §3.2 y §6.3). Si no se cumplen, el proceso no inicia.
+    validarConfiguracion::&ctx
+    {
+        ref cfg = @@(ctx,"&cfg")
+        alta = @@(ctx,"#alta")
+
+        if @@(ctx,"$proceso") == "cxc"
+        {
+            if alta && @@(cfg,"#tipo_cliente") <= 0 { do rise_error(500,"No se puede iniciar la importación: falta configurar el Tipo de cliente predeterminado para clientes creados al importar.") }
+            return @true
+        }
+
+        if @@(ctx,"#nomina") && alta && @@(cfg,"#proveedor_nomina") <= 0 && @@(cfg,"#tipo_proveedor_nomina") <= 0 && @@(cfg,"#tipo_proveedor") <= 0
+        {
+            do rise_error(500,"No se puede iniciar la importación: para dar de alta empleados como proveedores falta configurar el Tipo de proveedor para importar CFDI de nómina o el Tipo de proveedor predeterminado.")
+        }
+        if alta && @@(cfg,"#tipo_proveedor") <= 0 { do rise_error(500,"No se puede iniciar la importación: falta configurar el Tipo de proveedor predeterminado para proveedores creados al importar.") }
+        return @true
+    }
+
+    // Filtra la lista request/files y devuelve { archivo, ruta, size } de los XML enviados.
+    archivosCargados::&files
+    {
+        ref lista = list.create()
+        if isnull(files) { return lista }
+
+        for i=0; i<list.count(files)
+        {
+            ref f = list.obj(files,i)
+            if @@(f,"$field") == @MXCFDI_CAMPO_ARCHIVOS && trim(@@(f,"$filename")) != ""
+            {
+                new archivo
+                {
+                    @"archivo": @@(f,"$filename")
+                    @"ruta": @@(f,"$temp_file")
+                    @"size": @@(f,"#size")
+                }
+                do list.add(lista,archivo)
+            }
+        }
+        return lista
+    }
+
+
+    //* ======================================== [ LECTURA DEL CFDI ]
+
+    // Llena &info con los datos del CFDI. &info debe traer "archivo" y "ruta".
+    // Si el archivo no es un CFDI 4.0 (o Pagos 2.0) deja valido=@false y el motivo.
+    leerCfdi::&info
+    {
+        info<"valido">: @false
+        info<"motivo">: @MXCFDI_M_NO_RECONOCIDO
+        info<"relacionados*">: list.create()
+
+        texto = file.rtext(@@(info,"$ruta"))
+        ref xml = parse.xmlStr(texto)
+        ref comp = cfdi.comprobante(xml)
+        if isnull(comp) { return @false }
+
+        ref emisor = cfdi.emisor(comp)
+        ref receptor = cfdi.receptor(comp)
+        ref timbre = cfdi.timbre(comp)
+
+        tipo = cfdi.tipo(comp)
+        serie = trim(atributoElemento(comp,"Serie"))
+        folio = trim(atributoElemento(comp,"Folio"))
+        serie_folio = serie + ifstr(serie != "" && folio != "","-","") + folio
+        uuid = cfdi.uuid(comp)
+
+        info<"xml_texto">: texto
+        info<"version">: cfdi.version(comp)
+        info<"uuid">: uuid
+        info<"tipo">: tipo
+        info<"tipo_desc">: cfdi.tipoDescripcion(tipo)
+        info<"metodo">: toupper(trim(atributoElemento(comp,"MetodoPago")))
+        info<"serie_folio">: serie_folio
+        info<"referencia">: ifstr(serie_folio != "",serie_folio,uuid)   // base; cada movimiento toma siguienteReferencia
+        info<"fecha">: cfdi.fecha(comp)
+        info<"fecha_mov">: cfdi.fecha(comp)
+        info<"fecha_hora">: trim(atributoElemento(comp,"Fecha"))
+        info<"rfc_emisor">: toupper(trim(atributoElemento(emisor,"Rfc")))
+        info<"nombre_emisor">: trim(atributoElemento(emisor,"Nombre"))
+        info<"rfc_receptor">: toupper(trim(atributoElemento(receptor,"Rfc")))
+        info<"nombre_receptor">: trim(atributoElemento(receptor,"Nombre"))
+        info<"regimen_receptor">: trim(atributoElemento(receptor,"RegimenFiscalReceptor"))
+        info<"cp_receptor">: trim(atributoElemento(receptor,"DomicilioFiscalReceptor"))
+        info<"moneda">: toupper(trim(atributoElemento(comp,"Moneda")))
+        info<"total">: atributoElementoNum(comp,"Total")
+        info<"sello">: atributoElemento(comp,"Sello")
+        info<"fecha_timbrado">: trim(atributoElemento(timbre,"FechaTimbrado"))
+        info<"nocertificadosat">: trim(atributoElemento(timbre,"NoCertificadoSAT"))
+        info<"sellosat">: atributoElemento(timbre,"SelloSAT")
+
+        // Reconocimiento: CFDI 4.0 timbrado
+        if @@(info,"$version") != "4.0" { return @false }
+        if uuid == "" { return @false }
+
+        ref relacionados = list.create()
+        if tipo == "P"
+        {
+            // Complemento de pagos 2.0
+            ref pagos = cfdi.pagos(comp)
+            if isnull(pagos) { return @false }
+            if trim(atributoElemento(pagos,"Version")) != "2.0" { return @false }
+
+            ref lpagos = cfdi.pagos.lista(comp)
+            if list.count(lpagos) == 0 { return @false }
+            ref pago = list.obj(lpagos,0)
+
+            info<"moneda">: toupper(trim(atributoElemento(pago,"MonedaP")))
+            info<"fecha_mov">: cut(trim(atributoElemento(pago,"FechaPago")),10)
+            info<"total">: cfdi.pagos.montoTotal(comp)
+
+            ref doctos = cfdi.pagos.doctosRelacionados(comp)
+            for i=0; i<list.count(doctos)
+            {
+                ref dr = list.obj(doctos,i)
+                new rel
+                {
+                    @"uuid": @@(dr,"$iddocumento")
+                    @"importe": @@(dr,"#imppagado")
+                }
+                do list.add(relacionados,rel)
+            }
+        }
+        else
+        {
+            ref uuids = cfdi.uuidsRelacionados(comp)
+            for i=0; i<list.count(uuids)
+            {
+                new rel
+                {
+                    @"uuid": list.str(uuids,i)
+                    @"importe": 0
+                }
+                do list.add(relacionados,rel)
+            }
+        }
+        info<"relacionados*">: relacionados
+
+        info<"valido">: @true
+        info<"motivo">: ""
+        return @true
+
+        exception
+        {
+            info<"valido">: @false
+            info<"motivo">: @MXCFDI_M_NO_RECONOCIDO
+        }
+    }
+
+    leyenda::&info
+    {
+        return "Movimiento importado del CFDI con UUID " + @@(info,"$uuid")
+    }
+
+
+    //* ======================================== [ VALIDACIONES ]
+
+    // RFC que se valida contra mxcfdi_rfc (SPEC §5.2, §6.2 y §6.3)
+    rfcAutorizar::proceso,&info
+    {
+        if proceso == "cxc" { return @@(info,"$rfc_emisor") }
+        if @@(info,"$tipo") == "N" { return @@(info,"$rfc_emisor") }
+        return @@(info,"$rfc_receptor")
+    }
+
+    rfcAutorizado::&db,rfc,proceso
+    {
+        new p
+        {
+            @"rfc": rfc
+        }
+        sql = "SELECT COUNT(*) FROM mxcfdi_rfc WHERE UPPER(TRIM(rfc)) = @rfc AND IFNULL(importar_cxc,0) = 1 AND NOT IFNULL(sys_deleted,0)"
+        if proceso == "cxp" { sql = "SELECT COUNT(*) FROM mxcfdi_rfc WHERE UPPER(TRIM(rfc)) = @rfc AND IFNULL(importar_cxp,0) = 1 AND NOT IFNULL(sys_deleted,0)" }
+
+        return (dbr.num(db,sql,p) > 0)
+    }
+
+    // Tipo admitido (SPEC §5.3 y §6.4). Devuelve "" si se admite o el motivo de rechazo.
+    validarTipo::&ctx,&info
+    {
+        proceso = @@(ctx,"$proceso")
+        tipo = @@(info,"$tipo")
+        metodo = @@(info,"$metodo")
+
+        motivo_tipo = @MXCFDI_M_TIPO_CXC
+        motivo_pue = @MXCFDI_M_PUE_CXC
+        if proceso == "cxp"
+        {
+            motivo_tipo = @MXCFDI_M_TIPO_CXP
+            motivo_pue = @MXCFDI_M_PUE_CXP
+        }
+
+        if tipo == "I"
+        {
+            if metodo == "PPD" { return "" }
+            if metodo == "PUE"
+            {
+                if @@(ctx,"#pue") { return "" }
+                return motivo_pue
+            }
+            return motivo_tipo
+        }
+        if tipo == "E" || tipo == "P" { return "" }
+        if tipo == "N" && proceso == "cxp"
+        {
+            if @@(ctx,"#nomina") { return "" }
+            return @MXCFDI_M_NOMINA
+        }
+        return motivo_tipo
+    }
+
+    // Duplicados en la base y dentro del mismo lote (SPEC §4.4)
+    esDuplicado::&db,&ctx,&info
+    {
+        namespace "mxcfdi.importacion"
+
+        uuid = toupper(@@(info,"$uuid"))
+        ref vistos = @@(ctx,"&vistos")
+        if field.exist(vistos,uuid) { return @true }
+        vistos<uuid>: 1
+
+        if @@(ctx,"$proceso") == "cxc" { return (cxc.existeUUID(db,uuid) > 0) }
+        return (cxp.existeUUID(db,uuid) > 0)
+    }
+
+    cxc.existeUUID::&db,uuid
+    {
+        new p
+        {
+            @"uuid": uuid
+        }
+        return dbr.num(db,"SELECT COUNT(*) FROM ut_cfd WHERE UPPER(TRIM(uf_foliosat)) = UPPER(TRIM(@uuid)) AND NOT IFNULL(sys_deleted,0)",p)
+    }
+
+    cxp.existeUUID::&db,uuid
+    {
+        new p
+        {
+            @"uuid": uuid
+        }
+        return dbr.num(db,"SELECT COUNT(*) FROM dcxp WHERE UPPER(TRIM(uuid_fiscal)) = UPPER(TRIM(@uuid)) AND NOT IFNULL(sys_deleted,0)",p)
+    }
+
+
+    //* ======================================== [ DIVISA Y TIPO DE CAMBIO ]
+
+    buscarDivisa::&db,moneda
+    {
+        new p
+        {
+            @"moneda": trim(moneda)
+        }
+        return dbr.rec(db,"SELECT sys_pk, codigo, IFNULL(tcambio,0) AS tcambio FROM divisa WHERE codigo = @moneda AND NOT IFNULL(sys_deleted,0) LIMIT 1",p)
+    }
+
+    // Divisa predeterminada del sistema (variable FXCA013)
+    divisaPredeterminada::&db
+    {
+        new p
+        {
+            @"valor": trim(dbr.vars.get(db,@MXCFDI_VAR_DIVISA_PRED))
+        }
+        ref dv = dbr.rec(db,"SELECT sys_pk, codigo, IFNULL(tcambio,0) AS tcambio FROM divisa WHERE (CAST(sys_pk AS CHAR) = @valor OR codigo = @valor) AND NOT IFNULL(sys_deleted,0) LIMIT 1",p)
+        if isnull(dv) { do rise_error(500,"No se encontró la divisa predeterminada (variable " + @MXCFDI_VAR_DIVISA_PRED + ").") }
+        return dv
+    }
+
+    // Divisa por código de moneda; si no existe, la predeterminada (FXCA013)
+    divisaDocumento::&db,moneda
+    {
+        namespace "mxcfdi.importacion"
+
+        ref dv = buscarDivisa(db,moneda)
+        if isnull(dv) { ref dv = divisaPredeterminada(db) }
+        return dv
+    }
+
+    // Tipo de cambio del movimiento. Cambiar @MXCFDI_TCAMBIO_ORIGEN para usar la divisa del documento.
+    tipoCambio::&db,&info
+    {
+        namespace "mxcfdi.importacion"
+
+        ref dv = @null
+        switch @MXCFDI_TCAMBIO_ORIGEN
+        {
+            case "documento"
+            {
+                ref dv = divisaDocumento(db,@@(info,"$moneda"))
+                break
+            }
+            default
+            {
+                ref dv = divisaPredeterminada(db)
+                break
+            }
+        }
+
+        tc = @@(dv,"#tcambio")
+        if tc <= 0 { tc = 1 }
+        return tc
+    }
+
+    // Tipo de cambio de la divisa de la cuenta bancaria
+    tipoCambioCuenta::&db,cuenta
+    {
+        new p
+        {
+            @"cuenta": cuenta
+        }
+        tc = dbr.num(db,"SELECT IFNULL((SELECT d.tcambio FROM chequera AS c INNER JOIN divisa AS d ON d.sys_pk = c.idivisa WHERE c.sys_pk = @cuenta),0)",p)
+        if tc <= 0 { tc = 1 }
+        return tc
+    }
+
+    sumarDias::fecha,dias
+    {
+        if dias <= 0 { return fecha }
+        n = ndatetime.fromstr(fecha,"yyyy-MM-dd")
+        n = ndatetime.add(n,dias,"d")
+        return ndatetime.tostr(n,"yyyy-MM-dd")
+    }
+
+
+    //* ======================================== [ CLIENTES Y PROVEEDORES ]
+
+    // Datos del cliente/proveedor que corresponde al CFDI (SPEC §5.2, §6.2 y §6.3)
+    datosEntidad::&ctx,&info
+    {
+        proceso = @@(ctx,"$proceso")
+        ref cfg = @@(ctx,"&cfg")
+
+        new d
+        {
+            @"rfc": @@(info,"$rfc_receptor")
+            @"nombre": @@(info,"$nombre_receptor")
+            @"regimen": @@(info,"$regimen_receptor")
+            @"cp": @@(info,"$cp_receptor")
+            @"moneda": @@(info,"$moneda")
+            @"tipo_alta": @@(cfg,"#tipo_cliente")
+            @"fijo": 0
+        }
+
+        if proceso == "cxc" { return d }
+
+        if @@(info,"$tipo") == "N"
+        {
+            // Nómina: el empleado (receptor) es el proveedor, salvo que haya proveedor fijo
+            d<"fijo">: @@(cfg,"#proveedor_nomina")
+            d<"tipo_alta">: @@(cfg,"#tipo_proveedor_nomina")
+            if @@(d,"#tipo_alta") <= 0 { d<"tipo_alta">: @@(cfg,"#tipo_proveedor") }
+            return d
+        }
+
+        // Demás CFDI de CxP: el emisor es el proveedor
+        d<"rfc">: @@(info,"$rfc_emisor")
+        d<"nombre">: @@(info,"$nombre_emisor")
+        d<"regimen">: ""
+        d<"cp">: ""   // El CFDI 4.0 no incluye el domicilio fiscal del emisor
+        d<"tipo_alta">: @@(cfg,"#tipo_proveedor")
+        return d
+    }
+
+    buscarEntidad::&db,&ctx,&datos
+    {
+        namespace "mxcfdi.importacion"
+
+        if @@(datos,"#fijo") > 0 { return cxp.proveedorPorId(db,@@(datos,"#fijo")) }
+        if @@(ctx,"$proceso") == "cxc" { return cxc.buscarCliente(db,@@(datos,"$rfc")) }
+        return cxp.buscarProveedor(db,@@(datos,"$rfc"))
+    }
+
+    crearEntidad::&db,&ctx,&datos
+    {
+        namespace "mxcfdi.importacion"
+
+        if @@(ctx,"$proceso") == "cxc" { return cxc.crearCliente(db,datos) }
+        return cxp.crearProveedor(db,datos)
+    }
+
+    cxc.buscarCliente::&db,rfc
+    {
+        if trim(rfc) == "" { return @null }
+        new p
+        {
+            @"rfc": trim(rfc)
+        }
+        return dbr.rec(db,"SELECT sys_pk, codigo, nombre, IFNULL(diascredito,0) AS diascredito FROM cliente WHERE UPPER(TRIM(rfc)) = UPPER(@rfc) AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk LIMIT 1",p)
+    }
+
+    cxp.buscarProveedor::&db,rfc
+    {
+        if trim(rfc) == "" { return @null }
+        new p
+        {
+            @"rfc": trim(rfc)
+        }
+        return dbr.rec(db,"SELECT sys_pk, codigo, nombre, IFNULL(diascredito,0) AS diascredito FROM proveedor WHERE UPPER(TRIM(rfc)) = UPPER(@rfc) AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk LIMIT 1",p)
+    }
+
+    cxp.proveedorPorId::&db,id
+    {
+        new p
+        {
+            @"id": id
+        }
+        return dbr.rec(db,"SELECT sys_pk, codigo, nombre, IFNULL(diascredito,0) AS diascredito FROM proveedor WHERE sys_pk = @id AND NOT IFNULL(sys_deleted,0) LIMIT 1",p)
+    }
+
+    // Domicilio con el código postal fiscal del CFDI. Devuelve 0 si no hay CP.
+    crearDomicilio::&db,cp
+    {
+        if trim(cp) == "" { return 0 }
+
+        new dom
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_recver": 0
+            @"sys_deleted": @false
+            @"codpos": trim(cp)
+        }
+        do dbr.insert(db,"domicilio",dom)
+        return dbr.num(db,"select last_insert_id();",@null)
+    }
+
+    cxc.crearCliente::&db,&datos
+    {
+        namespace "mxcfdi.importacion"
+
+        codigo = dbr.str(db,"SELECT (IF(COUNT(*) >= 1,CONCAT('CL',LPAD(CAST(MAX(SUBSTR(codigo,4,4))+1 AS CHAR),'4','0')),'CL0001')) AS codigo
+FROM cliente
+WHERE codigo LIKE 'CL%';",@null)
+
+        ref dv = divisaDocumento(db,@@(datos,"$moneda"))
+        nombre = trim(@@(datos,"$nombre"))
+        if nombre == "" { nombre = @@(datos,"$rfc") }
+
+        new cte
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_recver": 0
+            @"sys_deleted": @false
+            @"codigo": codigo
+            @"nombre": nombre
+            @"rfc": @@(datos,"$rfc")
+            @"regfiscal": @@(datos,"$regimen")
+            @"limitecredito": 0
+            @"uf_addenda": @false
+            @"diascredito": 0
+            @"saldo": 0
+            @"idivisa": @@(dv,"#sys_pk")
+            @"tipo": @@(datos,"#tipo_alta")
+        }
+
+        iddom = crearDomicilio(db,@@(datos,"$cp"))
+        if iddom > 0 { cte<"domicilio1">: iddom }
+
+        do dbr.insert(db,"cliente",cte)
+        pk = dbr.num(db,"select last_insert_id();",@null)
+
+        new ent
+        {
+            @"sys_pk": pk
+            @"codigo": codigo
+            @"nombre": nombre
+            @"diascredito": 0
+        }
+        return ent
+    }
+
+    cxp.crearProveedor::&db,&datos
+    {
+        namespace "mxcfdi.importacion"
+
+        codigo = dbr.str(db,"SELECT (IF(COUNT(*) >= 1,CONCAT('PV',LPAD(CAST(MAX(SUBSTR(codigo,4,4))+1 AS CHAR),'4','0')),'PV0001')) AS codigo
+FROM proveedor
+WHERE codigo LIKE 'PV%';",@null)
+
+        ref dv = divisaDocumento(db,@@(datos,"$moneda"))
+        nombre = trim(@@(datos,"$nombre"))
+        if nombre == "" { nombre = @@(datos,"$rfc") }
+
+        new prv
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_recver": 0
+            @"sys_deleted": @false
+            @"codigo": codigo
+            @"nombre": nombre
+            @"rfc": @@(datos,"$rfc")
+            @"limitecredito": 0
+            @"tasaiva": 1
+            @"diascredito": 0
+            @"saldo": 0
+            @"idivisa": @@(dv,"#sys_pk")
+            @"tipo": @@(datos,"#tipo_alta")
+        }
+
+        // Solo la nómina trae CP (receptor). Para proveedores emisores queda pendiente el domicilio:
+        // TODO: domicilio del proveedor emisor cuando se defina de dónde obtenerlo.
+        iddom = crearDomicilio(db,@@(datos,"$cp"))
+        if iddom > 0 { prv<"domicilio1">: iddom }
+
+        do dbr.insert(db,"proveedor",prv)
+        pk = dbr.num(db,"select last_insert_id();",@null)
+
+        new ent
+        {
+            @"sys_pk": pk
+            @"codigo": codigo
+            @"nombre": nombre
+            @"diascredito": 0
+        }
+        return ent
+    }
+
+
+    //* ======================================== [ CFDI RELACIONADOS ]
+
+    // Documento (cargo) de CxC que corresponde a un UUID, del mismo cliente. 0 si no existe.
+    // Se busca en ut_cfd por uf_foliosat. El cargo se obtiene:
+    //   - CFDI importados: ut_cfd.uf_idcxc -> dcxc
+    //   - Facturas emitidas en ventas de V12: ut_cfd.uf_iventa -> dcxc.iventa
+    cxc.buscarDocumento::&db,uuid,icliente
+    {
+        new p
+        {
+            @"uuid": uuid
+            @"icliente": icliente
+        }
+        return dbr.num(db,"
+        SELECT IFNULL((
+            SELECT cxc.sys_pk
+            FROM ut_cfd AS cfd
+                INNER JOIN dcxc AS cxc ON (
+                    (IFNULL(cfd.uf_idcxc,0) > 0 AND cxc.sys_pk = cfd.uf_idcxc)
+                    OR (IFNULL(cfd.uf_idcxc,0) = 0 AND IFNULL(cfd.uf_iventa,0) > 0 AND cxc.iventa = cfd.uf_iventa)
+                )
+            WHERE UPPER(TRIM(cfd.uf_foliosat)) = UPPER(TRIM(@uuid))
+                AND cxc.icliente = @icliente
+                AND IFNULL(cxc.debe,0) > 0
+                AND NOT IFNULL(cfd.sys_deleted,0)
+                AND NOT IFNULL(cxc.sys_deleted,0)
+            ORDER BY cxc.sys_pk
+            LIMIT 1
+        ),0)",p)
+    }
+
+    // Documento (cargo) de CxP que corresponde a un UUID, del mismo proveedor. 0 si no existe.
+    cxp.buscarDocumento::&db,uuid,iproveedor
+    {
+        new p
+        {
+            @"uuid": uuid
+            @"iproveedor": iproveedor
+        }
+        return dbr.num(db,"
+        SELECT IFNULL((
+            SELECT sys_pk
+            FROM dcxp
+            WHERE UPPER(TRIM(uuid_fiscal)) = UPPER(TRIM(@uuid))
+                AND iproveedor = @iproveedor
+                AND IFNULL(haber,0) > 0
+                AND NOT IFNULL(sys_deleted,0)
+            ORDER BY sys_pk
+            LIMIT 1
+        ),0)",p)
+    }
+
+    // Resuelve los relacionados de egresos y pagos (SPEC §4.5).
+    // Devuelve { faltantes: "uuid, uuid", docs*: [ { pk, uuid, importe } ] }
+    resolverRelacionados::&db,proceso,&info,identidad
+    {
+        namespace "mxcfdi.importacion"
+
+        ref docs = list.create()
+        faltantes = ""
+        tipo = @@(info,"$tipo")
+
+        if tipo == "E" || tipo == "P"
+        {
+            ref rels = @@(info,"&relacionados")
+            for i=0; i<list.count(rels)
+            {
+                ref rel = list.obj(rels,i)
+                uuid = @@(rel,"$uuid")
+                pk = 0
+                if identidad > 0
+                {
+                    if proceso == "cxc" { pk = cxc.buscarDocumento(db,uuid,identidad) }
+                    else { pk = cxp.buscarDocumento(db,uuid,identidad) }
+                }
+
+                if pk <= 0
+                {
+                    detalle = ""
+                    existe = 0
+                    if proceso == "cxc" { existe = cxc.existeUUID(db,uuid) }
+                    else { existe = cxp.existeUUID(db,uuid) }
+                    if existe > 0 { detalle = " (registrado, pero no como cargo de este " + ifstr(proceso == "cxc","cliente","proveedor") + ")" }
+                    faltantes = faltantes + ifstr(faltantes == "","",", ") + uuid + detalle
+                }
+                else
+                {
+                    new doc
+                    {
+                        @"pk": pk
+                        @"uuid": uuid
+                        @"importe": @@(rel,"#importe")
+                    }
+                    do list.add(docs,doc)
+                }
+            }
+        }
+
+        new res
+        {
+            @"faltantes": faltantes
+        }
+        res<"docs*">: docs
+        return res
+    }
+
+    // Saldo pendiente de un documento por cobrar / por pagar
+    saldoDocumento::&db,proceso,pk
+    {
+        new p
+        {
+            @"pk": pk
+        }
+        if proceso == "cxc"
+        {
+            return dbr.num(db,"SELECT IFNULL((SELECT IFNULL(debe,0) + IFNULL(intmoratorios,0) - IFNULL(bonificaciones,0) - IFNULL(pagos,0) FROM dcxc WHERE sys_pk = @pk),0)",p)
+        }
+        return dbr.num(db,"SELECT IFNULL((SELECT IFNULL(haber,0) + IFNULL(intmoratorios,0) - IFNULL(bonificaciones,0) - IFNULL(pagos,0) FROM dcxp WHERE sys_pk = @pk),0)",p)
+    }
+
+
+    //* ======================================== [ MOVIMIENTOS (movimientos.dkh) ]
+    // Estas funciones solo eligen la función existente de CxC o CxP; no afectan saldos por sí mismas.
+
+    mov.cargo::&db,proceso,&data
+    {
+        if proceso == "cxc" { return erp.cxc.movimientos.crearCxC(db,data) }
+        return erp.cxp.movimientos.crearCxP(db,data)
+    }
+
+    mov.bonificarAplicado::&db,proceso,&data
+    {
+        if proceso == "cxc" { return erp.cxc.movimientos.bonificarCxC(db,data) }
+        return erp.cxp.movimientos.bonificarCxP(db,data)
+    }
+
+    mov.bonificarSinAplicar::&db,proceso,&data
+    {
+        if proceso == "cxc" { return erp.cxc.movimientos.bonificarCliente(db,data) }
+        return erp.cxp.movimientos.bonificarProveedor(db,data)
+    }
+
+    mov.pagoAplicado::&db,proceso,&data
+    {
+        if proceso == "cxc" { return erp.cxc.movimientos.cobrarCxC(db,data) }
+        return erp.cxp.movimientos.pagarCxP(db,data)
+    }
+
+    mov.pagoSinAplicar::&db,proceso,&data
+    {
+        if proceso == "cxc" { return erp.cxc.movimientos.cobrarCliente(db,data) }
+        return erp.cxp.movimientos.pagarProveedor(db,data)
+    }
+
+    // Datos comunes para las funciones de movimientos.dkh. Se incluyen los nombres de campo
+    // que usa cada función (icliente/iproveedor, tipocambio/tcambio, *_deposito/*_retiro);
+    // cada función toma solo los que necesita.
+    baseMovimiento::&ctx,&info,&ent,tc
+    {
+        namespace "mxcfdi.importacion"
+
+        fecha = @@(info,"$fecha_mov")
+        notas = leyenda(info)
+
+        new data
+        {
+            @"icliente": @@(ent,"#sys_pk")
+            @"iproveedor": @@(ent,"#sys_pk")
+            @"beneficiario": @@(ent,"$nombre")
+            @"fecha": fecha
+            @"faplicacion": fecha
+            @"flimite": fecha
+            @"referencia": @@(info,"$referencia")
+            @"notas": notas
+            @"concepto": notas
+            @"tipocambio": tc
+            @"tcambio": tc
+            @"conciliado": @false
+            @"documento": 0
+            @"importe": 0
+            @"pkparent": 0
+            @"documento_cobro": @MXCFDI_DOC_RECIBO
+            @"documento_deposito": @@(ctx,"#documento_banco")
+            @"documento_retiro": @@(ctx,"#documento_banco")
+            @"categoria_deposito": @@(ctx,"#categoria_banco")
+            @"categoria_retiro": @@(ctx,"#categoria_banco")
+            @"cuenta_deposito": @@(ctx,"#cuenta_banco")
+            @"cuenta_retiro": @@(ctx,"#cuenta_banco")
+            @"tcambio_deposito": 1
+            @"tcambio_retiro": 1
+            @"_sin_movcuenta": not(@@(ctx,"#crear_movcuenta"))
+        }
+        return data
+    }
+
+    // Referencia libre para un movimiento: la base (serie-folio o UUID) si no existe en dcxc o dcxp;
+    // si ya existe, base-1, base-2... Se consulta dentro de la transacción del CFDI, así que los
+    // movimientos que el mismo CFDI ya insertó también cuentan (REF, REF-1, REF-2...).
+    siguienteReferencia::&db,proceso,base
+    {
+        sql = "SELECT COUNT(*) FROM dcxc WHERE referencia = @referencia AND NOT IFNULL(sys_deleted,0)"
+        if proceso == "cxp" { sql = "SELECT COUNT(*) FROM dcxp WHERE referencia = @referencia AND NOT IFNULL(sys_deleted,0)" }
+
+        new p
+        {
+            @"referencia": base
+        }
+        referencia = base
+        consecutivo = 0
+        while dbr.num(db,sql,p) > 0
+        {
+            consecutivo = consecutivo + 1
+            referencia = base + "-" + str(consecutivo)
+            p<"referencia">: referencia
+        }
+        return referencia
+    }
+
+    // Registra el sys_pk del movimiento (dcxc / dcxp) recién insertado por movimientos.dkh.
+    // El primero es el movimiento principal del CFDI (el que se liga en ut_cfd.uf_idcxc).
+    // Si la función no devolvió el sys_pk, se toma el último insertado con esa referencia y
+    // ese cliente/proveedor (misma transacción).
+    agregarMovimiento::&db,proceso,&res,pk,&data
+    {
+        pk = trun(pk)
+        if pk <= 0
+        {
+            new p
+            {
+                @"referencia": @@(data,"$referencia")
+                @"ientidad": @@(data,"#icliente")
+            }
+            if proceso == "cxc" { pk = dbr.num(db,"SELECT IFNULL(MAX(sys_pk),0) FROM dcxc WHERE referencia = @referencia AND icliente = @ientidad",p) }
+            else { pk = dbr.num(db,"SELECT IFNULL(MAX(sys_pk),0) FROM dcxp WHERE referencia = @referencia AND iproveedor = @ientidad",p) }
+        }
+        if pk <= 0 { do rise_error(500,"No se obtuvo el sys_pk del movimiento generado.") }
+
+        do list.add(@@(res,"&pks"),pk)
+        if @@(res,"#pk_principal") <= 0 { res<"pk_principal">: pk }
+        return pk
+    }
+
+    // Ingreso (PPD o PUE sin liquidar) y nómina: cargo
+    registrarCargo::&db,&ctx,&info,&ent,&base,&res
+    {
+        namespace "mxcfdi.importacion"
+
+        ref data = record.copy(base,"*")
+        data<"documento">: @MXCFDI_DOC_FACTURA
+        data<"importe">: @@(info,"#total")
+        data<"flimite">: sumarDias(@@(info,"$fecha_mov"),@@(ent,"#diascredito"))
+        data<"referencia">: siguienteReferencia(db,@@(ctx,"$proceso"),@@(info,"$referencia"))
+
+        do agregarMovimiento(db,@@(ctx,"$proceso"),res,mov.cargo(db,@@(ctx,"$proceso"),data),data)
+
+        descripcion = "Cargo generado"
+        if @@(info,"$tipo") == "N" { descripcion = "Cargo generado (nómina)" }
+        else if @@(info,"$metodo") == "PUE" { descripcion = "Cargo generado (PUE, sin liquidar)" }
+        res<"descripcion">: descripcion
+    }
+
+    // Egreso: bonificación aplicada en orden hasta cubrir el saldo de cada documento;
+    // el resto queda como abono por aplicar.
+    // Cada movimiento toma la siguiente referencia libre (REF, REF-1, REF-2...).
+    registrarEgreso::&db,&ctx,&info,&base,&rels,&res
+    {
+        namespace "mxcfdi.importacion"
+
+        proceso = @@(ctx,"$proceso")
+        ref docs = @@(rels,"&docs")
+
+        // 1. Plan de aplicación: importe por documento según su saldo
+        ref plan = list.create()
+        restante = @@(info,"#total")
+        for i=0; i<list.count(docs)
+        {
+            if restante <= 0 { break }
+
+            ref doc = list.obj(docs,i)
+            saldo = saldoDocumento(db,proceso,@@(doc,"#pk"))
+            if saldo > 0
+            {
+                importe = saldo
+                if restante < saldo { importe = restante }
+
+                new apl
+                {
+                    @"pk": @@(doc,"#pk")
+                    @"importe": importe
+                }
+                do list.add(plan,apl)
+                restante = restante - importe
+            }
+        }
+        restante = round(restante,2)
+        if restante < 0 { restante = 0 }
+
+        aplicaciones = list.count(plan)
+
+        // 2. Movimientos
+        for i=0; i<aplicaciones
+        {
+            ref apl = list.obj(plan,i)
+
+            ref data = record.copy(base,"*")
+            data<"documento">: @MXCFDI_DOC_NOTA_CREDITO
+            data<"importe">: @@(apl,"#importe")
+            data<"pkparent">: @@(apl,"#pk")
+            data<"referencia">: siguienteReferencia(db,proceso,@@(info,"$referencia"))
+
+            do agregarMovimiento(db,proceso,res,mov.bonificarAplicado(db,proceso,data),data)
+        }
+
+        if restante > 0
+        {
+            ref data = record.copy(base,"*")
+            data<"documento">: @MXCFDI_DOC_NOTA_CREDITO
+            data<"importe">: restante
+            data<"referencia">: siguienteReferencia(db,proceso,@@(info,"$referencia"))
+
+            do agregarMovimiento(db,proceso,res,mov.bonificarSinAplicar(db,proceso,data),data)
+        }
+
+        res<"aplicaciones">: aplicaciones
+        res<"por_aplicar">: restante
+
+        descripcion = "Abono generado; aplicaciones: " + str(aplicaciones)
+        if restante > 0 { descripcion = descripcion + "; por aplicar: " + format(restante,"#,0.00") }
+        res<"descripcion">: descripcion
+    }
+
+    // Pago: un cobro/pago aplicado por cada DoctoRelacionado (ImpPagado).
+    registrarPago::&db,&ctx,&info,&base,&rels,&res
+    {
+        namespace "mxcfdi.importacion"
+
+        proceso = @@(ctx,"$proceso")
+        cuenta = @@(ctx,"#cuenta_banco")
+
+        // Solo si se pide crear el movimiento en movcuenta se requieren los datos bancarios
+        if @@(ctx,"#crear_movcuenta")
+        {
+            if cuenta <= 0 || @@(ctx,"#documento_banco") <= 0 || @@(ctx,"#categoria_banco") <= 0
+            {
+                do rise_error(500,"No se han indicado la cuenta bancaria, la categoría o el tipo de documento del movimiento bancario para registrar el pago.")
+            }
+
+            tcb = tipoCambioCuenta(db,cuenta)
+            base<"tcambio_deposito">: tcb
+            base<"tcambio_retiro">: tcb
+        }
+
+        ref docs = @@(rels,"&docs")
+        ref pks = @@(res,"&pks")
+        n = list.count(docs)
+
+        if n == 0
+        {
+            ref data = record.copy(base,"*")
+            data<"documento">: @MXCFDI_DOC_RECIBO
+            data<"importe">: @@(info,"#total")
+            data<"referencia">: siguienteReferencia(db,proceso,@@(info,"$referencia"))
+            do agregarMovimiento(db,proceso,res,mov.pagoSinAplicar(db,proceso,data),data)
+
+            res<"aplicaciones">: 0
+            res<"por_aplicar">: @@(info,"#total")
+            res<"descripcion">: "Abono generado sin aplicar"
+            return @true
+        }
+
+        for i=0; i<n
+        {
+            ref doc = list.obj(docs,i)
+            ref data = record.copy(base,"*")
+            data<"documento">: @MXCFDI_DOC_RECIBO
+            data<"importe">: @@(doc,"#importe")
+            data<"pkparent">: @@(doc,"#pk")
+            // Un pago puede cubrir varias facturas: cada movimiento toma la siguiente referencia libre
+            data<"referencia">: siguienteReferencia(db,proceso,@@(info,"$referencia"))
+
+            do agregarMovimiento(db,proceso,res,mov.pagoAplicado(db,proceso,data),data)
+        }
+
+        res<"aplicaciones">: n
+        res<"por_aplicar">: 0
+        res<"descripcion">: "Abono generado; aplicaciones: " + str(n)
+        return @true
+    }
+
+    registrarMovimientos::&db,&ctx,&info,&ent,&rels
+    {
+        namespace "mxcfdi.importacion"
+
+        tipo = @@(info,"$tipo")
+        tc = tipoCambio(db,info)
+        ref base = baseMovimiento(ctx,info,ent,tc)
+
+        new res
+        {
+            @"descripcion": ""
+            @"pk_principal": 0
+            @"aplicaciones": 0
+            @"por_aplicar": 0
+        }
+        res<"pks*">: list.create()
+
+        if tipo == "I" || tipo == "N" { do registrarCargo(db,ctx,info,ent,base,res) }
+        else if tipo == "E" { do registrarEgreso(db,ctx,info,base,rels,res) }
+        else if tipo == "P" { do registrarPago(db,ctx,info,base,rels,res) }
+
+        return res
+    }
+
+    // Relación del CFDI con los movimientos generados
+    vincularUUID::&db,proceso,&info,&res
+    {
+        ref pks = @@(res,"&pks")
+        if list.count(pks) == 0 { return @false }
+
+        if proceso == "cxp"
+        {
+            for i=0; i<list.count(pks)
+            {
+                new p
+                {
+                    @"pk": list.num(pks,i)
+                    @"uuid": @@(info,"$uuid")
+                }
+                do dbr.execute(db,"UPDATE dcxp SET uuid_fiscal = @uuid WHERE sys_pk = @pk",p)
+            }
+            return @true
+        }
+
+        // CxC: ut_cfd.uf_idcxc = sys_pk de la fila de dcxc del documento (el cargo en ingresos)
+        //      ut_cfd.uf_aplcxc = primera aplicación de ese movimiento, si hay (egresos y pagos)
+        pk_cxc = trun(@@(res,"#pk_principal"))
+        if pk_cxc <= 0 { do rise_error(500,"No se obtuvo el movimiento de CxC para ligar el UUID en ut_cfd.") }
+
+        new p
+        {
+            @"pk": pk_cxc
+            @"pk_cfd": 0
+            @"pk_apl": 0
+        }
+        pk_apl = dbr.num(db,"SELECT IFNULL((SELECT sys_pk FROM aplcxc WHERE fk_dcxc_aplicadoa = @pk ORDER BY sys_pk LIMIT 1),0)",p)
+        p<"pk_apl">: pk_apl
+
+        new cfd
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_recver": 0
+            @"sys_deleted": @false
+            @"uf_xml": @@(info,"$xml_texto")
+            @"uf_xmlcfdi": @@(info,"$xml_texto")
+            @"uf_cadenaoriginal": ""
+            @"uf_sellodigital": @@(info,"$sello")
+            @"uf_idcxc": pk_cxc
+            @"uf_fechahora*": str2dt(@@(info,"$fecha_hora"))
+            @"uf_canceladosat": 0
+            @"uf_foliosat": @@(info,"$uuid")
+            @"uf_nocertificadosat": @@(info,"$nocertificadosat")
+            @"uf_fechahoracersat*": str2dt(@@(info,"$fecha_timbrado"))
+            @"uf_sellodigitalsat": @@(info,"$sellosat")
+            @"uf_rfc_emisor": @@(info,"$rfc_emisor")
+        }
+        if pk_apl > 0 { cfd<"uf_aplcxc">: pk_apl }
+
+        do dbr.insert(db,"ut_cfd",cfd)
+        p<"pk_cfd">: dbr.num(db,"select last_insert_id();",@null)
+
+        // Se asegura la liga con dcxc (y aplcxc) en la fila recién insertada y se verifica
+        do dbr.execute(db,"UPDATE ut_cfd SET uf_idcxc = @pk, uf_aplcxc = IF(@pk_apl > 0, @pk_apl, uf_aplcxc) WHERE sys_pk = @pk_cfd",p)
+        if dbr.num(db,"SELECT IFNULL((SELECT uf_idcxc FROM ut_cfd WHERE sys_pk = @pk_cfd),0)",p) != pk_cxc
+        {
+            do rise_error(500,"No se pudo ligar el UUID en ut_cfd con el documento de CxC (dcxc " + str(pk_cxc) + ").")
+        }
+        return @true
+    }
+
+
+    //* ======================================== [ PROCESO POR CFDI ]
+
+    nuevaFila::&info
+    {
+        new fila
+        {
+            @"archivo": @@(info,"$archivo")
+            @"uuid": @@(info,"$uuid")
+            @"tipo": @@(info,"$tipo_desc")
+            @"metodo": @@(info,"$metodo")
+            @"serie_folio": @@(info,"$serie_folio")
+            @"fecha": @@(info,"$fecha")
+            @"rfc_emisor": @@(info,"$rfc_emisor")
+            @"rfc_receptor": @@(info,"$rfc_receptor")
+            @"entidad": ""
+            @"alta": "No"
+            @"moneda": @@(info,"$moneda")
+            @"total": @@(info,"#total")
+            @"estatus": ""
+            @"resultado": ""
+        }
+        return fila
+    }
+
+    rechazar::&fila,motivo
+    {
+        fila<"estatus">: @MXCFDI_ST_NO_IMPORTADO
+        fila<"resultado">: motivo
+        return @false
+    }
+
+    asignarEntidad::&fila,&ent,alta
+    {
+        fila<"entidad">: @@(ent,"$codigo") + " - " + @@(ent,"$nombre")
+        fila<"alta">: ifstr(alta,"Sí","No")
+    }
+
+    // Valida y registra un CFDI en su propia transacción (SPEC §4.3). Llena &fila con el resultado.
+    procesarCfdi::&db,&ctx,&info,&fila
+    {
+        namespace "mxcfdi.importacion"
+
+        proceso = @@(ctx,"$proceso")
+
+        // 1. Archivo reconocible
+        if not(@@(info,"#valido")) { return rechazar(fila,@@(info,"$motivo")) }
+
+        // 2. RFC autorizado
+        if not(rfcAutorizado(db,rfcAutorizar(proceso,info),proceso)) { return rechazar(fila,@MXCFDI_M_RFC) }
+
+        // 3. Tipo admitido
+        motivo = validarTipo(ctx,info)
+        if motivo != "" { return rechazar(fila,motivo) }
+
+        // 4. Duplicado
+        if esDuplicado(db,ctx,info) { return rechazar(fila,@MXCFDI_M_DUPLICADO) }
+
+        // 5. Cliente / proveedor
+        ref datos_ent = datosEntidad(ctx,info)
+        ref ent = buscarEntidad(db,ctx,datos_ent)
+        identidad = 0
+        if isnull(ent)
+        {
+            if @@(datos_ent,"#fijo") > 0 { return rechazar(fila,@MXCFDI_M_ERROR + ": no existe el proveedor configurado para importar CFDI de nómina.") }
+            if not(@@(ctx,"#alta"))
+            {
+                if proceso == "cxc" { return rechazar(fila,@MXCFDI_M_SIN_CLIENTE) }
+                return rechazar(fila,@MXCFDI_M_SIN_PROVEEDOR)
+            }
+        }
+        else
+        {
+            identidad = @@(ent,"#sys_pk")
+            do asignarEntidad(fila,ent,@false)
+        }
+
+        // 6. Relacionados
+        ref rels = resolverRelacionados(db,proceso,info,identidad)
+        if @@(rels,"$faltantes") != "" { return rechazar(fila,@MXCFDI_M_REFERENCIADO + ": " + @@(rels,"$faltantes")) }
+
+        // Guardado: todo o nada
+        do dbr.begin(db)
+
+        alta = @false
+        if isnull(ent)
+        {
+            ref ent = crearEntidad(db,ctx,datos_ent)
+            alta = @true
+        }
+
+        ref res = registrarMovimientos(db,ctx,info,ent,rels)
+        do vincularUUID(db,proceso,info,res)
+
+        do dbr.commit(db)
+
+        do asignarEntidad(fila,ent,alta)
+        fila<"estatus">: @MXCFDI_ST_IMPORTADO
+        fila<"resultado">: @@(res,"$descripcion")
+        return @true
+
+        exception
+        {
+            error = last_error()
+            if dbr.in_transaction(db) { do dbr.rollback(db) }
+            fila<"alta">: "No"
+            fila<"estatus">: @MXCFDI_ST_NO_IMPORTADO
+            fila<"resultado">: @MXCFDI_M_ERROR + ": " + error
+        }
+    }
+
+
+    //* ======================================== [ PROCESO DEL LOTE ]
+
+    importar::&db,proceso,&data,&files,&parametros
+    {
+        namespace "mxcfdi.importacion"
+
+        ref ctx = crearContexto(db,proceso,data,parametros)
+        do validarConfiguracion(ctx)
+
+        // Límite de archivos (SPEC §4.1): se rechaza antes de procesar
+        ref archivos = archivosCargados(files)
+        recibidos = list.count(archivos)
+        maximo = @@(ctx,"#cfg/max_archivos")
+        if recibidos == 0 { do rise_error(500,"Seleccione al menos un archivo XML.") }
+        if recibidos > maximo { do rise_error(500,"Se seleccionaron " + str(recibidos) + " archivos; el máximo por lote es " + str(maximo) + ".") }
+
+        // Lectura y orden de proceso (SPEC §4.2): fase 1 ingresos, fase 2 los demás
+        ref fase1 = list.create()
+        ref fase2 = list.create()
+        for i=0; i<recibidos
+        {
+            ref archivo = list.obj(archivos,i)
+            new info
+            {
+                @"archivo": @@(archivo,"$archivo")
+                @"ruta": @@(archivo,"$ruta")
+            }
+            do leerCfdi(info)
+
+            if @@(info,"#valido") && @@(info,"$tipo") == "I" { do list.add(fase1,info) }
+            else { do list.add(fase2,info) }
+        }
+
+        ref orden = list.create()
+        for i=0; i<list.count(fase1) { do list.add(orden,list.obj(fase1,i)) }
+        for i=0; i<list.count(fase2) { do list.add(orden,list.obj(fase2,i)) }
+
+        // Proceso
+        ref filas = list.create()
+        importados = 0
+        altas = 0
+        for i=0; i<list.count(orden)
+        {
+            ref info = list.obj(orden,i)
+            ref fila = nuevaFila(info)
+            do procesarCfdi(db,ctx,info,fila)
+            do list.add(filas,fila)
+
+            if @@(fila,"$estatus") == @MXCFDI_ST_IMPORTADO
+            {
+                importados = importados + 1
+                if @@(fila,"$alta") == "Sí" { altas = altas + 1 }
+            }
+        }
+
+        new resultado
+        {
+            @"proceso": proceso
+            member @"resumen"
+            {
+                @"recibidos": recibidos
+                @"importados": importados
+                @"no_importados": recibidos - importados
+                @"altas": altas
+            }
+        }
+        resultado<"filas*">: filas
+        return resultado
+    }
+
+    paginaCarga::&db,proceso
+    {
+        namespace "mxcfdi.importacion"
+
+        ref cfg = leerConfiguracion(db)
+        new pagina
+        {
+            @"proceso": proceso
+            @"alta": "true"
+            @"pue": ""
+            @"nomina": ""
+            @"max_archivos": @@(cfg,"#max_archivos")
+        }
+        return pagina
+    }
+
+
+    //* ======================================== [ FUNCIONES PÚBLICAS ]
+
+    paginaCargaCxC::&db
+    {
+        namespace "mxcfdi.importacion"
+        return paginaCarga(db,"cxc")
+    }
+
+    paginaCargaCxP::&db
+    {
+        namespace "mxcfdi.importacion"
+        return paginaCarga(db,"cxp")
+    }
+
+    importarCxC::&db,&data,&files,&parametros
+    {
+        namespace "mxcfdi.importacion"
+        return importar(db,"cxc",data,files,parametros)
+    }
+
+    importarCxP::&db,&data,&files,&parametros
+    {
+        namespace "mxcfdi.importacion"
+        return importar(db,"cxp",data,files,parametros)
+    }
+}

@@ -17,6 +17,15 @@
             {
                 "route": "/fact-global/",
                 "entity_type": "factglobal"
+            },
+            {
+                "route": "/load-cfdi-cxc/",
+                "entity_type": "load-cfdi-cxc"
+            },
+            {
+            
+                "route": "/mxcfdi_rfc/",
+                "entity_type": "mxcfdi_rfc"
             }
         ]
     }

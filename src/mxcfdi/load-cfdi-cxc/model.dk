@@ -1,0 +1,72 @@
+#include "dkli.dkh"
+#!
+module "Importar CFDI a CxC:mxcfdi.importar_cxc"
+{
+    /*
+    Programa CRUD-L: Importar CFDI a CxC (SPEC §5)
+
+        GET  ...//_new//                      -> blank  -> vista_carga.dkl
+        POST ...//_new//?_redirect=disabled   -> create -> vista_resultados.dkl
+                                               (si no puede iniciar: vista_carga.dkl con el error)
+
+    Toda la lógica está en mxcfdi.importacion.dkh.
+
+    Dependencias que deben estar cargadas antes (patrón V12: en el entry-point.dkl del paquete):
+        functions.dkh, serialize.dkh, dbr.dkh, dbr.apps.dkl, dbr.vars.dkl
+        movimientos.dkh de CxC (erp.cxc.movimientos) y movimientos de efectivo (erp.efectivo.movimientos)
+    */
+    #include "xmlcfdi.dk"
+    #include "mxcfdi.importacion.dkh"
+
+    // Datos del movimiento bancario que generan los CFDI de pago (cobrarCxC / cobrarCliente).
+    // Pueden cambiar: la categoría se da de alta en su catálogo.
+    @MXCFDI_CXC_CREAR_MOVCUENTA = @false  // @false: los pagos no generan movimiento en movcuenta (los datos de abajo no se usan)
+    @MXCFDI_CXC_CATEGORIA_BANCO = 5     // Categoría: cobros
+    @MXCFDI_CXC_CUENTA_BANCO = 0        // TODO: sys_pk de la cuenta bancaria (chequera) donde se registran los cobros
+    @MXCFDI_CXC_DOCUMENTO_BANCO = 0     // TODO: documento (cdocumentos) del depósito bancario
+
+    blank::&db,&params
+    {
+        do dbr.apps.action.grant("GXF2")
+        // TODO privilegio "Importar CFDI a CxC": do dbr.apps.action.grant("<ID_ACCION_IMPORTAR_CFDI_CXC>")
+        return mxcfdi.importacion.paginaCargaCxC(db)
+    }
+
+    create::&db,&params,&data
+    {
+        @use_transaction = @false     // cada CFDI maneja su propia transacción
+
+        // TODO privilegio "Importar CFDI a CxC": do dbr.apps.action.grant("<ID_ACCION_IMPORTAR_CFDI_CXC>")
+        do dbr.apps.action.grant("GXF2")
+        new parametros
+        {
+            @"crear_movcuenta": @MXCFDI_CXC_CREAR_MOVCUENTA
+            @"categoria_banco": @MXCFDI_CXC_CATEGORIA_BANCO
+            @"cuenta_banco": @MXCFDI_CXC_CUENTA_BANCO
+            @"documento_banco": @MXCFDI_CXC_DOCUMENTO_BANCO
+        }
+
+        ref @mxcfdi_resultado = mxcfdi.importacion.importarCxC(db,data,@@(@http_context,"&request/files"),parametros)
+        @form_view = "vista_resultados.dkl"
+        return @mxcfdi_resultado
+    }
+
+    // Si el marco relee la entidad después de create, se devuelve el mismo resultado
+    read::&db,&params
+    {
+        do dbr.apps.action.grant("GXF2")
+        if isset("@mxcfdi_resultado") { return @mxcfdi_resultado }
+        return mxcfdi.importar_cxc.blank(db,params)
+    }
+    
+    _null_::&db,&params,&data{return @null}
+    point @blank to mxcfdi.importar_cxc.blank
+    point @list to mxcfdi.importar_cxc.blank
+    point @read to mxcfdi.importar_cxc.read
+    point @create to mxcfdi.importar_cxc.create
+    point @update to mxcfdi.importar_cxc._null_
+    point @delete to mxcfdi.importar_cxc._null_
+
+    @form_view = "vista_carga.dkl"
+    @list_view = "vista_carga.dkl"
+}

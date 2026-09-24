@@ -14,6 +14,8 @@ module "Controller configs"
 	#include "mxcfdi/_lib/config.dk"
 	#include "mxcfdi/_lib/lib.dk"
 	#include "mxcfdi/_lib/list.queries.dk"
+	#include "cxc/movimientos.dkh"
+	#include "cxp/movimientos.dkh"
 
 	@base_path = "mxcfdi"
 	@path_root = ""

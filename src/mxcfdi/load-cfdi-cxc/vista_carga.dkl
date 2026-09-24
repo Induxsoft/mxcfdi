@@ -1,0 +1,115 @@
+#include "dkli.dkh"
+#!
+module "vista_carga.dkl"
+{
+    /*
+    Página 1 — Carga de archivos (SPEC §5.1 y §6.1). Compartida por CxC y CxP.
+    Recibe en output: { proceso, alta, pue, nomina, max_archivos }
+    Si la importación no puede iniciar, el marco vuelve a mostrar esta vista con el error
+    y con lo que el usuario capturó (output = input).
+    */
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+    ref error = @@(@crud_context,"&error")
+
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+    proceso = @@(entity,"$proceso")
+    if proceso == "" { proceso = ifstr(contains(tolower(@_entities_type),"cxp"),"cxp","cxc") }
+    es_cxp = (proceso == "cxp")
+
+    chk_alta = parse.bool(@@(entity,"$alta"))
+    chk_pue = parse.bool(@@(entity,"$pue"))
+    chk_nomina = parse.bool(@@(entity,"$nomina"))
+    max_archivos = @@(entity,"#max_archivos")
+
+    titulo = ifstr(es_cxp,"Importar CFDI a CxP","Importar CFDI a CxC")
+    lbl_alta = ifstr(es_cxp,"Dar de alta proveedor si es necesario","Dar de alta cliente si es necesario")
+    lbl_pue = ifstr(es_cxp,"Importar CFDI PUE como CxP","Importar CFDI PUE como CxC")
+    lbl_nomina = "Importar CFDI de nómina como CxP"
+
+    txt_max = ""
+    if max_archivos > 0 { txt_max = "Máximo " + str(max_archivos) + " archivos XML por lote." }
+
+    header_act::
+    {
+        #$
+        button(type="submit" class="btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"){$"Continuar"}
+        #!
+    }
+    point general_act to header_act
+
+    new nav_config
+    {
+        @"title": titulo
+        @"buttons*": general_act
+        member @"hidden"
+        {
+            @"print": @true
+            @"send":@true
+            @"paste":@true
+            @"copy":@true
+            @"csv":@true
+        }
+    }
+
+    #$ div(class="container")
+    {
+        form(method="POST" action="./?_redirect=disabled" id="form" enctype="multipart/form-data")
+        {
+            #! do uie.printV12FormBar(nav_config)
+
+            #$
+            div(id="work_area" class="container-section")
+            {
+                #!
+                if not(isnull(error))
+                {
+                    #$ div(class="alert alert-danger"){"#<@@(error,'$message')>"}
+                    #!
+                }
+                #$
+
+                input(type="hidden" name="proceso" value="#<proceso>"){}
+
+                div(class="mb-3")
+                {
+                    label(class="fw-bold" "for"="xmls"){"Archivos XML:"}
+                    input(type="file" class="induxsoft-form-control" name="xmls" id="xmls" accept=".xml,text/xml" multiple="multiple" required="required"){}
+                    small(class="text-muted"){"#<txt_max>"}
+                }
+
+                div(class="form-check")
+                {
+                    input(class="form-check-input" type="checkbox" name="alta" id="chk_alta" value="true" "#<ifstr(chk_alta,'checked','')>"="checked"){}
+                    label(class="form-check-label" "for"="chk_alta"){"#<lbl_alta>"}
+                }
+
+                div(class="form-check")
+                {
+                    input(class="form-check-input" type="checkbox" name="pue" id="chk_pue" value="true" "#<ifstr(chk_pue,'checked','')>"="checked"){}
+                    label(class="form-check-label" "for"="chk_pue"){"#<lbl_pue>"}
+                }
+
+                #!
+                if es_cxp
+                {
+                    #$
+                    div(class="form-check")
+                    {
+                        input(class="form-check-input" type="checkbox" name="nomina" id="chk_nomina" value="true" "#<ifstr(chk_nomina,'checked','')>"="checked"){}
+                        label(class="form-check-label" "for"="chk_nomina"){"#<lbl_nomina>"}
+                    }
+                    #!
+                }
+                #$
+            }
+        }
+    }
+}

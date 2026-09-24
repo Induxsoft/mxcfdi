@@ -1,0 +1,246 @@
+#include "dkli.dkh"
+#!
+module "RFC autorizados para importar CFDI:mxcfdi.rfc"
+{
+    /*
+    model.dk de la entidad mxcfdi_rfc (catálogo de RFC autorizados, SPEC 3.1)
+
+        GET    (sin id)         -> list    -> list.dk
+        GET    (id _new)        -> blank   -> form.dk
+        GET    (id)             -> read    -> form.dk
+        POST   (id _new)        -> create  -> redirige a la lista
+        POST   (id)             -> update  -> redirige a la lista
+        DELETE (id)             -> delete  (desde la lista con InduxsoftCrudlModel.Delete)
+
+    La baja es física: rfc es único, y una baja lógica impediría volver a dar de alta el mismo RFC.
+    */
+
+    @table_name = "mxcfdi_rfc"
+    @keyfield = "sys_pk"
+
+    //* ======================================== [ LISTA ]
+
+    list::&db,&params
+    {
+        // TODO privilegio de lectura del catálogo: do dbr.apps.action.grant("<ID_LECTURA_MXCFDI_RFC>")
+        do dbr.apps.action.grant("GXF5")
+
+        new data
+        {
+            @"data*": dbr.list(db,"
+                SELECT
+                    sys_pk,
+                    rfc,
+                    IF(IFNULL(importar_compras,0),'Sí','No') AS importar_compras,
+                    IF(IFNULL(importar_cxc,0),'Sí','No') AS importar_cxc,
+                    IF(IFNULL(importar_cxp,0),'Sí','No') AS importar_cxp
+                FROM mxcfdi_rfc
+                WHERE NOT IFNULL(sys_deleted,0)
+                ORDER BY rfc
+            ",params)
+        }
+        return data
+
+        exception
+        {
+            do errordet(@false)
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+
+    //* ======================================== [ LECTURA Y ALTA EN BLANCO ]
+
+    read::&db,&params
+    {
+        // TODO privilegio de lectura del catálogo: do dbr.apps.action.grant("<ID_LECTURA_MXCFDI_RFC>")
+        do dbr.apps.action.grant("GXF5")
+
+        ref entity = dbr.rec(db,"
+            SELECT sys_pk, sys_recver, rfc,
+                IFNULL(importar_compras,0) AS importar_compras,
+                IFNULL(importar_cxc,0) AS importar_cxc,
+                IFNULL(importar_cxp,0) AS importar_cxp
+            FROM mxcfdi_rfc
+            WHERE sys_pk = @_entity_id AND NOT IFNULL(sys_deleted,0)
+            LIMIT 1
+        ",params)
+        if isnull(entity) { do rise_error(404,"No se encontró el RFC indicado.") }
+        return entity
+    }
+
+    blank::&db,&params
+    {
+        do dbr.apps.action.grant("GXF5")
+        new entity
+        {
+            @"sys_pk": 0
+            @"sys_recver": 0
+            @"rfc": ""
+            @"importar_compras": 0
+            @"importar_cxc": 0
+            @"importar_cxp": 0
+        }
+        return entity
+    }
+
+    //* ======================================== [ VALIDACIÓN ]
+
+    // Valor de un check del formulario: 1 si viene marcado, 0 si no viene
+    marcado::valor
+    {
+        v = tolower(trim(valor))
+        if v == "1" || v == "true" || v == "on" { return 1 }
+        return 0
+    }
+
+    // Registro con los valores capturados ya normalizados. Los checks no marcados no se envían: quedan en 0.
+    datosFormulario::&data
+    {
+        namespace "mxcfdi.rfc"
+
+        new rfc
+        {
+            @"rfc": toupper(trim(@@(data,"$rfc")))
+            @"importar_compras": marcado(@@(data,"$importar_compras"))
+            @"importar_cxc": marcado(@@(data,"$importar_cxc"))
+            @"importar_cxp": marcado(@@(data,"$importar_cxp"))
+            @"sys_recver": @@(data,"#sys_recver")
+        }
+        return rfc
+    }
+
+    validar::&db,&rfc,id
+    {
+        valor = @@(rfc,"$rfc")
+        if valor == "" { do rise_error(400,"Debe indicar el RFC.") }
+        if length(valor) > 15 { do rise_error(400,"El RFC no puede tener más de 15 caracteres.") }
+
+        new p
+        {
+            @"rfc": valor
+            @"id": id
+        }
+        if dbr.num(db,"SELECT COUNT(*) FROM mxcfdi_rfc WHERE UPPER(TRIM(rfc)) = @rfc AND sys_pk <> @id",p) > 0
+        {
+            do rise_error(400,"El RFC " + valor + " ya está registrado.")
+        }
+    }
+
+    //* ======================================== [ ALTA ]
+
+    create::&db,&params,&data
+    {
+        namespace "mxcfdi.rfc"
+
+        @use_transaction = @false
+        // TODO privilegio de alta del catálogo: do dbr.apps.action.grant("<ID_ALTA_MXCFDI_RFC>")
+        do dbr.apps.action.grant("GXF5")
+
+        ref rfc = datosFormulario(data)
+        do validar(db,rfc,0)
+
+        new registro
+        {
+            @"sys_pk": 0
+            @"sys_guid": replace(uuid(),"-","")
+            @"sys_dtcreated*": dbr.sql("now()")
+            @"sys_timestamp*": dbr.sql("now()")
+            @"sys_recver": 0
+            @"sys_deleted": @false
+            @"sys_exported": @false
+            @"rfc": @@(rfc,"$rfc")
+            @"importar_compras": @@(rfc,"#importar_compras")
+            @"importar_cxc": @@(rfc,"#importar_cxc")
+            @"importar_cxp": @@(rfc,"#importar_cxp")
+        }
+
+        do dbr.begin(db)
+        do dbr.insert(db,"mxcfdi_rfc",registro)
+        pk = dbr.num(db,"select last_insert_id();",@null)
+        do dbr.commit(db)
+
+        params<"_entity_id">: pk
+        return read(db,params)
+
+        exception
+        {
+            code = last_error_code()
+            error = last_error()
+            if dbr.in_transaction(db) { do dbr.rollback(db) }
+            do rise_error(code,error)
+        }
+    }
+
+    //* ======================================== [ MODIFICACIÓN ]
+
+    update::&db,&params,&data
+    {
+        namespace "mxcfdi.rfc"
+
+        @use_transaction = @false
+        // TODO privilegio de modificación del catálogo: do dbr.apps.action.grant("<ID_MODIFICAR_MXCFDI_RFC>")
+        do dbr.apps.action.grant("GXF5")
+
+        id = @@(params,"#_entity_id")
+        ref rfc = datosFormulario(data)
+        do validar(db,rfc,id)
+        rfc<"id">: id
+
+        do dbr.begin(db)
+        // Concurrencia optimista: solo actualiza si sys_recver no cambió
+        sql = "
+            UPDATE mxcfdi_rfc SET
+                rfc = @rfc,
+                importar_compras = @importar_compras,
+                importar_cxc = @importar_cxc,
+                importar_cxp = @importar_cxp,
+                sys_recver = IFNULL(sys_recver,0) + 1,
+                sys_timestamp = NOW()
+            WHERE sys_pk = @id AND IFNULL(sys_recver,0) = @sys_recver AND NOT IFNULL(sys_deleted,0)
+        "
+        if not(dbr.execute(db,sql,rfc)) { do rise_error(409,"El registro no existe o fue modificado por otro usuario. Vuelva a abrirlo.") }
+        do dbr.commit(db)
+
+        return read(db,params)
+
+        exception
+        {
+            code = last_error_code()
+            error = last_error()
+            if dbr.in_transaction(db) { do dbr.rollback(db) }
+            do rise_error(code,error)
+        }
+    }
+
+    //* ======================================== [ BAJA ]
+
+    delete::&db,&params
+    {
+        @use_transaction = @false
+        // TODO privilegio de baja del catálogo: do dbr.apps.action.grant("<ID_BAJA_MXCFDI_RFC>")
+        do dbr.apps.action.grant("GXF5")
+        
+        do dbr.begin(db)
+        do dbr.execute(db,"DELETE FROM mxcfdi_rfc WHERE sys_pk = @_entity_id",params)
+        do dbr.commit(db)
+        return @null
+
+        exception
+        {
+            code = last_error_code()
+            error = last_error()
+            if dbr.in_transaction(db) { do dbr.rollback(db) }
+            do rise_error(code,error)
+        }
+    }
+
+    point @list to mxcfdi.rfc.list
+    point @read to mxcfdi.rfc.read
+    point @blank to mxcfdi.rfc.blank
+    point @create to mxcfdi.rfc.create
+    point @update to mxcfdi.rfc.update
+    point @delete to mxcfdi.rfc.delete
+
+    @list_view = "list.dk"
+    @form_view = "form.dk"
+}
