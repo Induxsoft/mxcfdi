@@ -41,6 +41,7 @@ module "EmisionController"
             @form_view = "form.sendmail.dk"
             point @create to emision.cfdi.sendmail
             point @update to emision.cfdi.sendmail
+            point @read to emision.data.email
             break
         }
         case "cfdi-preview"

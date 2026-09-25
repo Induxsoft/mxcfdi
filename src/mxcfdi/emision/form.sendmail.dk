@@ -12,8 +12,20 @@ module "form.sendmail.dk"
     do @context.begin(@crud_context)
 
     ref cliente = ifnull(@("&./cliente"),record.create())
-    subject="CFDI "+@("$./entity/referencia")+" Factura electronica"
-    // do file.wtext("/usr/dkl_mxcvxii/_data/d.json",to.json(@crud_context))
+    ref doc = ifnull(@("&./doc"),record.create())
+
+    subject=@("$./entity/referencia")+" "+@@(cliente,"$nombre")
+    serie = trim(@@(doc,"$serie"))
+    folio = trim(@@(doc,"$folio"))
+
+    if serie != "" || folio != ""
+    {
+        if serie == ""{serie=@("$./entity/referencia")}
+        if folio == ""{folio=@("$./entity/referencia")}
+
+        subject=serie + "-"+folio+" "+@@(cliente,"$nombre")
+    }
+    
     fn_print_buttons::
     {
         #$
@@ -29,6 +41,7 @@ module "form.sendmail.dk"
         member @"hidden" { @"print": @true }
     }
     mxcfdi_modif_subject_email=parse.bool(dbr.vars.get(@("&database"),"mxcfdi_modif_subject_email"))
+    mxcfdi_modif_data_email=parse.bool(dbr.vars.get(@("&database"),"mxcfdi_modif_data_email"))   // Habilita CC y adjuntos.
     #$
     div(class="container")
     {
@@ -39,7 +52,7 @@ module "form.sendmail.dk"
         div(class="container-section" id="work_area")
         {
             div(class="alert alert-danger overflow-auto mb-2 #<ifstr(@('$error/message')!='','','d-none')>" id="frm_alerts"){$"#<@('error/message')>"}
-            form(method="POST" action="./" id="frm_sendmail")
+            form(method="POST" action="./" id="frm_sendmail" enctype="multipart/form-data")
             {
                 input(type="hidden" name="doc" value="#<@('#parameters/doc')>")
                 input(type="hidden" name="" value="#<@@(cliente,'$correo')>" id="txt_correos")
@@ -67,13 +80,22 @@ module "form.sendmail.dk"
                 ##
                 div(class="row")
                 {
+                    // Captura de correos: "Agregar" los manda a Correos y "CC" a Correos en copia.
                     div(class="col-12")
                     {
-                        label(class="form-label" "for"="txt_email"){$"Ingrese un correo electrónico válido:"}
+                        label(class="form-label" "for"="txt_emails"){$"Ingrese un correo electrónico válido:"}
                         div(class="input-group input-group-sm")
                         {
                             input(class="form-control rounded-0" type="text" name="" value="" id="txt_emails" placeholder="name1@example1.com; name2@example2.com; name3@example3.com ...")
-                            button(class="btn btn-secondary rounded-0" type="button" id="btn_add_mail"){$"Agregar"}
+                            button(class="btn btn-secondary rounded-0" type="button" id="btn_add_mail" title="Agregar a destinatarios"){$"Agregar"}
+                            #!
+                            if mxcfdi_modif_data_email
+                            {
+                                #$
+                                button(class="btn btn-outline-secondary rounded-0" type="button" id="btn_add_cc" title="Agregar con copia (CC)"){$"CC"}
+                                #!
+                            }
+                            #$
                         }
                     }
                     div(class="col-12")
@@ -85,6 +107,32 @@ module "form.sendmail.dk"
                         }
                         select(class="form-select" name="" id="email_list" size="5" multiple=""){$""}
                     }
+                    #!
+                    if mxcfdi_modif_data_email
+                    {
+                        #$
+                        // Con copia (CC)
+                        div(class="col-12")
+                        {
+                            div(class="d-flex justify-content-between align-items-center my-1")
+                            {
+                                label(class="form-label fw-bold mb-0" "for"="cc_list"){$"Correos en copia (CC):"}
+                                button(class="btn btn-sm btn-secondary rounded-0" type="button" id="btn_del_cc"){$"Eliminar"}
+                            }
+                            select(class="form-select" name="" id="cc_list" size="3" multiple=""){$""}
+                        }
+
+                        // Archivos adjuntos
+                        div(class="col-12 mt-3")
+                        {
+                            label(class="form-label fw-bold" "for"="file_adjuntos"){$"Adjuntar archivos:"}
+                            input(class="form-control form-control-sm rounded-0" type="file" name="adjuntos" id="file_adjuntos" multiple="")
+                            div(class="form-text" id="info_adjuntos"){$""}
+                            ul(class="list-group list-group-flush small mt-1" id="lista_adjuntos"){$""}
+                        }
+                        #!
+                    }
+                    #$
                 }
             }
         }

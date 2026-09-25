@@ -67,6 +67,26 @@
                 }
             },
             {
+                "varname": "mxcfdi_modif_data_email",
+                "vardefault": "0",
+                "varvalue": "0",
+                "varcaption": "Agregar adjuntos y CC",
+                "varhelp": "Permite agregar adjuntos y agregar correos con copia y otros",
+                "vartype": "bool",
+                "varinput": {
+                    "control": "select",
+                    "source":{
+                        "type":"list",
+                        "values":[
+                            {"val":"1", "text":"Sí"},
+                            {"val":"0", "text":"No"}
+                        ],
+                        "showfield":"text",
+                        "keyfield":"val"
+                    }
+                }
+            },
+            {
                 "varname": "MXCFDI_IMP_TIPOCLIENTE",
                 "vardefault": "1",
                 "varvalue": "1",

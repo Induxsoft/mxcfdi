@@ -1101,7 +1101,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 do list.add(relacionados,obj)
             }
         }
-
+        // do rise_error(0,to.json(relacionados))
         return relacionados
     }
     getImpuestosDR::&db,&params
@@ -1555,6 +1555,130 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
     }
 
+    // cfdi.sendmail::&db,&params,&data
+    // {
+    //     //#region sendmail()
+    //     namespace "emision"
+
+    //     if not(field.exist(params,"doc")) { params<"doc"> : @@(data,"#doc") }
+    //     ref cliente = getCliente(db,params)
+    //     ref emisor = getEmisor(db,params,cliente)
+    //     ref doc = @null
+
+    //     if trim(@@(data,"$emails")) == "" { do rise_error(500,"Debe agregar al menos un correo electrónico válido.") }
+
+    //     if @@(params,"$_entity_id") == "ventas" {
+    //         ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM venta vnt LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa WHERE vnt.sys_pk = @doc",params)
+    //     }
+    //     else if @@(params,"$_entity_id") == "cxc" {
+    //         ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc cxc LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc",params)
+    //     }
+
+    //     if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
+    //     if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
+
+    //     // new header { @"Content-Type": "application/json; charset=UTF-8" }
+    //     subject=trim(@@(data,"$subject"))
+    //     body=trim(@@(data,"$body"))
+    //     if subject == ""{subject="CFDI "+@@(doc,"$referencia")+" ("+@@(params,"$_entity_id")+")"}
+    //     new payload
+    //     {
+    //         @"cti": field.str(emisor,"cti") // Cuenta de timbrado.
+    //         @"pwd": field.str(emisor,"pwd") // Contraseña de la cuenta de timbrado.
+    //         @"to": trim(@@(data,"$emails")) // Dirección de correo del destinatario.
+    //         @"subject":subject  // Asunto del correo.
+    //         @"doc": @@(doc,"$uf_foliosat") // UUID del CFDI o Idd [doc]
+    //         @"res": "zip" // Tipo de resultado deseado.
+    //         @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
+    //         @"body":body
+    //         @"plantilla":trim(dbr.vars.get(db,"mxcfdi_template_email"))
+    //     }
+
+    //     ref response = from.json(http.post(@svc_fdsk_enviar,payload))
+    //     if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
+    //     response<"data/url_redir"> : ifstr(field.exist(params,"---from_url_e"), url_dcode(@@(params,"$---from_url_e")), @CFD_EMISION)
+
+    //     return response
+    // }
+
+    data.email::&db,&params
+    {
+        ref entity=emision.read(db,params)
+        if @@(params,"$_entity_id") == "ventas" {
+            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie
+            FROM venta vnt 
+            LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa 
+            LEFT JOIN foliosdocumentos f ON vnt.ifolio=f.sys_pk
+            LEFT JOIN blockdocumentos b ON f.`block`=b.sys_pk
+            WHERE vnt.sys_pk = @doc",params)
+        }
+        else if @@(params,"$_entity_id") == "cxc" {
+            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie
+            FROM dcxc cxc 
+            LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc 
+            LEFT JOIN foliosdocumentos f ON cxc.ifolio=f.sys_pk
+            LEFT JOIN blockdocumentos b ON f.`block`=b.sys_pk
+            WHERE cxc.sys_pk = @doc;",params)
+        }
+        
+        serie = trim(@@(doc,"$serie"))
+        folio = trim(@@(doc,"$folio"))
+
+        if not(isnull(doc)) && ( serie == "" || folio == "")
+        {
+            xml_texto = dbr.str(db,"SELECT IFNULL((SELECT uf_xmlcfdi FROM ut_cfd WHERE (uf_idcxc = @doc OR uf_iventa=@doc) AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk LIMIT 1),'')",params)
+
+            if xml_texto != ""
+            {
+                ref comp = cfdi.comprobante(parse.xmlStr(xml_texto))
+                if serie == ""{serie = trim(atributoElemento(comp,"Serie"))}
+                if folio == ""{folio = trim(atributoElemento(comp,"Folio"))}
+            }
+
+            doc<"serie">:serie
+            doc<"folio">:folio
+        }
+        
+        entity<"doc*">:doc
+        return entity
+    }
+    cfdi.sendmail.adjuntos::
+    {
+        //#region sendmail.adjuntos()
+        max_bytes = 10485760   // 10 MB en total; igual que mail.max_adjuntos_mb en el JS.
+        total = 0
+
+        ref lista = list.create()
+        if not(isset("@http_context")) { return lista }
+
+        ref files = @@(@http_context,"&request/files")
+        if isnull(files) { return lista }
+
+        // Mapea System.Convert.ToBase64String(byte[]) como función DKL: bytes.tob64(bytes)
+        // (to.base64 solo convierte cadenas, no arreglos de bytes).
+        do _map_function(-1,"System.Convert","ToBase64String","bytes.tob64","*System.Byte[]","$")
+
+        for i=0; i<list.count(files)
+        {
+            ref f = list.obj(files,i)
+            if @@(f,"$field") == "adjuntos" && @@(f,"#size") > 0
+            {
+                total = total + @@(f,"#size")
+                if total > max_bytes { do rise_error(500,"Los archivos adjuntos superan el tamaño máximo permitido (10 MB).") }
+
+                new adj
+                {
+                    @"filename": @@(f,"$filename")
+                    @"size": @@(f,"#size")
+                    @"file": bytes.tob64(file.rbytes(@@(f,"$temp_file")))   // byte[] en base64
+                }
+                do list.add(lista,adj)
+            }
+        }
+
+        return lista
+    }
+
     cfdi.sendmail::&db,&params,&data
     {
         //#region sendmail()
@@ -1577,6 +1701,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }
         if @@(doc,"$uf_foliosat") == "" { do rise_error(500,"El documento aun no ha sido timbrado.") }
 
+        // [CC-ADJ] Con copia y adjuntos. Se activan cuando FactuDesk los soporte.
+        cc = trim(@@(data,"$cc"))                    // "a@x.com;b@y.com" o vacío
+        ref adjuntos = cfdi.sendmail.adjuntos()      // lista de { nombre, tamano, contenido }
+
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
         subject=trim(@@(data,"$subject"))
         body=trim(@@(data,"$body"))
@@ -1592,6 +1720,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"tpo": "cfdi" // Tipo de documento solicitado: cfdi-CFDI o cr-Constancia de retención
             @"body":body
             @"plantilla":trim(dbr.vars.get(db,"mxcfdi_template_email"))
+            // [CC-ADJ] Nombres de campo pendientes de confirmar con FactuDesk.
+            // http.post envía x-www-form-urlencoded, por eso la lista va como JSON.
+            @"cc": cc                                // Correos con copia separados por ";".
+            @"adjuntos_b64": to.json(adjuntos)           // [{ "nombre": "...", "tamano": n, "contenido": "base64" }]
         }
 
         ref response = from.json(http.post(@svc_fdsk_enviar,payload))
