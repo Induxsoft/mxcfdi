@@ -2,6 +2,7 @@
 #!
 module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 {
+    #include "mxcfdi/xmlcfdi.dk"
     @table_name = "ut_cfd"
     @keyfield = "sys_pk"
 
@@ -1076,7 +1077,28 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
             for j = 0; j < list.count(facturas_saldadas)
             {
-                do list.add(relacionados,list.obj(facturas_saldadas,j))
+                ref obj=list.obj(facturas_saldadas,j)
+                /*
+                 * Summary:
+                 * - asegurar serie y folio
+                */
+                serie = trim(@@(obj,"$Serie"))
+                folio = trim(@@(obj,"$Folio"))
+                
+                if serie == "" || folio == ""
+                {
+                    xml_texto = dbr.str(db,"SELECT IFNULL((SELECT uf_xmlcfdi FROM ut_cfd WHERE (uf_idcxc = @idcxc or uf_iventa =@iventa) AND NOT IFNULL(sys_deleted,0) ORDER BY sys_pk LIMIT 1),'')",params)
+                    if xml_texto != ""
+                    {
+                        ref comp = cfdi.comprobante(parse.xmlStr(xml_texto))
+                        if serie == ""{serie = trim(atributoElemento(comp,"Serie"))}
+                        if folio == ""{folio = trim(atributoElemento(comp,"Folio"))}
+                    }
+                    obj<"Serie">:serie
+                    obj<"Folio">: folio
+                    exception{do pop_exception()}
+                }
+                do list.add(relacionados,obj)
             }
         }
 
