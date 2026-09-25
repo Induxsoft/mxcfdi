@@ -290,7 +290,9 @@ module "Lista de consultas MySQL"
         IFNULL(cte.domicilio1,0) AS domicilio1,
         IFNULL(cte.domicilio2,0) AS domicilio2,
         IFNULL(cte.domicilio3,0) AS domicilio3,
-        IFNULL(cte.cfdi_emisor,0) AS cfdi_emisor
+        IFNULL(cte.cfdi_emisor,0) AS cfdi_emisor,
+        IFNULL(cte.notas,'') AS notas,
+        cte.sys_pk
     FROM cliente AS cte
         LEFT JOIN domicilio AS dom1 ON cte.domicilio1 = dom1.sys_pk
         LEFT JOIN domicilio AS dom2 ON cte.domicilio2 = dom2.sys_pk

@@ -118,6 +118,17 @@
                         "showfield":"descripcion"
                     }
                 }
+            },
+            {
+                "varname": "mxcfdi_campos_cte_addenda",
+                "vardefault": "notas",
+                "varvalue": "notas",
+                "varcaption": "Campos del cliente en la addenda",
+                "varhelp": "Campos del cliente que se agregarán a la addenda, separado por coma (,)",
+                "vartype": "string",
+                "varinput": {
+                    "control": "textarea"
+                }
             }
         ]
     }

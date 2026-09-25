@@ -1350,8 +1350,95 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 }
             }
         }
-    }
 
+        /*
+         * Summary:
+         * - varificar campos de addenda y formar el objeto de cada campo
+        */
+
+        field_cfg_addenda=trim(dbr.vars.get(db,"mxcfdi_campos_cte_addenda"))
+        if field_cfg_addenda != ""
+        {
+            ref cte=dbr.rec(db,"SELECT * FROM cliente WHERE sys_pk=@sys_pk OR codigo=@codigo",cliente)
+            if isnull(cte){return}
+
+            ref Addenda=@@(cfdi,"&Addenda")
+
+            ref campos = split(field_cfg_addenda, ",")
+            for i = 0; i < list.count(campos)
+            {
+                // Separar "campo:Título"
+                item   = trim(list.str(campos, i))
+                titulo = "Información del cliente"
+                valor=""
+                p = findstr(item, ":")
+                if p >= 0
+                {
+                    t = trim(left(item, p + 1))
+                    if t != "" { valor = t }
+                    item = substring(item, 0, p)
+                }
+
+                campo = str(limpia.clave(item, ""))
+                if campo != ""
+                {
+                    valor1=trim(@@(cte, "$" + campo)) 
+                    if trim(valor1) == "" { valor1=valor}
+
+                    Addenda<"Cliente." + campo + "*">: record.create()
+                    Addenda<"Cliente." + campo + "/titulo">: titulo
+                    Addenda<"Cliente." + campo + "/valor1">: valor1
+                }
+            }
+        }
+        
+    }
+    // Limpia un texto para usarlo como clave de un registro.
+    // Solo deja letras (a-z, A-Z), dígitos y guion bajo.
+    // Todo lo demás (espacios, . / \ { } [ ] * $ # & @ acentos, ñ, etc.) se convierte en "_"
+    limpia.clave :: cad, porDefecto
+    {
+        k = trim(cad)
+
+        if k == ""{return porDefecto}
+
+        permitidos = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+
+        // 1. Reemplaza todo lo no permitido por "_"
+        k = ranydiffchars(k, permitidos, "_")
+
+        // 2. Junta varios "_" seguidos en uno solo
+        while contains(k, "__")
+        {
+            k = replace(k, "__", "_")
+        }
+
+        // 3. Quita "_" al inicio y al final
+        while length(k) > 0 && substring(k, 0, 1) == "_"
+        {
+            k = left(k, 1)
+        }
+        while length(k) > 0 && right(k, 1) == "_"
+        {
+            k = rremove(k, 1)
+        }
+
+        // 4. Si quedó vacía, usa la clave por defecto
+        if length(k) == 0
+        {
+            return porDefecto
+        }
+
+        // 5. Evita que la clave empiece con un dígito
+        if isany(substring(k, 0, 1), "0123456789")
+        {
+            k = "_" + k
+        }
+
+        exception{do pop_exception()}
+        
+        return k
+    }
     sellarYTimbrar::&emisor,comprobante,idd
     {
         //#region sellarYTimbrar()
