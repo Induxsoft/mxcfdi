@@ -166,7 +166,8 @@ module "cxc.bonificacion.dk"
         act_btn_cls = "btn btn-sm border-secondary induxsoft-corners btn-main-action no-print"
         
         #$
-        button(class="#<act_btn_cls>" type="button" id="btn_submit" title="Crear CFDI"){$"Aceptar"}
+        button(class="#<act_btn_cls>" type="button" id="btn_submit_preview" title="Crear CFDI"){$"Vista previa"}
+        button(class="#<act_btn_cls>" type="button" id="btn_submit" title="Crear CFDI"){$"Timbrar"}
         #!
     }
     point print_buttons to fn_print_buttons

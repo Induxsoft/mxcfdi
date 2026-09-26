@@ -11,6 +11,7 @@ var emision =
         const sel_metodo_pago = document.getElementById("sel_metodo_pago");
         const txt_cond_pago = document.getElementById("txt_cond_pago");
         const btn_submit = document.getElementById("btn_submit");
+        const btn_submit_preview = document.getElementById("btn_submit_preview");
         const btn_add_uuid = document.getElementById("btn_add_uuid");
         const btn_del_uuid = document.getElementById("btn_del_uuid");
         const sel_tasa_iva = document.getElementById("sel_tasa_iva");
@@ -18,7 +19,8 @@ var emision =
         if (btn_submit) btn_submit.addEventListener("click", (e) => this.submit());
         if (btn_add_uuid) btn_add_uuid.addEventListener("click", (e) => this.agregarUUID());
         if (btn_del_uuid) btn_del_uuid.addEventListener("click", (e) => this.removerUUID());
-        
+        if(btn_submit_preview) btn_submit_preview.addEventListener("click",(e)=> this.submit(true));
+
         if (sel_metodo_pago && txt_cond_pago)
         {
             sel_metodo_pago.addEventListener("change", (e) => {
@@ -184,7 +186,7 @@ var emision =
         }
     },
 
-    async submit()
+    async submit(ispreview=false)
     {
         if (!this.form) return;
         if (!this.form.reportValidity()) return;
@@ -202,7 +204,8 @@ var emision =
 
         const fd = new FormData(this.form);
         fd.append("rel_uuid",JSON.stringify(rel_uuid));
-        
+        fd.append("preview",ispreview);
+
         if (this.formId === "frm_cobro") {
             const res = await this.cobro.getDoctos();
             if (!res.success) {
@@ -214,11 +217,20 @@ var emision =
         }
 
         const onSuccess = (data) => {
+            
+            if(data==null)return;
+            
             if (!(data?.success??true) || (data?.message??"")!=="") {
                 alert(data.message ?? JSON.stringify(data));
                 return;
             }
             // console.log(data);
+            if(!data.uuid && data.link)
+            {
+                window.open(data.link,"_blabk");
+                disableControls(["btn_submit"],false);
+                return;
+            }
 
             alert("Comprobante timbrado: "+data.uuid);
             window.location.href = data.url_redir ?? this.url_exit;
@@ -230,7 +242,8 @@ var emision =
             disableControls(["btn_submit"],false);
         }
 
-        InduxsoftCrudlModel.InvokeService("./", fd, onSuccess, onFailure, "POST", false, true, "", true);
+        let url= ispreview ? "../cfdi-preview/?doc="+emision.elem["doc"].value : "./";
+        InduxsoftCrudlModel.InvokeService(url, fd, onSuccess, onFailure, "POST", false, true, "", true);
     },
 
     agregarUUID()

@@ -48,6 +48,8 @@ module "EmisionController"
         {
             point @list to emision.cfdi.preview
             point @read to emision.cfdi.preview
+            point @create to emision.cfdi.preview_post
+            point @update to emision.cfdi.preview_post
             break
         }
         case "download-zip"
