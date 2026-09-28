@@ -1729,8 +1729,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     using data
                     {
                         @"uso_cfdi": "CP01"
-                        @"forma_pago": "01"
                     }
+                    if trim(@@(data,"$forma_pago")) == ""{data<"forma_pago">:"01"}
+                    
                     if not(field.exist(data,"docto_from_payload"))
                     {
                         ref doctosrel = getDoctoRelacionado(db,@@(params,"#doc"))
