@@ -40,6 +40,24 @@ program "Controlador de eventos"
             @http_context<"response/headers/location"> : replace(@CFD_CXC_NOTA_CARGO,"@doc",@@(data,"$sys_pk"))
             break
         }
+        case "ext_GB16" //Aplicación de cobro o bonificación
+        {
+            idcxc = @@(params,"#_entity_id")
+            idcxc >> params
+
+            xaplicar = dbr.num(db,"SELECT IFNULL((
+            SELECT ifnull(xaplicar,0)
+            FROM dcxc
+            WHERE sys_pk = @idcxc
+            ),404)",params)
+
+            if xaplicar == 0 {
+                @http_context<"response/headers/location"> : replace(@CFD_CXC_COBRO,"@doc",idcxc)
+            }
+
+            exception{ do pop_exception() }
+            break
+        }
     }
 
     do @context.end()
