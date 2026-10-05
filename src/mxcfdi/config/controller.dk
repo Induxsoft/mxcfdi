@@ -14,5 +14,12 @@ module ""
             point @update to config.save.template
             break
         }
+        case "cfg-certificado"
+        {
+            @form_view="template_message.dk"
+            point @blank to config.configurar_certificado
+            point @read to config.configurar_certificado
+            break
+        }
     }
 }

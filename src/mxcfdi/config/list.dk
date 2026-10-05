@@ -19,6 +19,29 @@ module "list.dk"
 	@_entities_type = @("$parameters/_entities_type")
 	table_id = "tbl_"+@_entities_type
 
+    tbtn_style = "cursor:pointer; text-decoration:none; outline:none; padding: 0px 8px; color:#000000;display: inline-block;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: .375rem .75rem;
+    font-size: 1rem;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    border:1px solid;
+    padding: .25rem .5rem;
+    font-size: .875rem;
+    border-radius: 0 !important;
+    "    
+    
     new table_definition
     {
         @"datatable*": data
@@ -27,6 +50,13 @@ module "list.dk"
             member @"nic" { @"caption": "NIC" }
             member @"cti" { @"caption": "CTI" }
             member @"predet" { @"caption": "Predeterminado" }
+            member @"_actions"
+            {
+                @"caption":""
+                @"template":ftext('<div>
+                    <a href="./${DataRow.sys_pk}/cfg-certificado/" style="#<tbtn_style>">Configurar certificado</a>
+                </div>')
+            }
         }
         @"table_footer": "Mostrando los primeros # registros"
     }

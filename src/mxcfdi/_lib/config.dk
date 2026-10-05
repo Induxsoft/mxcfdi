@@ -81,6 +81,11 @@ module "Variables globales"
 
 	@svc_fdsk_get_emisor="https://factudesk.api.induxsoft.net/emisores/{nic}/"
 
+	@svc_fdsk_get_emisor_v12 = "https://factudesk.api.induxsoft.net/emisores/info/?from_v12=1&cti=@cti&pwd=@pwd"
+
+	@url_page_fdsk_configuracion = "https://app.factudesk.net/?module=configuracion&rfc_emisor=@rfc&nic=@nic&winmode=1&ids=@ids&idses=&showbar=false"
+	
+	@url_crear_cuenta_fdsk = "https://app.factudesk.net/?module=create-emisor&nic=@nic&ids=@ids"
 	//* ======================================== [ _STATIC RESOURCES ]
 	@CSS_MAIN = "/$/mxcfdi/css/main.css"
 	@JS_MAIN = "/$/mxcfdi/js/main.js"

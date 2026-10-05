@@ -224,7 +224,54 @@ module "Configuración de emisores y cuentas de timbrado. :config"
         @url_redir="/!/dbext/globalvar/"
         return data
     }
+    configurar_certificado::&db,&params
+    {
+        ref cti=dbr.rec(db,"select e.sys_pk,e.nic,e.cti,e.pwd,e.predet from mxcfdi_emisor e where e.sys_pk=@_entity_id",params)
+        new entity
+        {
+            @"cti*":cti
+        }
 
+        /*
+         * Summary:
+         * - obtener ids del perfil de indusoft
+        */
+
+        ref data_session = dbext.induxsoft.getSession(db,@@(@http_context,"$session/user/ids"))
+        if not(@@(data_session,"#success")){do rise_error(500,@@(data_session,"$message"))}
+        
+        entity<"session*">:data_session
+        if trim(@@(data_session,"$induxsoft_sid")) == ""{do rise_error(500,"No se logró obtener datos del perfil")}
+        
+        /*
+         * Summary:
+         * - obtener datos del emisor con base a la cti configurado
+        */
+        _cti = trim(@@(cti,"$cti"))
+
+        url = replace(@svc_fdsk_get_emisor_v12,"@cti",_cti)
+        url = replace(url,"@pwd",trim(@@(cti,"$pwd")))
+
+        res=http.get(url)
+        ref result=from.json(res)
+
+        message=trim(@@(result,"$message"))
+        ref data=@@(result,"&data")
+        if message != "" && isnull(data)
+        {
+            if contains(message,_cti+"|")
+            {
+                entity<"message">:message
+                return entity
+            }
+            do rise_error(99,message)
+        }
+        // https://app.factudesk.net/?rfc_emisor=PEPI010203311&nic=209874&mdl=1
+        @form_view="template_fdsk.dk"
+        entity<"emisor*">:data
+
+        return entity
+    }
     point @list to config.list
     point @read to config.read
     point @blank to config.blank

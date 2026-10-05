@@ -1,0 +1,56 @@
+#include "dkli.dkh"
+#!
+module "form.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+    #include "../_lib/lib.dk"
+	#include "../_lib/icons.dk"
+
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+    ref cti = @@(entity,"&cti")
+    ref emisor = @@(entity,"&emisor")
+    ref session = @@(entity,"&session")
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+	is_new = (@_entity_id == "_new")
+    
+    new nav_config
+    {
+        @"title": "Configuración de certificado"
+        @"urlexit": "../.."
+        member @"hidden" 
+        { 
+            @"print": @true 
+            @"send":@true
+            @"paste":@true
+            @"copy":@true
+            @"csv":@true
+        }
+    }
+    
+    @url_config_cer_emisor = @url_page_fdsk_configuracion
+
+    url=replace(@url_config_cer_emisor,"@rfc",@@(emisor,"$rfc"))
+    url=replace(url,"@nic",@@(cti,"$nic"))
+    url=replace(url,"@ids",@@(session,"$induxsoft_sid"))
+    url=replace(url,"@idses","")
+
+    #$ div(class="container-fuid")
+    {
+        form(method="POST" action="./" id="form")
+        {
+            #! do uie.printV12FormBar(nav_config)
+
+            #$ div(id="work_area" class="container-section")
+            {
+                iframe(src="#<url>" style="width: 100%;height: 100%;"){""}
+            }
+        }
+    }
+}

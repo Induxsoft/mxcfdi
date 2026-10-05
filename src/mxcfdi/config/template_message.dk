@@ -1,0 +1,135 @@
+#include "dkli.dkh"
+#!
+module "form.dk"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "uielements.v12.dkl"
+    #include "../_lib/config.dk"
+    #include "../_lib/lib.dk"
+	#include "../_lib/icons.dk"
+
+    do @context.begin(@crud_context)
+
+    ref entity = ifnull(@("&./"),record.create())
+    ref cti=@@(entity,"&cti")
+    ref session = @@(entity,"&session")
+
+    error = @@(entity,"$message")
+	@_entities_type = @("$parameters/_entities_type")
+	@_entity_id = @("$parameters/_entity_id")
+
+	is_new = (@_entity_id == "_new")
+
+    new nav_config
+    {
+        @"title": @@(cti,"$nic") + " - " + @@(cti,"$cti")
+        @"urlexit": "../.."
+        member @"hidden" 
+        { 
+            @"print": @true 
+            @"send":@true
+            @"paste":@true
+            @"copy":@true
+            @"csv":@true
+        }
+    }
+
+    url_page_fdsk_configuracion = replace(@url_crear_cuenta_fdsk,"@nic",@@(cti,"$nic"))
+    url_page_fdsk_configuracion = replace(url_page_fdsk_configuracion,"@ids",@@(session,"$induxsoft_sid"))
+
+    message = "El emisor de la cuenta de timbrado no tiene una cuenta de FactuDesk"
+    #$ div(class="container")
+    {
+        div
+        {
+            #! do uie.printV12FormBar(nav_config)
+
+            #$ div(id="work_area" class="container-section")
+            {
+                // h5{"No hay cuenta de factudesk por favor dirijase a"}
+                // h6{a(href="https://app.factudesk.net/"){"https://app.factudesk.net/"}}
+
+                style
+                {$'
+                :root {
+                    scroll-behavior: smooth;
+                }
+
+                body {
+                    font-family: "Open Sans", sans-serif;
+                    /* background: #f6f9ff; */
+                    /* color: #444444; */
+                }
+
+                a {
+                    color: #4154f1;
+                    text-decoration: none;
+                }
+
+                a:hover {
+                    color: #717ff5;
+                    text-decoration: none;
+                }
+
+                h1,h2,h3,h4,h5,h6 {
+                    font-family: "Nunito", sans-serif;
+                }
+
+                .error {
+                    padding: 30px;
+                }
+
+                .error h1 {
+                    font-size: 180px;
+                    font-weight: 700;
+                    color: #4154f1;
+                    margin-bottom: 0;
+                    line-height: 150px;
+                }
+
+                .error h2 {
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: #012970;
+                    margin-bottom: 30px;
+                }
+
+                .error .alert {
+                    max-width: -webkit-fill-available;
+                }
+
+                .error .btn {
+                    background: #09be5b;
+                    color: #fff;
+                    padding: 8px 30px;
+                }
+
+                .error .btn:hover {
+                    background: #3e4f6f;
+                }
+
+                @media (min-width: 992px) {
+                    .error img {
+                        max-width: 50%;
+                    }
+                }
+                '}
+
+                div(class="container")
+                {
+                    section(class="section error d-flex flex-column align-items-center justify-content-center")
+                    {
+                        h2{$"#<message>"}
+                        
+                        div(class="alert alert-primary overflow-auto" role="alert"){$"#<error>"}
+                        div(class="d-flex gap-2 justify-content-center")
+                        {
+                            a(target="_blank" href="#<url_page_fdsk_configuracion>" class="btn"){$"[Crear cuenta] Ir a FactuDesk"}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
