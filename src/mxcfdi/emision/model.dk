@@ -1774,22 +1774,25 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     {
         ref entity=emision.read(db,params)
         if @@(params,"$_entity_id") == "ventas" {
-            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie
+            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie, cd.id as id_documento, cd.const as documento
             FROM venta vnt 
+            INNER JOIN cdocumentos cd ON vnt.documento = cd.id
             LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa 
             LEFT JOIN foliosdocumentos f ON vnt.ifolio=f.sys_pk
             LEFT JOIN blockdocumentos b ON f.`block`=b.sys_pk
             WHERE vnt.sys_pk = @doc",params)
         }
         else if @@(params,"$_entity_id") == "cxc" {
-            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie
+            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat ,f.folio,b.serie, cd.id as id_documento, cd.const as documento
             FROM dcxc cxc 
+            INNER JOIN cdocumentos cd ON cxc.documento = cd.id
             LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc 
             LEFT JOIN foliosdocumentos f ON cxc.ifolio=f.sys_pk
             LEFT JOIN blockdocumentos b ON f.`block`=b.sys_pk
             WHERE cxc.sys_pk = @doc;",params)
         }
-        
+        ref emisor=getEmisor(db,params,@@(entity,"&cliente"))
+
         serie = trim(@@(doc,"$serie"))
         folio = trim(@@(doc,"$folio"))
 
@@ -1807,7 +1810,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             doc<"serie">:serie
             doc<"folio">:folio
         }
-        
+        entity<"emisor*">:emisor
         entity<"doc*">:doc
         return entity
     }

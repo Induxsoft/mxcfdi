@@ -9,12 +9,24 @@ module "form.sendmail.dk"
     #include "dbr.vars.dkl"
     #include "../_lib/config.dk"
 
+    doc.nombre :: const
+    {
+        if length(const) > 1 && substring(const, 0, 1) == "c"
+        {
+            return substring(const, 1, length(const) - 1)
+        }
+        return const
+    }
     do @context.begin(@crud_context)
-
+    
     ref cliente = ifnull(@("&./cliente"),record.create())
     ref doc = ifnull(@("&./doc"),record.create())
+    ref emisor = ifnull(@("&./emisor"),record.create())
 
-    subject=@("$./entity/referencia")+" "+@@(cliente,"$nombre")
+    documento = doc.nombre(@@(doc,"$documento"))
+    nombre_emisor = @@(emisor,"$nombre")
+
+    subject = documento + " " + nombre_emisor + " " + @("$./entity/referencia")+" "+@@(cliente,"$nombre")
     serie = trim(@@(doc,"$serie"))
     folio = trim(@@(doc,"$folio"))
 
@@ -23,8 +35,9 @@ module "form.sendmail.dk"
         if serie == ""{serie=@("$./entity/referencia")}
         if folio == ""{folio=@("$./entity/referencia")}
 
-        subject=serie + "-"+folio+" "+@@(cliente,"$nombre")
+        subject =  documento + " " + nombre_emisor + " " + serie + "-"+folio+" "+@@(cliente,"$nombre")
     }
+    subject = toupper(subject)
     
     fn_print_buttons::
     {
