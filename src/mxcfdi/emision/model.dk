@@ -1325,7 +1325,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 member @"DirReceptor"
                 {
                     @"titulo": "Dirección del receptor"
-                    @"valor1": @@(dir_receptor,"$direccion")
+                    @"valor1": trim(replace(@@(dir_receptor,"$direccion"),"|"," "))
                     @"valor2": @@(dir_receptor,"$colonia")
                     @"valor3": @@(dir_receptor,"$codpos")
                 }
