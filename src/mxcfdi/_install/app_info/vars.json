@@ -129,6 +129,29 @@
                 "varinput": {
                     "control": "textarea"
                 }
+            },
+             {
+                "varname": "mxcfdi_deliveryFormat",
+                "vardefault": "zip",
+                "varvalue": "zip",
+                "varcaption": "Tipo de entrega del CFDI",
+                "varhelp": "Tipo de entrega de los archivos del CFDI",
+                "vartype": "string",
+                "varinput": {
+                    "control": "select",
+                    "source":{
+                        "type":"list",
+                        "values":[
+                            {"val":"zip", "text":"zip – Adjunta un archivo ZIP que contiene el XML y el PDF del CFDI"},
+                            {"val":"both", "text":"both – Adjunta el archivo XML y el PDF del CFDI"},
+                            {"val":"pdf", "text":"pdf – Adjunta únicamente el archivo PDF del CFDI"},
+                            {"val":"xml", "text":"xml – Adjunta únicamente el archivo XML del CFDI"},
+                            {"val":"link", "text":"link – Incluye un enlace temporal para consultar o descargar los archivos del CFDI.I"}
+                        ],
+                        "showfield":"text",
+                        "keyfield":"val"
+                    }
+                }
             }
         ]
     }
