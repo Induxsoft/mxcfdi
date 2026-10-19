@@ -1186,6 +1186,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
 
                 Pagado = @@(DoctoRelacionado,"#ImpPagado")
                 Proporcion = (Pagado / cfdi.attr(comprobante,"#Total"))
+                // BaseDR/ImporteDR van en la moneda del documento; BaseP, ImporteP y Totales, en la del pago
+                Equivalencia = @@(DoctoRelacionado,"#EquivalenciaDR")
+                if Equivalencia <= 0 { Equivalencia = 1 }
     
                 for j = 0; j < list.count(cfdi.nodes(traslados))
                 {
@@ -1193,6 +1196,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     
                     BaseDR = RoundTo(Proporcion * @@(traslado,"#Base"),6,@AwayFromZero)
                     ImporteDR = RoundTo(BaseDR * @@(traslado,"#TasaOCuota"),6,@AwayFromZero)
+                    BasePagoDR = BaseDR / Equivalencia
+                    ImportePagoDR = ImporteDR / Equivalencia
 
                     new traslado_dr
                     {
@@ -1208,26 +1213,26 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     {
                         case 16
                         {
-                            TotalTrasladosBaseIVA16 = TotalTrasladosBaseIVA16 + @@(traslado_dr,"#BaseDR")
-                            TotalTrasladosImpuestoIVA16 = TotalTrasladosImpuestoIVA16 + @@(traslado_dr,"#ImporteDR")
+                            TotalTrasladosBaseIVA16 = TotalTrasladosBaseIVA16 + BasePagoDR
+                            TotalTrasladosImpuestoIVA16 = TotalTrasladosImpuestoIVA16 + ImportePagoDR
                             break
                         }
                         case 8
                         {
-                            TotalTrasladosBaseIVA8 = TotalTrasladosBaseIVA8 + @@(traslado_dr,"#BaseDR")
-                            TotalTrasladosImpuestoIVA8 = TotalTrasladosImpuestoIVA8 + @@(traslado_dr,"#ImporteDR")
+                            TotalTrasladosBaseIVA8 = TotalTrasladosBaseIVA8 + BasePagoDR
+                            TotalTrasladosImpuestoIVA8 = TotalTrasladosImpuestoIVA8 + ImportePagoDR
                             break
                         }
                         case 0
                         {
                             if field.str(traslado_dr,"TipoFactorDR") == "Exento"
                             {
-                                TotalTrasladosBaseIVAExento = TotalTrasladosBaseIVAExento + @@(traslado_dr,"#BaseDR")
+                                TotalTrasladosBaseIVAExento = TotalTrasladosBaseIVAExento + BasePagoDR
                             }
                             else
                             {
-                                TotalTrasladosBaseIVA0 = TotalTrasladosBaseIVA0 + @@(traslado_dr,"#BaseDR")
-                                TotalTrasladosImpuestoIVA0 = TotalTrasladosImpuestoIVA0 + @@(traslado_dr,"#ImporteDR")
+                                TotalTrasladosBaseIVA0 = TotalTrasladosBaseIVA0 + BasePagoDR
+                                TotalTrasladosImpuestoIVA0 = TotalTrasladosImpuestoIVA0 + ImportePagoDR
                             }
                             break
                         }
@@ -1239,11 +1244,13 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                     {
                         alias = "ImpuestoDR:ImpuestoP,TipoFactorDR:TipoFactorP,TasaOCuotaDR:TasaOCuotaP,BaseDR:BaseP,ImporteDR:ImporteP"
                         _traslados_dr<gp_tras+"*"> : record.copyex(traslado_dr,@null,"*",",",alias,":")
+                        _traslados_dr<gp_tras+"/BaseP"> : BasePagoDR
+                        _traslados_dr<gp_tras+"/ImporteP"> : ImportePagoDR
                     }
                     else
                     {
-                        _traslados_dr<gp_tras+"/BaseP"> : @@(_traslados_dr,"#"+gp_tras+"/BaseP") + @@(traslado_dr,"#BaseDR")
-                        _traslados_dr<gp_tras+"/ImporteP"> : @@(_traslados_dr,"#"+gp_tras+"/ImporteP") + @@(traslado_dr,"#ImporteDR")
+                        _traslados_dr<gp_tras+"/BaseP"> : @@(_traslados_dr,"#"+gp_tras+"/BaseP") + BasePagoDR
+                        _traslados_dr<gp_tras+"/ImporteP"> : @@(_traslados_dr,"#"+gp_tras+"/ImporteP") + ImportePagoDR
                     }
 
                     do list.add(traslados_dr,traslado_dr)
@@ -1271,19 +1278,23 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             }
         }
 
+        // Los totales van en MXN: BaseP/ImporteP por TipoCambioP (setComplementoP ya lo fijó)
+        TipoCambioP = @@(cfdi,"#Complemento/Pago/TipoCambioP")
+        if TipoCambioP <= 0 { TipoCambioP = 1 }
+
         using cfdi
         {
             member @"Complemento"
             {
                 member @"Totales"
                 {
-                    @"TotalTrasladosBaseIVA16": RoundTo(TotalTrasladosBaseIVA16,2,@AwayFromZero)
-                    @"TotalTrasladosImpuestoIVA16": RoundTo(TotalTrasladosImpuestoIVA16,2,@AwayFromZero)
-                    @"TotalTrasladosBaseIVA8": RoundTo(TotalTrasladosBaseIVA8,2,@AwayFromZero)
-                    @"TotalTrasladosImpuestoIVA8": RoundTo(TotalTrasladosImpuestoIVA8,2,@AwayFromZero)
-                    @"TotalTrasladosBaseIVA0": RoundTo(TotalTrasladosBaseIVA0,2,@AwayFromZero)
-                    @"TotalTrasladosImpuestoIVA0": RoundTo(TotalTrasladosImpuestoIVA0,2,@AwayFromZero)
-                    @"TotalTrasladosBaseIVAExento": RoundTo(TotalTrasladosBaseIVAExento,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVA16": RoundTo(RoundTo(TotalTrasladosBaseIVA16,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA16": RoundTo(RoundTo(TotalTrasladosImpuestoIVA16,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVA8": RoundTo(RoundTo(TotalTrasladosBaseIVA8,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA8": RoundTo(RoundTo(TotalTrasladosImpuestoIVA8,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVA0": RoundTo(RoundTo(TotalTrasladosBaseIVA0,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosImpuestoIVA0": RoundTo(RoundTo(TotalTrasladosImpuestoIVA0,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
+                    @"TotalTrasladosBaseIVAExento": RoundTo(RoundTo(TotalTrasladosBaseIVAExento,2,@AwayFromZero) * TipoCambioP,2,@AwayFromZero)
                 }
                 member @"Pago"
                 {
@@ -1327,6 +1338,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         }
         
         if @@(cfdi,"$Complemento/Pago/MonedaP") == "MXN" { cfdi<"Complemento/Pago/TipoCambioP"> : 1 }
+        // MontoTotalPagos va en MXN: Monto por TipoCambioP
+        cfdi<"Complemento/Totales/MontoTotalPagos"> : RoundTo(@@(cfdi,"#Complemento/Pago/Monto") * @@(cfdi,"#Complemento/Pago/TipoCambioP"),2,@AwayFromZero)
 
         do emision.setDoctoRelacionado(db,data,cfdi)
     }
