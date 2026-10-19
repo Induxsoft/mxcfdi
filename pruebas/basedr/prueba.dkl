@@ -1,0 +1,42 @@
+#include "dkli.dkh"
+#!
+program "Prueba de BaseDR/ImporteDR del complemento de pago (sin timbrar)"
+{
+    // Uso (desde una carpeta donde "mxcfdi/" apunte al src/mxcfdi a probar):
+    //   dkl prueba.dkl qn=<conexión@grupo> mock=<url del servicio simulado> caso=<caso.json> salida=<xml>
+    // Llama a emision.setComplementoP real con los datos del caso y genera el XML con
+    // cfdi40.pago20.dkl, igual que emision.generarCFDI, pero sin sellar ni timbrar.
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "webcl.dkh"
+    #include "dbr.dkh"
+    #include "mxcfdi/_lib/config.dk"
+    #include "mxcfdi/_lib/lib.dk"
+    #include "mxcfdi/emision/model.dk"
+
+    ref args = commandline("=")
+
+    // emision.descargar pide a Factudesk el XML de cada factura relacionada: se usa un servicio simulado
+    @svc_fdsk_descargar = @@(args,"mock")
+
+    ref db = dbr.open(@@(args,"qn"))
+
+    // emision.descargar exige un emisor predeterminado; en la base de prueba se crea uno ficticio
+    if dbr.num(db,"SELECT COUNT(*) FROM mxcfdi_emisor WHERE predet",@null) == 0
+    {
+        do dbr.execute(db,"INSERT INTO mxcfdi_emisor (nic,cti,pwd,predet,sys_guid,sys_timestamp,sys_dtcreated) VALUES ('PRUEBA','cti-ficticio','pwd-ficticio',1,REPLACE(UUID(),'-',''),NOW(),NOW())",@null)
+    }
+
+    ref caso = from.json(file.rtext(@@(args,"caso")))
+    ref data = field.obj(caso,"data")
+    data<"doctosrel">: to.json(field.obj(caso,"relacionados"))
+
+    ref cfdi = field.obj(caso,"cfdi")
+    do emision.setComplementoP(db,data,cfdi)
+
+    comprobante = runscript("mxcfdi/emision/cfdi40.pago20.dkl","cfdi",cfdi)
+    comprobante = replace(comprobante," = ","=")
+    do file.wtext(@@(args,"salida"),comprobante)
+
+    do dbr.close(db)
+}

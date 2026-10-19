@@ -1,0 +1,45 @@
+{
+  "descripcion": "Pago de 100 USD (TipoCambioP 20) aplicado a 2000 MXN de una factura en pesos (EquivalenciaDR 20)",
+  "data": {
+    "forma_pago": "03",
+    "no_operacion": "",
+    "documento": {
+      "importe": 100,
+      "cdivisa": "USD",
+      "tipocambio": 20,
+      "fecha_pago": "2026-10-15 12:00:00"
+    }
+  },
+  "relacionados": [
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000002",
+      "Serie": "PRB",
+      "Folio": "2",
+      "MonedaDR": "MXN",
+      "EquivalenciaDR": 20,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 2320,
+      "ImpPagado": 2000,
+      "ImpSaldoInsoluto": 320,
+      "ObjetoImpDR": "02"
+    }
+  ],
+  "cfdi": {
+    "Serie": "PRB-P",
+    "Folio": "7",
+    "Fecha": "2026-10-15T12:00:00",
+    "LugarExpedicion": "64000",
+    "Emisor": {
+      "Nombre": "EMISOR FICTICIO",
+      "Rfc": "AAA010101AAA",
+      "RegimenFiscal": "601"
+    },
+    "Receptor": {
+      "Nombre": "RECEPTOR FICTICIO",
+      "DomicilioFiscalReceptor": "64000",
+      "Rfc": "BBB010101BBB",
+      "UsoCFDI": "CP01",
+      "RegimenFiscalReceptor": "601"
+    }
+  }
+}

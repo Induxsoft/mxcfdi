@@ -1,0 +1,57 @@
+{
+  "descripcion": "Pago de 2000 MXN: 58 USD a una factura en dólares (EquivalenciaDR 0.05) y 840 MXN a otra",
+  "data": {
+    "forma_pago": "03",
+    "no_operacion": "",
+    "documento": {
+      "importe": 2000,
+      "cdivisa": "MXN",
+      "tipocambio": 1,
+      "fecha_pago": "2026-10-15 12:00:00"
+    }
+  },
+  "relacionados": [
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000005",
+      "Serie": "PRB",
+      "Folio": "5",
+      "MonedaDR": "USD",
+      "EquivalenciaDR": 0.05,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 116,
+      "ImpPagado": 58,
+      "ImpSaldoInsoluto": 58,
+      "ObjetoImpDR": "02"
+    },
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000001",
+      "Serie": "PRB",
+      "Folio": "1",
+      "MonedaDR": "MXN",
+      "EquivalenciaDR": 1,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 1160,
+      "ImpPagado": 840,
+      "ImpSaldoInsoluto": 320,
+      "ObjetoImpDR": "02"
+    }
+  ],
+  "cfdi": {
+    "Serie": "PRB-P",
+    "Folio": "4",
+    "Fecha": "2026-10-15T12:00:00",
+    "LugarExpedicion": "64000",
+    "Emisor": {
+      "Nombre": "EMISOR FICTICIO",
+      "Rfc": "AAA010101AAA",
+      "RegimenFiscal": "601"
+    },
+    "Receptor": {
+      "Nombre": "RECEPTOR FICTICIO",
+      "DomicilioFiscalReceptor": "64000",
+      "Rfc": "BBB010101BBB",
+      "UsoCFDI": "CP01",
+      "RegimenFiscalReceptor": "601"
+    }
+  }
+}

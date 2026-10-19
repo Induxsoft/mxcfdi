@@ -1,0 +1,69 @@
+{
+  "descripcion": "Pago de 1500 MXN a tres facturas: IVA 16 %, tasa 0 % y exenta",
+  "data": {
+    "forma_pago": "03",
+    "no_operacion": "",
+    "documento": {
+      "importe": 1500,
+      "cdivisa": "MXN",
+      "tipocambio": 1,
+      "fecha_pago": "2026-10-15 12:00:00"
+    }
+  },
+  "relacionados": [
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000001",
+      "Serie": "PRB",
+      "Folio": "1",
+      "MonedaDR": "MXN",
+      "EquivalenciaDR": 1,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 1160,
+      "ImpPagado": 700,
+      "ImpSaldoInsoluto": 460,
+      "ObjetoImpDR": "02"
+    },
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000004",
+      "Serie": "PRB",
+      "Folio": "4",
+      "MonedaDR": "MXN",
+      "EquivalenciaDR": 1,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 800,
+      "ImpPagado": 500,
+      "ImpSaldoInsoluto": 300,
+      "ObjetoImpDR": "02"
+    },
+    {
+      "IdDocumento": "11111111-0000-4000-8000-000000000003",
+      "Serie": "PRB",
+      "Folio": "3",
+      "MonedaDR": "MXN",
+      "EquivalenciaDR": 1,
+      "NumParcialidad": 1,
+      "ImpSaldoAnt": 500,
+      "ImpPagado": 300,
+      "ImpSaldoInsoluto": 200,
+      "ObjetoImpDR": "02"
+    }
+  ],
+  "cfdi": {
+    "Serie": "PRB-P",
+    "Folio": "2",
+    "Fecha": "2026-10-15T12:00:00",
+    "LugarExpedicion": "64000",
+    "Emisor": {
+      "Nombre": "EMISOR FICTICIO",
+      "Rfc": "AAA010101AAA",
+      "RegimenFiscal": "601"
+    },
+    "Receptor": {
+      "Nombre": "RECEPTOR FICTICIO",
+      "DomicilioFiscalReceptor": "64000",
+      "Rfc": "BBB010101BBB",
+      "UsoCFDI": "CP01",
+      "RegimenFiscalReceptor": "601"
+    }
+  }
+}
