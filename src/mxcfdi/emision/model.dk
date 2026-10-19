@@ -1106,6 +1106,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         // do rise_error(0,to.json(relacionados))
         return relacionados
     }
+
     getImpuestosDR::&db,&params
     {
         ref response = emision.descargar(db,@@(params,"$uuid"),"xmlb64")
@@ -1145,7 +1146,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         TotalTrasladosBaseIVAExento = 0.00
         MontoTotalPagos = 0.00
 
-        Pagado = @@(data,"#documento/importe")
+        // Pagado = @@(data,"#documento/importe")
 
         for i = 0; i < list.count(doctosrel)
         {
@@ -1165,6 +1166,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
                 ref traslados_dr = list.create()
                 ref retenciones_dr = list.create()
 
+                Pagado = @@(DoctoRelacionado,"#ImpPagado")
                 Proporcion = (Pagado / cfdi.attr(comprobante,"#Total"))
     
                 for j = 0; j < list.count(cfdi.nodes(traslados))
