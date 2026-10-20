@@ -190,18 +190,26 @@ module "venta.factura.dk"
                             label{b{$"RFC: "} $"#<@@(cliente,'$rfc')>"}
                         }
 
-                        div(class="row")
+                        div(class="row gx-1 gx-sm-2 gx-md-3 gx-lg-4")
                         {
-                            div(class="col-8")
+                            div(class="col-md-6 col-lg-8")
                             {
                                 label(class="form-label" "for"="sel_reg_fiscal"){$"Régimen fiscal:"}
                                 ##
                                 do uie.dbSelect(sel_reg_fiscal)
                                 ##
                             }
-                            div(class="col-4")
+                            div(class="col-6 col-md-3 col-lg-2")
                             {
-                                label(class="form-label" "for"="txt_codpos"){$"Código postal del receptor:"}
+                                #!
+                                fecha_emision = date_str(str2dt(@@(entity,"$fecha")),"yyyy-MM-dd HH:mm:ss")
+                                #$
+                                label(class="form-label" "for"="fecha"){"F. Emisión:"}
+                                input(class="form-control rounded-0" type="datetime-local" value="#<fecha_emision>" name="fecha" id="fecha")
+                            }
+                            div(class="col-6 col-md-3 col-lg-2")
+                            {
+                                label(class="form-label" "for"="txt_codpos"){$"C.P del receptor:"}
                                 input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
                             div(class="col-6")
@@ -223,21 +231,21 @@ module "venta.factura.dk"
                                 label(class="form-label" "for"="txt_cond_pago"){$"Condiciones de pago:"}
                                 input(class="form-control rounded-0" type="text" name="cond_pago" value="" id="txt_cond_pago" maxlength="1000" required="")
                             }
-                            div(class="col-4")
+                            div(class="col-6 col-lg-4")
                             {
                                 label(class="form-label" "for"="sel_uso_cfdi"){$"Uso del CFDI:"}
                                 ##
                                 do uie.dbSelect(sel_uso_cfdi)
                                 ##
                             }
-                            div(class="col-4")
+                            div(class="col-6 col-lg-3")
                             {
                                 label(class="form-label" "for"="sel_exportacion"){$"Exportación:"}
                                 ##
                                 do uie.dbSelect(sel_exportacion)
                                 ##
                             }
-                            div(class="col-md-12 col-lg-4")
+                            div(class="col-12 col-lg-5")
                             {
                                 label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
                                 select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
@@ -257,7 +265,7 @@ module "venta.factura.dk"
 
                     div(class="tab-pane fade" id="nav-relacionar" role="tabpanel" "aria-labelledby"="nav-relacionar-tab")
                     {
-                        div(class="row")
+                        div(class="row gx-1 gx-sm-2 gx-md-3 gx-lg-4")
                         {
                             div(class="col-12")
                             {

@@ -223,7 +223,7 @@ module "cxc.cobro.dk"
                                 fecha_emision = date_str(str2dt(@@(entity,"$fecha")),"yyyy-MM-dd HH:mm:ss")
                                 #$
                                 label(class="form-label" "for"="fecha"){"F. Emisión:"}
-                                input(class="form-control rounded-0" type="datetime-local" value="#<fecha_emision>" name="fecha" id="fecha" onchange="emision.validarFechaEmision(this)")
+                                input(class="form-control rounded-0" type="datetime-local" value="#<fecha_emision>" name="fecha" id="fecha")
                             }
                         }
                     }

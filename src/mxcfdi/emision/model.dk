@@ -586,23 +586,24 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref domicilio = cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
         
         if isnull(domicilio) { ref domicilio:getDomicilioEmisor(emisor)}
-        fecha = trim(@@(data,"$fecha"))
-
+        
+        fecha = ifempty(trim(@@(data,"$fecha")), trim(@@(documento,"$fecha")))
         if fecha == "" { fecha = hoy("yyyy-MM-ddTHH:mm:ss") }
-        else
-        {
-            new p { @"fecha":date_str(str2dt(fecha),"yyyy-MM-dd HH:mm:ss") }
-            fecha = dbr.str(db,"
-            SELECT
-                DATE_FORMAT(
-                    IF(TIMESTAMP(@fecha) < DATE_SUB(NOW(), INTERVAL 72 HOUR),
-                        NOW(),
-                        TIMESTAMP(@fecha)
-                    ),
-                    '%Y-%m-%dT%H:%i:%s'
-                );
-            ",p)
-        }
+        else { fecha = date_str(str2dt(fecha),"yyyy-MM-ddTHH:mm:ss") }
+        // else
+        // {
+        //     new p { @"fecha":date_str(str2dt(fecha),"yyyy-MM-dd HH:mm:ss") }
+        //     fecha = dbr.str(db,"
+        //     SELECT
+        //         DATE_FORMAT(
+        //             IF(TIMESTAMP(@fecha) < DATE_SUB(NOW(), INTERVAL 72 HOUR),
+        //                 NOW(),
+        //                 TIMESTAMP(@fecha)
+        //             ),
+        //             '%Y-%m-%dT%H:%i:%s'
+        //         );
+        //     ",p)
+        // }
         
         program_path = "mxcfdi/emision"
         program_name = "cfdi40.dkl"
