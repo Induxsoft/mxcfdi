@@ -152,6 +152,17 @@
                         "keyfield":"val"
                     }
                 }
+            },
+            {
+                "varname": "mxcfdi_nombre_archivo",
+                "vardefault": "{uuid}",
+                "varvalue": "{uuid}",
+                "varcaption": "Nombre de los archivos del CFDI",
+                "varhelp": "Nombre (sin extensión) del XML y el PDF al descargar o enviar por correo. Marcadores: {uuid}, {uuid8} (primeros 8 caracteres del UUID), {serie}, {folio}, {rfc_emisor}. Ejemplos: {serie}{folio}, {rfc_emisor}_{serie}{folio}, {serie}{folio}_{uuid8}. Si el CFDI no tiene serie ni folio se usa el UUID.",
+                "vartype": "string",
+                "varinput": {
+                    "control": "text"
+                }
             }
         ]
     }

@@ -1492,9 +1492,75 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return response
     }
 
+    nombreArchivo.patron::patron,uuid,rfc_emisor,serie,folio
+    {
+        //#region nombreArchivo.patron()
+        // Expande {uuid}, {uuid8}, {serie}, {folio} y {rfc_emisor}. Devuelve "" cuando el nombre debe ser el UUID.
+        p = trim(patron)
+        if p == "" { return "" }
+        if (contains(p,"{serie}") || contains(p,"{folio}")) && trim(serie) == "" && trim(folio) == "" { return "" }
+
+        n = replace(p,"{uuid8}",substring(uuid,0,8))
+        n = replace(n,"{uuid}",uuid)
+        n = replace(n,"{serie}",trim(serie))
+        n = replace(n,"{folio}",trim(folio))
+        n = replace(n,"{rfc_emisor}",trim(rfc_emisor))
+        n = trim(n)
+        if n == uuid { return "" }
+        return n
+    }
+
+    nombreArchivo::&db,uuid
+    {
+        //#region nombreArchivo()
+        // Nombre (sin extensión) con el que Factudesk entrega el XML y el PDF del CFDI, según el patrón de la
+        // variable mxcfdi_nombre_archivo (por omisión {uuid}). Devuelve "" si es el UUID: entonces no se manda
+        // nombre_archivo y Factudesk responde como siempre. Un error aquí no impide descargar ni enviar.
+        patron = trim(dbr.vars.get(db,"mxcfdi_nombre_archivo"))
+        if patron == "" || patron == "{uuid}" || trim(uuid) == "" { return "" }
+
+        new p { @"uuid": trim(uuid) }
+        ref d = dbr.rec(db,"SELECT IFNULL(cfd.uf_rfc_emisor,'') AS rfc_emisor, IFNULL(b.serie,'') AS serie, IFNULL(f.folio,'') AS folio, IFNULL(cfd.uf_xmlcfdi,'') AS xml
+            FROM ut_cfd cfd
+            LEFT JOIN venta vnt ON vnt.sys_pk = cfd.uf_iventa
+            LEFT JOIN dcxc cxc ON cxc.sys_pk = cfd.uf_idcxc
+            LEFT JOIN foliosdocumentos f ON f.sys_pk = IFNULL(vnt.ifolio,cxc.ifolio)
+            LEFT JOIN blockdocumentos b ON f.`block` = b.sys_pk
+            WHERE cfd.uf_foliosat = @uuid AND NOT IFNULL(cfd.sys_deleted,0)
+            ORDER BY cfd.sys_pk DESC LIMIT 1",p)
+        if isnull(d) { ref d = record.create() }
+
+        rfc_emisor = trim(@@(d,"$rfc_emisor"))
+        serie = trim(@@(d,"$serie"))
+        folio = trim(@@(d,"$folio"))
+
+        // Como en data.email: si la venta o el cargo no tienen serie y folio, se toman del XML guardado
+        if (serie == "" || folio == "" || rfc_emisor == "") && trim(@@(d,"$xml")) != ""
+        {
+            ref comp = cfdi.comprobante(parse.xmlStr(@@(d,"$xml")))
+            if serie == "" { serie = trim(atributoElemento(comp,"Serie")) }
+            if folio == "" { folio = trim(atributoElemento(comp,"Folio")) }
+            if rfc_emisor == "" { rfc_emisor = trim(atributoElemento(cfdi.getElementByTagName(comp,"cfdi:Emisor"),"Rfc")) }
+        }
+
+        return emision.nombreArchivo.patron(patron,trim(uuid),rfc_emisor,serie,folio)
+
+        exception
+        {
+            do pop_exception()
+            return ""
+        }
+    }
+
     descargar::&db,IdDocumento,res
     {
         //#region descargar()
+        return emision.descargarComo(db,IdDocumento,res,"")
+    }
+
+    descargarComo::&db,IdDocumento,res,nombre_archivo
+    {
+        //#region descargarComo()
         ref emisor = dbr.rec(db,"SELECT nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null)
         if isnull(emisor){do rise_error(500,"No se encontró datos del emisor, necesita configurar un emisor en el módulo de 'Variables globales -> Emisión de CFDI -> Config. emisores'")}
         // new header { @"Content-Type": "application/json; charset=UTF-8" }
@@ -1506,6 +1572,8 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"tpo": "cfdi" // cfdi/cr (opcional)
             @"res": res // (Opcional) tipo de resultado deseado
         }
+        // (Opcional) nombre de los archivos que entrega Factudesk; sin él, el UUID
+        if nombre_archivo != "" { payload<"nombre_archivo">:nombre_archivo }
 
         ref response = from.json(http.post(@svc_fdsk_descargar,payload))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
@@ -1934,6 +2002,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             @"cc": cc                                // Correos con copia separados por ";".
             @"adjuntos_b64": to.json(adjuntos)           // [{ "nombre": "...", "tamano": n, "contenido": "base64" }]
         }
+        // (Opcional) nombre de los adjuntos del CFDI (variable mxcfdi_nombre_archivo); sin él, el UUID
+        nombre_archivo = emision.nombreArchivo(db,@@(doc,"$uf_foliosat"))
+        if nombre_archivo != "" { payload<"nombre_archivo">:nombre_archivo }
 
         ref response = from.json(http.post(@svc_fdsk_enviar,payload))
         if not(@@(response,"#success")) { do rise_error(500,@@(response,"$message")) }
@@ -2064,7 +2135,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
     cfdi.download::&db,&params
     {
         //#region download()
-        ref response = emision.descargar(db,@@(params,"$uuid"),"ziplnk")
+        ref response = emision.descargarComo(db,@@(params,"$uuid"),"ziplnk",emision.nombreArchivo(db,@@(params,"$uuid")))
         return @@(response,"&data")
     }
 

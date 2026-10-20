@@ -1,0 +1,160 @@
+#include "dkli.dkh"
+#!
+program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
+{
+    // Uso (desde una carpeta donde "mxcfdi/" apunte al src/mxcfdi a probar):
+    //   dkl prueba.dkl qn=<conexión@grupo> fdsk=<URL base de factudesk.api del laboratorio> cti=<CTI> pwd=<contraseña> [enviar=1] [tempapi=<carpeta>]
+    // 1. emision.nombreArchivo con varios patrones sobre CFDI ficticios (ut_cfd + dcxc + folio, y solo XML).
+    // 2. De punta a punta contra factudesk.api del laboratorio: emision.cfdi.download (ziplnk) y, con enviar=1,
+    //    emision.cfdi.sendmail (correo al SMTP simulado). Todo es ficticio y se borra al terminar.
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "webcl.dkh"
+    #include "dbr.dkh"
+    #include "dbr.vars.dkl"
+    #include "mxcfdi/_lib/config.dk"
+    #include "mxcfdi/_lib/lib.dk"
+    #include "mxcfdi/_lib/list.queries.dk"
+    #include "mxcfdi/emision/model.dk"
+
+    ref args = commandline("=")
+    fdsk = @@(args,"$fdsk")
+    @svc_fdsk_descargar = fdsk + "comprobantes/descargar/"
+    @svc_fdsk_enviar = fdsk + "comprobantes/enviar/"
+    @svc_fdsk_get_emisor = fdsk + "emisores/{nic}/"
+
+    ref db = dbr.open(@@(args,"qn"))
+    marca = "NA-PRUEBA"
+    E1 = "aaaa0001-0001-4000-8000-000000000001"   // F1024 por dcxc + foliosdocumentos (en el XML también)
+    SF = "aaaa0001-0002-4000-8000-000000000002"   // sin serie ni folio
+    XF = "bbbb0001-0001-4000-8000-000000000009"   // solo XML guardado (uf_xmlcfdi) con Serie A y Folio 77
+
+    limpiar::&db,marca
+    {
+        new m { @"m": marca }
+        do dbr.execute(db,"DELETE FROM ut_cfd WHERE sys_guid LIKE CONCAT(@m,'%')",m)
+        do dbr.execute(db,"DELETE FROM dcxc WHERE sys_guid LIKE CONCAT(@m,'%')",m)
+        do dbr.execute(db,"DELETE FROM foliosdocumentos WHERE sys_guid LIKE CONCAT(@m,'%')",m)
+        do dbr.execute(db,"DELETE FROM blockdocumentos WHERE sys_guid LIKE CONCAT(@m,'%')",m)
+    }
+    patron::&db,valor
+    {
+        new v { @"v": valor }
+        if valor == "(sin variable)" { do dbr.execute(db,"DELETE FROM globalvar WHERE varname='mxcfdi_nombre_archivo'",@null) }
+        else { do dbr.execute(db,"UPDATE globalvar SET varvalue=@v WHERE varname='mxcfdi_nombre_archivo'",v) }
+    }
+    instalar_variable::&db
+    {
+        // Igual que el instalador de V12 (Install_Vars_global): dbr.vars.define con la entrada de vars.json
+        ref cats = from.json(file.rtext("mxcfdi/_install/app_info/vars.json"))
+        ref vars = field.obj(list.obj(cats,0),"vars")
+        for i=0; i<list.count(vars)
+        {
+            if @@(list.obj(vars,i),"$varname") == "mxcfdi_nombre_archivo" { do dbr.vars.define(db,list.obj(vars,i),"mxcfdi") }
+        }
+        return dbr.str(db,"SELECT IFNULL((SELECT varvalue FROM globalvar WHERE varname='mxcfdi_nombre_archivo'),'(no instalada)')",@null)
+    }
+
+    // estado previo, para restaurarlo
+    ref var_antes = dbr.rec(db,"SELECT varvalue FROM globalvar WHERE varname='mxcfdi_nombre_archivo'",@null)
+    ref emisor_antes = dbr.rec(db,"SELECT sys_pk, nic, cti, pwd FROM mxcfdi_emisor WHERE predet LIMIT 1",@null)
+    do limpiar(db,marca)
+
+    // datos ficticios: serie F, folio 1024, un cargo de CxC y su CFDI
+    new d
+    {
+        @"m": marca
+        @"doc": dbr.num(db,"SELECT MIN(id) FROM cdocumentos",@null)
+        @"cli": dbr.num(db,"SELECT MIN(sys_pk) FROM cliente",@null)
+        @"E1": E1
+        @"SF": SF
+        @"XF": XF
+        @"xml": "<cfdi:Comprobante xmlns:cfdi=\"http://www.sat.gob.mx/cfd/4\" Version=\"4.0\" Serie=\"A\" Folio=\"77\"><cfdi:Emisor Rfc=\"XIA010101AA1\"/></cfdi:Comprobante>"
+    }
+    do dbr.execute(db,"INSERT INTO blockdocumentos (sys_guid,sys_timestamp,documento,finicial,fultimo,fiscal,activo,serie) VALUES (CONCAT(@m,'-b'),NOW(),@doc,1,9999,1,1,'F')",d)
+    d<"blk">: dbr.num(db,"SELECT sys_pk FROM blockdocumentos WHERE sys_guid=CONCAT(@m,'-b')",d)
+    do dbr.execute(db,"INSERT INTO foliosdocumentos (sys_guid,sys_timestamp,folio,cancelado,`block`,fecha) VALUES (CONCAT(@m,'-f'),NOW(),1024,0,@blk,CURDATE())",d)
+    d<"fol">: dbr.num(db,"SELECT sys_pk FROM foliosdocumentos WHERE sys_guid=CONCAT(@m,'-f')",d)
+    do dbr.execute(db,"INSERT INTO dcxc (sys_guid,sys_timestamp,documento,icliente,referencia,ifolio) VALUES (CONCAT(@m,'-c'),NOW(),@doc,@cli,'F1024',@fol)",d)
+    d<"cxc">: dbr.num(db,"SELECT sys_pk FROM dcxc WHERE sys_guid=CONCAT(@m,'-c')",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_idcxc,uf_rfc_emisor) VALUES (CONCAT(@m,'-1'),NOW(),@E1,'','',@E1,@cxc,'XIA010101AA1')",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_rfc_emisor) VALUES (CONCAT(@m,'-2'),NOW(),@SF,'','',@SF,'XIA010101AA1')",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_xmlcfdi) VALUES (CONCAT(@m,'-3'),NOW(),@XF,'','',@XF,@xml)",d)
+
+    // 0. Instalación de la variable con su valor predeterminado
+    do patron(db,"(sin variable)")
+    do print("SIN VARIABLE: " + to.json(emision.nombreArchivo(db,E1)))
+    do print("INSTALADA: valor=" + to.json(instalar_variable(db)))
+    do print("PREDETERMINADO: " + to.json(emision.nombreArchivo(db,E1)))
+
+    // 1. Patrones
+    ref patrones = from.json('["", "{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}", "{serie}{folio}_{uuid8}", "Factura {serie}-{folio}"]')
+    ref uuids = from.json('["' + E1 + '","' + SF + '","' + XF + '"]')
+    for i=0; i<list.count(patrones)
+    {
+        do patron(db,list.str(patrones,i))
+        linea = "PATRON " + to.json(list.str(patrones,i)) + ":"
+        for j=0; j<list.count(uuids)
+        {
+            linea = linea + "  " + substring(list.str(uuids,j),0,8) + "=" + to.json(emision.nombreArchivo(db,list.str(uuids,j)))
+        }
+        do print(linea)
+    }
+
+    // 2. De punta a punta con factudesk.api del laboratorio (emisor predeterminado con la CTI del laboratorio)
+    new e
+    {
+        @"pk": @@(emisor_antes,"#sys_pk")
+        @"cti": @@(args,"$cti")
+        @"pwd": @@(args,"$pwd")
+    }
+    do dbr.execute(db,"UPDATE mxcfdi_emisor SET cti=@cti, pwd=@pwd WHERE sys_pk=@pk",e)
+
+    ref casos = from.json('["{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}"]')
+    for i=0; i<list.count(casos)
+    {
+        do patron(db,list.str(casos,i))
+        new pd { @"uuid": E1 }
+        ref r = emision.cfdi.download(db,pd)
+        do print("DOWNLOAD " + list.str(casos,i) + " -> " + to.json(r))
+        // tempapi=<carpeta de temp.api del laboratorio>: se guarda una copia del ZIP para revisar su contenido
+        if @@(args,"$tempapi") != "" { do file.copy(path.concat(@@(args,"$tempapi"),E1+".zip"),"descarga-"+str(i)+".zip") }
+        if @@(args,"$enviar") == "1"
+        {
+            new pe
+            {
+                @"_entity_id": "cxc"
+                @"doc": @@(d,"#cxc")
+            }
+            new de
+            {
+                @"emails": "receptor@lab.invalid"
+                @"subject": "Prueba " + list.str(casos,i)
+                @"body": "Prueba de nombre_archivo"
+            }
+            ref s = emision.cfdi.sendmail(db,pe,de)
+            do print("SENDMAIL " + list.str(casos,i) + " -> " + to.json(@@(s,"&data")))
+            exception
+            {
+                do print("SENDMAIL " + list.str(casos,i) + " -> ERROR " + last_error())
+                do pop_exception()
+            }
+        }
+    }
+
+    // restaurar
+    using e
+    {
+        @"cti": @@(emisor_antes,"$cti")
+        @"pwd": @@(emisor_antes,"$pwd")
+    }
+    do dbr.execute(db,"UPDATE mxcfdi_emisor SET cti=@cti, pwd=@pwd WHERE sys_pk=@pk",e)
+    if isnull(var_antes) { do patron(db,"(sin variable)") }
+    else
+    {
+        do instalar_variable(db)
+        do patron(db,@@(var_antes,"$varvalue"))
+    }
+    do limpiar(db,marca)
+    do dbr.close(db)
+}
