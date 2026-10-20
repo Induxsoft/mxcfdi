@@ -395,7 +395,9 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         conditions = conditions + "
         AND (
             CASE @fil_status
-                WHEN 0 THEN IFNULL(cfd.sys_pk,0) = 0 OR (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
+                WHEN 0 THEN
+                    IFNULL(cfd.sys_pk,0) = 0 OR (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
+                    AND (select count(*) from ut_cfd where IF(@fil_doctype IN(2,12,21), uf_idcxc=cfd.uf_idcxc, uf_iventa=cfd.uf_iventa) and (ifnull(uf_canceladosat,0) != 1 and ifnull(uf_ackcancelacion_sat,'') != '1')) = 0
                 WHEN 1 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) != 1 AND IFNULL(cfd.uf_ackcancelacion_sat,'') != '1')
                 WHEN 2 THEN IFNULL(cfd.sys_pk,0) > 0 AND (IFNULL(cfd.uf_canceladosat,0) = 1 OR IFNULL(cfd.uf_ackcancelacion_sat,'') = '1')
             END
@@ -584,8 +586,23 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         ref domicilio = cfdi.find(@@(emisor,"&domicilios"),"$codpos",@@(data,"$sel_expedicion"))
         
         if isnull(domicilio) { ref domicilio:getDomicilioEmisor(emisor)}
-        fecha=trim(@@(documento,"$fecha"))
-        fecha=ifstr(fecha!="",date_str(str2dt(fecha),"yyyy-MM-ddTHH:mm:ss"),hoy("yyyy-MM-ddTHH:mm:ss"))
+        fecha = trim(@@(data,"$fecha"))
+
+        if fecha == "" { fecha = hoy("yyyy-MM-ddTHH:mm:ss") }
+        else
+        {
+            new p { @"fecha":date_str(str2dt(fecha),"yyyy-MM-dd HH:mm:ss") }
+            fecha = dbr.str(db,"
+            SELECT
+                DATE_FORMAT(
+                    IF(TIMESTAMP(@fecha) < DATE_SUB(NOW(), INTERVAL 72 HOUR),
+                        NOW(),
+                        TIMESTAMP(@fecha)
+                    ),
+                    '%Y-%m-%dT%H:%i:%s'
+                );
+            ",p)
+        }
         
         program_path = "mxcfdi/emision"
         program_name = "cfdi40.dkl"
@@ -1866,10 +1883,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         if trim(@@(data,"$emails")) == "" { do rise_error(500,"Debe agregar al menos un correo electrónico válido.") }
 
         if @@(params,"$_entity_id") == "ventas" {
-            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM venta vnt LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa WHERE vnt.sys_pk = @doc",params)
+            ref doc:dbr.rec(db,"SELECT vnt.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM venta vnt LEFT JOIN ut_cfd cfd ON vnt.sys_pk = cfd.uf_iventa WHERE vnt.sys_pk = @doc AND (IFNULL(cfd.uf_canceladosat,0) != 1 AND IFNULL(cfd.uf_ackcancelacion_sat,'') != '1')",params)
         }
         else if @@(params,"$_entity_id") == "cxc" {
-            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc cxc LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc",params)
+            ref doc:dbr.rec(db,"SELECT cxc.referencia, IFNULL(cfd.uf_foliosat,'') AS uf_foliosat FROM dcxc cxc LEFT JOIN ut_cfd cfd ON cxc.sys_pk = cfd.uf_idcxc WHERE cxc.sys_pk = @doc AND (IFNULL(cfd.uf_canceladosat,0) != 1 AND IFNULL(cfd.uf_ackcancelacion_sat,'') != '1')",params)
         }
 
         if isnull(doc) { do rise_error(500,"No fue posible recuperar el documento.") }

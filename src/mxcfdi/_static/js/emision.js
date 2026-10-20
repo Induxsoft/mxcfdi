@@ -52,6 +52,20 @@ var emision =
         if (this.formId === "frm_cobro") this.cobro.init();
     },
 
+    validarFechaEmision(input)
+    {
+        if (!input.value) return;
+
+        const fecha = new Date(input.value);
+        const ahora = new Date();
+
+        const horas = (ahora - fecha) / (1000 * 60 * 60);
+
+        if (horas > 72) {
+            alert("La fecha seleccionada tiene más de 72 horas de antigüedad.\r\nSi continúa, se usará la fecha y hora actuales.");
+        }
+    },
+
     cobro: {
         table_doctos:null, table_traslados:null,
         impuestos_dr:{},

@@ -169,7 +169,7 @@ module "cxc.cobro.dk"
                             label{b{$"RFC: "} $"#<@@(cliente,'$rfc')>"}
                         }
 
-                        div(class="row")
+                        div(class="row gx-1 gx-sm-2 gx-md-3 gx-lg-4")
                         {
                             div(class="col-lg-5 col-md-6")
                             {
@@ -190,14 +190,14 @@ module "cxc.cobro.dk"
                                 label(class="form-label" "for"="txt_codpos"){$"C. P Receptor:"}
                                 input(class="form-control rounded-0" type="text" name="codpos" value="#<@@(cliente,'$codpos')>" id="txt_codpos")
                             }
-                            div(class="col-lg-4 col-md-6")
+                            div(class="col-lg-3 col-md-6")
                             {
                                 label(class="form-label" "for"="sel_forma_pago"){$"Forma de Pago:"}
                                 ##
                                 do uie.dbSelect(sel_forma_pago)
                                 ##
                             }
-                            div(class="col-md-12 col-lg-4")
+                            div(class="col-lg-4 col-md-12")
                             {
                                 label(class="form-label fw-bold" "for"="sel_expedicion"){$"Domicilio de expedición:"}
                                 select(class="form-select rounded-0" name="sel_expedicion" id="sel_expedicion")
@@ -212,18 +212,25 @@ module "cxc.cobro.dk"
                                     }
                                 }
                             }
-                            div(class="col-lg-4 col-md-6")
+                            div(class="col-lg-3 col-md-6")
                             {
                                 label(class="form-label" "for"="txt_no_operacion"){$"No. Operación:"}
                                 input(class="form-control rounded-0" type="text" name="no_operacion" value="" id="txt_no_operacion" required="")
                             }
-                            
+                            div(class="col-lg-2 col-md-6")
+                            {
+                                #!
+                                fecha_emision = date_str(str2dt(@@(entity,"$fecha")),"yyyy-MM-dd HH:mm:ss")
+                                #$
+                                label(class="form-label" "for"="fecha"){"F. Emisión:"}
+                                input(class="form-control rounded-0" type="datetime-local" value="#<fecha_emision>" name="fecha" id="fecha" onchange="emision.validarFechaEmision(this)")
+                            }
                         }
                     }
 
                     div(class="tab-pane fade" id="nav-relacionar" role="tabpanel" "aria-labelledby"="nav-relacionar-tab")
                     {
-                        div(class="row")
+                        div(class="row gx-1 gx-sm-2 gx-md-3 gx-lg-4")
                         {
                             div(class="col-12")
                             {
