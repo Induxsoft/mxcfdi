@@ -158,7 +158,7 @@
                 "vardefault": "{uuid}",
                 "varvalue": "{uuid}",
                 "varcaption": "Nombre de los archivos del CFDI",
-                "varhelp": "Nombre (sin extensión) del XML y el PDF al descargar o enviar por correo. Marcadores: {uuid}, {uuid8} (primeros 8 caracteres del UUID), {serie}, {folio}, {rfc_emisor}. Ejemplos: {serie}{folio}, {rfc_emisor}_{serie}{folio}, {serie}{folio}_{uuid8}. Si el CFDI no tiene serie ni folio se usa el UUID.",
+                "varhelp": "Nombre (sin extensión) del XML y el PDF al descargar o enviar por correo. Marcadores: {uuid}, {uuid8} (primeros 8 caracteres del UUID), {serie}, {folio}, {rfc_emisor}, {referencia} (referencia del documento de V12: venta o movimiento de CxC). Ejemplos: {serie}{folio}, {rfc_emisor}_{serie}{folio}, {serie}{folio}_{uuid8}. Alternativas separadas con |: se usa la primera cuyos marcadores tengan todos valor, por ejemplo {serie}{folio}|{referencia} o Factura {serie}-{folio}|{referencia}. Si ninguna sirve (o el CFDI no tiene serie ni folio, en un patrón sin |) se usa el UUID. Los caracteres no válidos en nombres de archivo (\\ / : * ? \" < > |) se cambian por _ y el nombre se corta a 80 caracteres.",
                 "vartype": "string",
                 "varinput": {
                     "control": "text"

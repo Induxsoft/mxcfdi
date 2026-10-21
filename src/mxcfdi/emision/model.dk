@@ -1492,22 +1492,64 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return response
     }
 
-    nombreArchivo.patron::patron,uuid,rfc_emisor,serie,folio
+    nombreArchivo.limpiar::nombre
     {
-        //#region nombreArchivo.patron()
-        // Expande {uuid}, {uuid8}, {serie}, {folio} y {rfc_emisor}. Devuelve "" cuando el nombre debe ser el UUID.
-        p = trim(patron)
-        if p == "" { return "" }
-        if (contains(p,"{serie}") || contains(p,"{folio}")) && trim(serie) == "" && trim(folio) == "" { return "" }
+        //#region nombreArchivo.limpiar()
+        // Nombre válido en Windows y Linux: \ / : * ? " < > | y los caracteres de control o de formato se cambian
+        // por "_"; como máximo 80 caracteres (el tope de Factudesk) y sin punto ni espacio al final.
+        n = trim(Regex.Replace(nombre,"[\\p{Cc}\\p{Cf}\\\\/:*?\"<>|]","_"))
+        if length(n) > 80 { n = substring(n,0,80) }
+        return trim(Regex.Replace(n,"[. ]+$",""))
+    }
 
+    nombreArchivo.expandir::p,uuid,rfc_emisor,serie,folio,referencia
+    {
+        //#region nombreArchivo.expandir()
         n = replace(p,"{uuid8}",substring(uuid,0,8))
         n = replace(n,"{uuid}",uuid)
         n = replace(n,"{serie}",trim(serie))
         n = replace(n,"{folio}",trim(folio))
         n = replace(n,"{rfc_emisor}",trim(rfc_emisor))
-        n = trim(n)
+        n = replace(n,"{referencia}",trim(referencia))
+        n = emision.nombreArchivo.limpiar(n)
         if n == uuid { return "" }
         return n
+    }
+
+    nombreArchivo.patron::patron,uuid,rfc_emisor,serie,folio,referencia
+    {
+        //#region nombreArchivo.patron()
+        // Expande {uuid}, {uuid8}, {serie}, {folio}, {rfc_emisor} y {referencia}. Devuelve "" cuando el nombre
+        // debe ser el UUID. El patrón puede traer alternativas separadas con "|" ({serie}{folio}|{referencia}):
+        // gana la primera cuyos marcadores tengan todos valor; si ninguna, el UUID.
+        p = trim(patron)
+        if p == "" { return "" }
+
+        if not(contains(p,"|"))
+        {
+            // Sin alternativas, como en 1.0.108: el UUID solo si faltan serie y folio (o la referencia)
+            if (contains(p,"{serie}") || contains(p,"{folio}")) && trim(serie) == "" && trim(folio) == "" { return "" }
+            if contains(p,"{referencia}") && trim(referencia) == "" { return "" }
+            return emision.nombreArchivo.expandir(p,uuid,rfc_emisor,serie,folio,referencia)
+        }
+
+        ref alternativas = split(p,"|")
+        for i=0; i<list.count(alternativas)
+        {
+            a = trim(list.str(alternativas,i))
+            completa = a != ""
+            if contains(a,"{serie}") && trim(serie) == "" { completa = @false }
+            if contains(a,"{folio}") && trim(folio) == "" { completa = @false }
+            if contains(a,"{rfc_emisor}") && trim(rfc_emisor) == "" { completa = @false }
+            if contains(a,"{referencia}") && trim(referencia) == "" { completa = @false }
+            if completa
+            {
+                n = emision.nombreArchivo.expandir(a,uuid,rfc_emisor,serie,folio,referencia)
+                // {uuid} como alternativa da "" (el UUID): también termina la búsqueda
+                if n != "" || contains(a,"{uuid}") { return n }
+            }
+        }
+        return ""
     }
 
     nombreArchivo::&db,uuid
@@ -1516,11 +1558,15 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         // Nombre (sin extensión) con el que Factudesk entrega el XML y el PDF del CFDI, según el patrón de la
         // variable mxcfdi_nombre_archivo (por omisión {uuid}). Devuelve "" si es el UUID: entonces no se manda
         // nombre_archivo y Factudesk responde como siempre. Un error aquí no impide descargar ni enviar.
+        // {referencia}: la del documento de V12 del que salió el CFDI (venta.referencia en facturas y notas de
+        // crédito de ventas; dcxc.referencia en cargos, bonificaciones, cobros con complemento de pago y CFDI
+        // importados); vacía si el CFDI no está ligado a un documento.
         patron = trim(dbr.vars.get(db,"mxcfdi_nombre_archivo"))
         if patron == "" || patron == "{uuid}" || trim(uuid) == "" { return "" }
 
         new p { @"uuid": trim(uuid) }
-        ref d = dbr.rec(db,"SELECT IFNULL(cfd.uf_rfc_emisor,'') AS rfc_emisor, IFNULL(b.serie,'') AS serie, IFNULL(f.folio,'') AS folio, IFNULL(cfd.uf_xmlcfdi,'') AS xml
+        ref d = dbr.rec(db,"SELECT IFNULL(cfd.uf_rfc_emisor,'') AS rfc_emisor, IFNULL(b.serie,'') AS serie, IFNULL(f.folio,'') AS folio, IFNULL(cfd.uf_xmlcfdi,'') AS xml,
+                IF(vnt.sys_pk IS NULL, IFNULL(cxc.referencia,''), IFNULL(vnt.referencia,'')) AS referencia
             FROM ut_cfd cfd
             LEFT JOIN venta vnt ON vnt.sys_pk = cfd.uf_iventa
             LEFT JOIN dcxc cxc ON cxc.sys_pk = cfd.uf_idcxc
@@ -1543,7 +1589,7 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             if rfc_emisor == "" { rfc_emisor = trim(atributoElemento(cfdi.getElementByTagName(comp,"cfdi:Emisor"),"Rfc")) }
         }
 
-        return emision.nombreArchivo.patron(patron,trim(uuid),rfc_emisor,serie,folio)
+        return emision.nombreArchivo.patron(patron,trim(uuid),rfc_emisor,serie,folio,trim(@@(d,"$referencia")))
 
         exception
         {

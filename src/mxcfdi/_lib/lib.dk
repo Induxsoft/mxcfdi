@@ -33,6 +33,16 @@ module "Funciones de propósito general"
         do _map_function(lib_regex,"System.Text.RegularExpressions.Regex","IsMatch","Regex.IsMatch","System.String, System.String","#")
 
         /**
+        * En una cadena de entrada especificada, reemplaza todas las cadenas que coinciden con una expresión regular especificada por una cadena de reemplazo especificada.
+        *
+        * @param String input | Cadena en la que se va a buscar una coincidencia.
+        * @param String pattern | Patrón de expresión regular del que van a buscarse coincidencias.
+        * @param String replacement | Cadena de reemplazo.
+        * @link https://learn.microsoft.com/es-es/dotnet/api/system.text.regularexpressions.regex.replace?view=net-8.0#system-text-regularexpressions-regex-replace(system-string-system-string-system-string)
+        */
+        do _map_function(lib_regex,"System.Text.RegularExpressions.Regex","Replace","Regex.Replace","System.String, System.String, System.String","$")
+
+        /**
         * Convierte una cadena en una cadena codificada en HTML.
         *
         * @param String s | Cadena que se va a codificar.

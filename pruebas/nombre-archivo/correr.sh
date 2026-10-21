@@ -10,7 +10,7 @@ AQUI=$(dirname "$(readlink -f "$0")")
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 ln -s "$MX" "$TMP/mxcfdi"
-cp "$AQUI/prueba.dkl" "$TMP/"
+cp "$AQUI/prueba.dkl" "$AQUI/crudos.json" "$TMP/"
 # dkl lee connections.xml del directorio actual: se enlaza el de la raíz de Devkron
 ln -s "$DK/connections.xml" "$TMP/connections.xml"
 [ -f "$DK/adapters.xml" ] && ln -s "$DK/adapters.xml" "$TMP/adapters.xml"

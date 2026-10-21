@@ -28,12 +28,16 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
     E1 = "aaaa0001-0001-4000-8000-000000000001"   // F1024 por dcxc + foliosdocumentos (en el XML también)
     SF = "aaaa0001-0002-4000-8000-000000000002"   // sin serie ni folio
     XF = "bbbb0001-0001-4000-8000-000000000009"   // solo XML guardado (uf_xmlcfdi) con Serie A y Folio 77
+    RC = "cccc0001-0001-4000-8000-000000000003"   // cargo de CxC sin folio, referencia con "/" (solo referencia)
+    RL = "cccc0001-0002-4000-8000-000000000004"   // cargo de CxC sin folio, referencia de 50 caracteres (el tope de dcxc.referencia)
+    RV = "cccc0001-0003-4000-8000-000000000005"   // venta con folio 55 sin serie, referencia "Pedido 77/B"
 
     limpiar::&db,marca
     {
         new m { @"m": marca }
         do dbr.execute(db,"DELETE FROM ut_cfd WHERE sys_guid LIKE CONCAT(@m,'%')",m)
         do dbr.execute(db,"DELETE FROM dcxc WHERE sys_guid LIKE CONCAT(@m,'%')",m)
+        do dbr.execute(db,"DELETE FROM venta WHERE sys_guid LIKE CONCAT(@m,'%')",m)
         do dbr.execute(db,"DELETE FROM foliosdocumentos WHERE sys_guid LIKE CONCAT(@m,'%')",m)
         do dbr.execute(db,"DELETE FROM blockdocumentos WHERE sys_guid LIKE CONCAT(@m,'%')",m)
     }
@@ -69,17 +73,29 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
         @"E1": E1
         @"SF": SF
         @"XF": XF
+        @"RC": RC
+        @"RL": RL
+        @"RV": RV
         @"xml": "<cfdi:Comprobante xmlns:cfdi=\"http://www.sat.gob.mx/cfd/4\" Version=\"4.0\" Serie=\"A\" Folio=\"77\"><cfdi:Emisor Rfc=\"XIA010101AA1\"/></cfdi:Comprobante>"
     }
     do dbr.execute(db,"INSERT INTO blockdocumentos (sys_guid,sys_timestamp,documento,finicial,fultimo,fiscal,activo,serie) VALUES (CONCAT(@m,'-b'),NOW(),@doc,1,9999,1,1,'F')",d)
     d<"blk">: dbr.num(db,"SELECT sys_pk FROM blockdocumentos WHERE sys_guid=CONCAT(@m,'-b')",d)
     do dbr.execute(db,"INSERT INTO foliosdocumentos (sys_guid,sys_timestamp,folio,cancelado,`block`,fecha) VALUES (CONCAT(@m,'-f'),NOW(),1024,0,@blk,CURDATE())",d)
     d<"fol">: dbr.num(db,"SELECT sys_pk FROM foliosdocumentos WHERE sys_guid=CONCAT(@m,'-f')",d)
-    do dbr.execute(db,"INSERT INTO dcxc (sys_guid,sys_timestamp,documento,icliente,referencia,ifolio) VALUES (CONCAT(@m,'-c'),NOW(),@doc,@cli,'F1024',@fol)",d)
+    do dbr.execute(db,"INSERT INTO dcxc (sys_guid,sys_timestamp,documento,icliente,referencia,ifolio) VALUES (CONCAT(@m,'-c'),NOW(),@doc,@cli,'REF-1024',@fol)",d)
     d<"cxc">: dbr.num(db,"SELECT sys_pk FROM dcxc WHERE sys_guid=CONCAT(@m,'-c')",d)
     do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_idcxc,uf_rfc_emisor) VALUES (CONCAT(@m,'-1'),NOW(),@E1,'','',@E1,@cxc,'XIA010101AA1')",d)
     do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_rfc_emisor) VALUES (CONCAT(@m,'-2'),NOW(),@SF,'','',@SF,'XIA010101AA1')",d)
     do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_xmlcfdi) VALUES (CONCAT(@m,'-3'),NOW(),@XF,'','',@XF,@xml)",d)
+    // {referencia}: cargos de CxC sin folio (dcxc.referencia) y una venta con folio sin serie (venta.referencia)
+    do dbr.execute(db,"INSERT INTO dcxc (sys_guid,sys_timestamp,documento,icliente,referencia) VALUES (CONCAT(@m,'-r1'),NOW(),@doc,@cli,'OC 2026/0045')",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_idcxc,uf_rfc_emisor) VALUES (CONCAT(@m,'-4'),NOW(),@RC,'','',@RC,(SELECT sys_pk FROM dcxc WHERE sys_guid=CONCAT(@m,'-r1')),'XIA010101AA1')",d)
+    do dbr.execute(db,"INSERT INTO dcxc (sys_guid,sys_timestamp,documento,icliente,referencia) VALUES (CONCAT(@m,'-r2'),NOW(),@doc,@cli,'Referencia larga de un pedido de prueba: 012345678')",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_idcxc,uf_rfc_emisor) VALUES (CONCAT(@m,'-5'),NOW(),@RL,'','',@RL,(SELECT sys_pk FROM dcxc WHERE sys_guid=CONCAT(@m,'-r2')),'XIA010101AA1')",d)
+    do dbr.execute(db,"INSERT INTO blockdocumentos (sys_guid,sys_timestamp,documento,finicial,fultimo,fiscal,activo,serie) VALUES (CONCAT(@m,'-b2'),NOW(),@doc,1,9999,1,1,'')",d)
+    do dbr.execute(db,"INSERT INTO foliosdocumentos (sys_guid,sys_timestamp,folio,cancelado,`block`,fecha) VALUES (CONCAT(@m,'-f2'),NOW(),55,0,(SELECT sys_pk FROM blockdocumentos WHERE sys_guid=CONCAT(@m,'-b2')),CURDATE())",d)
+    do dbr.execute(db,"INSERT INTO venta (sys_guid,sys_timestamp,documento,fecha,formapago,icconsumo,icliente,idivisa,ifolio,referencia) SELECT CONCAT(@m,'-v'),NOW(),@doc,CURDATE(),(SELECT MIN(id) FROM cformaspago),(SELECT MIN(sys_pk) FROM cconsumo),@cli,(SELECT MIN(sys_pk) FROM divisa),(SELECT sys_pk FROM foliosdocumentos WHERE sys_guid=CONCAT(@m,'-f2')),'Pedido 77/B'",d)
+    do dbr.execute(db,"INSERT INTO ut_cfd (sys_guid,sys_timestamp,uf_xml,uf_cadenaoriginal,uf_sellodigital,uf_foliosat,uf_iventa,uf_rfc_emisor) VALUES (CONCAT(@m,'-6'),NOW(),@RV,'','',@RV,(SELECT sys_pk FROM venta WHERE sys_guid=CONCAT(@m,'-v')),'XIA010101AA1')",d)
 
     // 0. Instalación de la variable con su valor predeterminado
     do patron(db,"(sin variable)")
@@ -101,6 +117,30 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
         do print(linea)
     }
 
+    // 1b. Alternativas con "|" y {referencia} (1.0.109)
+    ref alts = from.json('["{serie}{folio}|{referencia}", "Factura {serie}-{folio}|{referencia}", "{referencia}", "{serie}{folio}|{uuid8}|{referencia}", "{referencia}|{serie}{folio}", "{referencia}-{referencia}", " | ", "{serie}{folio}|{referencia}|"]')
+    ref uuids2 = from.json('["' + E1 + '","' + SF + '","' + XF + '","' + RC + '","' + RL + '","' + RV + '"]')
+    for i=0; i<list.count(alts)
+    {
+        do patron(db,list.str(alts,i))
+        linea = "ALT " + to.json(list.str(alts,i)) + ":"
+        for j=0; j<list.count(uuids2)
+        {
+            linea = linea + "  " + substring(list.str(uuids2,j),0,8) + "=" + to.json(emision.nombreArchivo(db,list.str(uuids2,j)))
+        }
+        do print(linea)
+    }
+
+    // 1c. Limpieza y tope de longitud (directo sobre emision.nombreArchivo.patron, sin base de datos)
+    largo = "R123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789"
+    n = emision.nombreArchivo.patron("{referencia}",E1,"","","",largo)
+    do print("LIMPIA largo(" + str(length(largo)) + ") -> " + to.json(n) + " (" + str(length(n)) + ")")
+    ref crudos = from.json(file.rtext("crudos.json"))
+    for i=0; i<list.count(crudos)
+    {
+        do print("LIMPIA " + to.json(list.str(crudos,i)) + " -> " + to.json(emision.nombreArchivo.patron("{serie}{folio}|{referencia}",E1,"","","",list.str(crudos,i))))
+    }
+
     // 2. De punta a punta con factudesk.api del laboratorio (emisor predeterminado con la CTI del laboratorio)
     new e
     {
@@ -110,21 +150,27 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
     }
     do dbr.execute(db,"UPDATE mxcfdi_emisor SET cti=@cti, pwd=@pwd WHERE sys_pk=@pk",e)
 
-    ref casos = from.json('["{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}"]')
+    // casos: patrón y CFDI (cargo de CxC). El último usa el CFDI sin serie ni folio (SF, que sí existe en
+    // factudesk.api del laboratorio) ligado al cargo con la referencia "OC 2026/0045" en lugar de RC.
+    do dbr.execute(db,"UPDATE ut_cfd SET uf_idcxc = NULL WHERE sys_guid = CONCAT(@m,'-4')",d)
+    do dbr.execute(db,"UPDATE ut_cfd SET uf_idcxc = (SELECT sys_pk FROM dcxc WHERE sys_guid = CONCAT(@m,'-r1')) WHERE sys_guid = CONCAT(@m,'-2')",d)
+    ref casos = from.json('["{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}", "Factura {serie}-{folio}|{referencia}"]')
+    ref cfdis = from.json('["' + E1 + '","' + E1 + '","' + E1 + '","' + SF + '"]')
+    ref cargos = from.json('["-c","-c","-c","-r1"]')
     for i=0; i<list.count(casos)
     {
         do patron(db,list.str(casos,i))
-        new pd { @"uuid": E1 }
+        new pd { @"uuid": list.str(cfdis,i) }
         ref r = emision.cfdi.download(db,pd)
         do print("DOWNLOAD " + list.str(casos,i) + " -> " + to.json(r))
         // tempapi=<carpeta de temp.api del laboratorio>: se guarda una copia del ZIP para revisar su contenido
-        if @@(args,"$tempapi") != "" { do file.copy(path.concat(@@(args,"$tempapi"),E1+".zip"),"descarga-"+str(i)+".zip") }
+        if @@(args,"$tempapi") != "" { do file.copy(path.concat(@@(args,"$tempapi"),list.str(cfdis,i)+".zip"),"descarga-"+str(i)+".zip") }
         if @@(args,"$enviar") == "1"
         {
             new pe
             {
                 @"_entity_id": "cxc"
-                @"doc": @@(d,"#cxc")
+                @"doc": dbr.num(db,"SELECT sys_pk FROM dcxc WHERE sys_guid=CONCAT(@m,'"+list.str(cargos,i)+"')",d)
             }
             new de
             {
