@@ -99,4 +99,22 @@ I=Factura E=Nota de crédito P=Recibo de pago X=""
 ```
 
 `""` significa que el nombre es el UUID. `{documento}` sale del atributo `TipoDeComprobante` del XML guardado
-(`ut_cfd.uf_xmlcfdi`). La prueba de punta a punta con base (`prueba.dkl`) queda pendiente para el laboratorio.
+(`ut_cfd.uf_xmlcfdi`). `prueba.dkl` incluye desde 1.0.111 tres patrones más en la sección 3 y dos casos más de punta a punta. El XML
+guardado de prueba (`bbbb0001…9`) trae `TipoDeComprobante="I"`, y en la parte de punta a punta el CFDI de F1024
+recibe por un momento un XML guardado con `TipoDeComprobante="E"`.
+
+## Resultado 1.0.111 (2026-10-23, VM de clon1, base R11 actualizada de 1.0.110 a 1.0.111)
+Las líneas `SIN VARIABLE` a `LIMPIA` de los patrones anteriores salen idénticas a las de 1.0.108 y 1.0.109 (`diff`).
+Lo nuevo:
+```
+ALT "{documento} {serie}-{folio}|{serie}{folio}":  aaaa0001="F1024"  aaaa0001=""  bbbb0001="Factura A-77"  cccc0001=""  cccc0001=""  cccc0001=""
+ALT "{serie1}-{folio}|{serie}{folio}":  aaaa0001="F1024"  aaaa0001=""  bbbb0001="A77"  cccc0001=""  cccc0001=""  cccc0001=""
+ALT "{serie1}":  aaaa0001=""  aaaa0001=""  bbbb0001=""  cccc0001=""  cccc0001=""  cccc0001=""
+DOWNLOAD {documento} {serie}-{folio}|{serie}{folio} -> {"link":"https://temp.api.induxsoft.net/aaaa0001-0001-4000-8000-000000000001.zip"}
+DOWNLOAD {serie1}-{folio}|{serie}{folio} -> {"link":"https://temp.api.induxsoft.net/aaaa0001-0001-4000-8000-000000000001.zip"}
+ZIP descarga-4.zip ['Nota de crédito F-1024.xml', 'Nota de crédito F-1024.pdf']
+ZIP descarga-5.zip ['F1024.pdf', 'F1024.xml']
+```
+Correos del SMTP simulado: `{documento} {serie}-{folio}|{serie}{folio}` llega con el adjunto `Nota de crédito F-1024.zip`
+(nombre en RFC 2047) y `{serie1}-{folio}|{serie}{folio}` con `F1024.zip`. En R12 (instalación limpia) las secciones
+0 a 3 salen iguales; la parte de punta a punta necesita un emisor configurado (`mxcfdi_emisor`), que una base limpia no tiene.

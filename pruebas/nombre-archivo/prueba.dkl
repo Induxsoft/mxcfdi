@@ -76,7 +76,7 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
         @"RC": RC
         @"RL": RL
         @"RV": RV
-        @"xml": "<cfdi:Comprobante xmlns:cfdi=\"http://www.sat.gob.mx/cfd/4\" Version=\"4.0\" Serie=\"A\" Folio=\"77\"><cfdi:Emisor Rfc=\"XIA010101AA1\"/></cfdi:Comprobante>"
+        @"xml": "<cfdi:Comprobante xmlns:cfdi=\"http://www.sat.gob.mx/cfd/4\" Version=\"4.0\" TipoDeComprobante=\"I\" Serie=\"A\" Folio=\"77\"><cfdi:Emisor Rfc=\"XIA010101AA1\"/></cfdi:Comprobante>"
     }
     do dbr.execute(db,"INSERT INTO blockdocumentos (sys_guid,sys_timestamp,documento,finicial,fultimo,fiscal,activo,serie) VALUES (CONCAT(@m,'-b'),NOW(),@doc,1,9999,1,1,'F')",d)
     d<"blk">: dbr.num(db,"SELECT sys_pk FROM blockdocumentos WHERE sys_guid=CONCAT(@m,'-b')",d)
@@ -118,7 +118,7 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
     }
 
     // 1b. Alternativas con "|" y {referencia} (1.0.109)
-    ref alts = from.json('["{serie}{folio}|{referencia}", "Factura {serie}-{folio}|{referencia}", "{referencia}", "{serie}{folio}|{uuid8}|{referencia}", "{referencia}|{serie}{folio}", "{referencia}-{referencia}", " | ", "{serie}{folio}|{referencia}|"]')
+    ref alts = from.json('["{serie}{folio}|{referencia}", "Factura {serie}-{folio}|{referencia}", "{referencia}", "{serie}{folio}|{uuid8}|{referencia}", "{referencia}|{serie}{folio}", "{referencia}-{referencia}", " | ", "{serie}{folio}|{referencia}|", "{documento} {serie}-{folio}|{serie}{folio}", "{serie1}-{folio}|{serie}{folio}", "{serie1}"]')
     ref uuids2 = from.json('["' + E1 + '","' + SF + '","' + XF + '","' + RC + '","' + RL + '","' + RV + '"]')
     for i=0; i<list.count(alts)
     {
@@ -138,7 +138,7 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
     ref crudos = from.json(file.rtext("crudos.json"))
     for i=0; i<list.count(crudos)
     {
-        do print("LIMPIA " + to.json(list.str(crudos,i)) + " -> " + to.json(emision.nombreArchivo.patron("{serie}{folio}|{referencia}",E1,"","","",list.str(crudos,i),""))))
+        do print("LIMPIA " + to.json(list.str(crudos,i)) + " -> " + to.json(emision.nombreArchivo.patron("{serie}{folio}|{referencia}",E1,"","","",list.str(crudos,i),"")))
     }
 
     // 2. De punta a punta con factudesk.api del laboratorio (emisor predeterminado con la CTI del laboratorio)
@@ -154,9 +154,12 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
     // factudesk.api del laboratorio) ligado al cargo con la referencia "OC 2026/0045" en lugar de RC.
     do dbr.execute(db,"UPDATE ut_cfd SET uf_idcxc = NULL WHERE sys_guid = CONCAT(@m,'-4')",d)
     do dbr.execute(db,"UPDATE ut_cfd SET uf_idcxc = (SELECT sys_pk FROM dcxc WHERE sys_guid = CONCAT(@m,'-r1')) WHERE sys_guid = CONCAT(@m,'-2')",d)
-    ref casos = from.json('["{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}", "Factura {serie}-{folio}|{referencia}"]')
-    ref cfdis = from.json('["' + E1 + '","' + E1 + '","' + E1 + '","' + SF + '"]')
-    ref cargos = from.json('["-c","-c","-c","-r1"]')
+    // {documento} (1.0.111): el CFDI de F1024 recibe un XML guardado con TipoDeComprobante="E" ("Nota de crédito")
+    d<"xmle">: "<cfdi:Comprobante xmlns:cfdi=\"http://www.sat.gob.mx/cfd/4\" Version=\"4.0\" TipoDeComprobante=\"E\" Serie=\"F\" Folio=\"1024\"><cfdi:Emisor Rfc=\"XIA010101AA1\"/></cfdi:Comprobante>"
+    do dbr.execute(db,"UPDATE ut_cfd SET uf_xmlcfdi = @xmle WHERE sys_guid = CONCAT(@m,'-1')",d)
+    ref casos = from.json('["{uuid}", "{serie}{folio}", "{rfc_emisor}_{serie}{folio}", "Factura {serie}-{folio}|{referencia}", "{documento} {serie}-{folio}|{serie}{folio}", "{serie1}-{folio}|{serie}{folio}"]')
+    ref cfdis = from.json('["' + E1 + '","' + E1 + '","' + E1 + '","' + SF + '","' + E1 + '","' + E1 + '"]')
+    ref cargos = from.json('["-c","-c","-c","-r1","-c","-c"]')
     for i=0; i<list.count(casos)
     {
         do patron(db,list.str(casos,i))
