@@ -133,12 +133,12 @@ program "Prueba de mxcfdi_nombre_archivo (nombre de los archivos del CFDI)"
 
     // 1c. Limpieza y tope de longitud (directo sobre emision.nombreArchivo.patron, sin base de datos)
     largo = "R123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789-123456789"
-    n = emision.nombreArchivo.patron("{referencia}",E1,"","","",largo)
+    n = emision.nombreArchivo.patron("{referencia}",E1,"","","",largo,"")
     do print("LIMPIA largo(" + str(length(largo)) + ") -> " + to.json(n) + " (" + str(length(n)) + ")")
     ref crudos = from.json(file.rtext("crudos.json"))
     for i=0; i<list.count(crudos)
     {
-        do print("LIMPIA " + to.json(list.str(crudos,i)) + " -> " + to.json(emision.nombreArchivo.patron("{serie}{folio}|{referencia}",E1,"","","",list.str(crudos,i))))
+        do print("LIMPIA " + to.json(list.str(crudos,i)) + " -> " + to.json(emision.nombreArchivo.patron("{serie}{folio}|{referencia}",E1,"","","",list.str(crudos,i),""))))
     }
 
     // 2. De punta a punta con factudesk.api del laboratorio (emisor predeterminado con la CTI del laboratorio)

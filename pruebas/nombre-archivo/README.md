@@ -78,3 +78,25 @@ ZIP descarga-3.zip ['OC 2026_0045.pdf', 'OC 2026_0045.xml']
 ```
 Correos del SMTP simulado: `F1024.zip`, `XIA010101AA1_F1024.zip` y, con `Factura {serie}-{folio}|{referencia}`,
 `OC 2026_0045.zip` con `OC 2026_0045.pdf` y `OC 2026_0045.xml`. El enlace sigue con el UUID.
+
+## `{documento}` y marcadores inexistentes (1.0.111), sin base de datos
+
+`documento.dkl` prueba `emision.nombreArchivo.patron` y `emision.nombreArchivo.documento` sin conexión. Mapea `Regex`
+directamente en lugar de incluir `_lib/lib.dk`, que carga una DLL nativa. Se corre desde una carpeta donde `mxcfdi/`
+apunte a `src/mxcfdi` y estén `functions.dkh`, `serialize.dkh`, `webcl.dkh`, `dbr.dkh` y `dkli.dkh`:
+`dkl documento.dkl`. Salida verificada el 2026-10-23:
+
+```
+{documento} {serie}-{folio} [doc=Factura] -> "Factura F-155"
+{documento} {serie}-{folio} [doc=] -> ""
+{documento} {serie}-{folio}|{serie}{folio} [doc=] -> "F155"
+{serie1}-{folio1} [doc=Factura] -> ""
+{serie1}-{folio1}|{serie}{folio} [doc=Factura] -> "F155"
+{documento}_{serie}{folio}_{x} [doc=Nota de crédito] -> ""
+{serie}{folio} [doc=Factura] -> "F155"
+{documento} {uuid8} [doc=Recibo de pago] -> "Recibo de pago aaaa0001"
+I=Factura E=Nota de crédito P=Recibo de pago X=""
+```
+
+`""` significa que el nombre es el UUID. `{documento}` sale del atributo `TipoDeComprobante` del XML guardado
+(`ut_cfd.uf_xmlcfdi`). La prueba de punta a punta con base (`prueba.dkl`) queda pendiente para el laboratorio.

@@ -1502,35 +1502,53 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         return trim(Regex.Replace(n,"[. ]+$",""))
     }
 
-    nombreArchivo.expandir::p,uuid,rfc_emisor,serie,folio,referencia
+    nombreArchivo.documento::tipo
+    {
+        //#region nombreArchivo.documento()
+        // Texto de {documento}: el TipoDeComprobante del XML (catálogo c_TipoDeComprobante del SAT). "" si no se conoce.
+        t = trim(tipo)
+        if t == "I" { return "Factura" }
+        if t == "E" { return "Nota de crédito" }
+        if t == "P" { return "Recibo de pago" }
+        if t == "T" { return "Traslado" }
+        if t == "N" { return "Nómina" }
+        return ""
+    }
+
+    nombreArchivo.expandir::p,uuid,rfc_emisor,serie,folio,referencia,documento
     {
         //#region nombreArchivo.expandir()
+        // Devuelve "" (el UUID) si el resultado es el UUID o si queda algún marcador que no existe ({serie1}).
         n = replace(p,"{uuid8}",substring(uuid,0,8))
         n = replace(n,"{uuid}",uuid)
         n = replace(n,"{serie}",trim(serie))
         n = replace(n,"{folio}",trim(folio))
         n = replace(n,"{rfc_emisor}",trim(rfc_emisor))
         n = replace(n,"{referencia}",trim(referencia))
+        n = replace(n,"{documento}",trim(documento))
+        if Regex.IsMatch(n,"\\{[^{}]*\\}") { return "" }
         n = emision.nombreArchivo.limpiar(n)
         if n == uuid { return "" }
         return n
     }
 
-    nombreArchivo.patron::patron,uuid,rfc_emisor,serie,folio,referencia
+    nombreArchivo.patron::patron,uuid,rfc_emisor,serie,folio,referencia,documento
     {
         //#region nombreArchivo.patron()
-        // Expande {uuid}, {uuid8}, {serie}, {folio}, {rfc_emisor} y {referencia}. Devuelve "" cuando el nombre
-        // debe ser el UUID. El patrón puede traer alternativas separadas con "|" ({serie}{folio}|{referencia}):
-        // gana la primera cuyos marcadores tengan todos valor; si ninguna, el UUID.
+        // Expande {uuid}, {uuid8}, {serie}, {folio}, {rfc_emisor}, {referencia} y {documento}. Devuelve "" cuando el
+        // nombre debe ser el UUID. El patrón puede traer alternativas separadas con "|" ({serie}{folio}|{referencia}):
+        // gana la primera cuyos marcadores existan y tengan todos valor; si ninguna, el UUID. Un marcador que no
+        // existe ({serie1}) hace inválida su alternativa (o el patrón, si no hay alternativas).
         p = trim(patron)
         if p == "" { return "" }
 
         if not(contains(p,"|"))
         {
-            // Sin alternativas, como en 1.0.108: el UUID solo si faltan serie y folio (o la referencia)
+            // Sin alternativas, como en 1.0.108: el UUID solo si faltan serie y folio (o la referencia o el documento)
             if (contains(p,"{serie}") || contains(p,"{folio}")) && trim(serie) == "" && trim(folio) == "" { return "" }
             if contains(p,"{referencia}") && trim(referencia) == "" { return "" }
-            return emision.nombreArchivo.expandir(p,uuid,rfc_emisor,serie,folio,referencia)
+            if contains(p,"{documento}") && trim(documento) == "" { return "" }
+            return emision.nombreArchivo.expandir(p,uuid,rfc_emisor,serie,folio,referencia,documento)
         }
 
         ref alternativas = split(p,"|")
@@ -1542,9 +1560,10 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
             if contains(a,"{folio}") && trim(folio) == "" { completa = @false }
             if contains(a,"{rfc_emisor}") && trim(rfc_emisor) == "" { completa = @false }
             if contains(a,"{referencia}") && trim(referencia) == "" { completa = @false }
+            if contains(a,"{documento}") && trim(documento) == "" { completa = @false }
             if completa
             {
-                n = emision.nombreArchivo.expandir(a,uuid,rfc_emisor,serie,folio,referencia)
+                n = emision.nombreArchivo.expandir(a,uuid,rfc_emisor,serie,folio,referencia,documento)
                 // {uuid} como alternativa da "" (el UUID): también termina la búsqueda
                 if n != "" || contains(a,"{uuid}") { return n }
             }
@@ -1580,16 +1599,20 @@ module "Emisión de comprobantes fiscales por tipo de operación. :emision"
         serie = trim(@@(d,"$serie"))
         folio = trim(@@(d,"$folio"))
 
-        // Como en data.email: si la venta o el cargo no tienen serie y folio, se toman del XML guardado
-        if (serie == "" || folio == "" || rfc_emisor == "") && trim(@@(d,"$xml")) != ""
+        // Como en data.email: si la venta o el cargo no tienen serie y folio, se toman del XML guardado.
+        // {documento} sale siempre del XML (TipoDeComprobante).
+        documento = ""
+        necesita_xml = serie == "" || folio == "" || rfc_emisor == "" || contains(patron,"{documento}")
+        if necesita_xml && trim(@@(d,"$xml")) != ""
         {
             ref comp = cfdi.comprobante(parse.xmlStr(@@(d,"$xml")))
             if serie == "" { serie = trim(atributoElemento(comp,"Serie")) }
             if folio == "" { folio = trim(atributoElemento(comp,"Folio")) }
             if rfc_emisor == "" { rfc_emisor = trim(atributoElemento(cfdi.getElementByTagName(comp,"cfdi:Emisor"),"Rfc")) }
+            documento = emision.nombreArchivo.documento(atributoElemento(comp,"TipoDeComprobante"))
         }
 
-        return emision.nombreArchivo.patron(patron,trim(uuid),rfc_emisor,serie,folio,trim(@@(d,"$referencia")))
+        return emision.nombreArchivo.patron(patron,trim(uuid),rfc_emisor,serie,folio,trim(@@(d,"$referencia")),documento)
 
         exception
         {

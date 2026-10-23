@@ -1,0 +1,22 @@
+#include "dkli.dkh"
+#!
+program "Prueba sin base de {documento} y de marcadores inexistentes en mxcfdi_nombre_archivo"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "webcl.dkh"
+    #include "dbr.dkh"
+    #include "mxcfdi/_lib/config.dk"
+    ref lib_regex=_import_library("System.Text.RegularExpressions.dll")
+    do _map_function(lib_regex,"System.Text.RegularExpressions.Regex","IsMatch","Regex.IsMatch","System.String, System.String","#")
+    do _map_function(lib_regex,"System.Text.RegularExpressions.Regex","Replace","Regex.Replace","System.String, System.String, System.String","$")
+    #include "mxcfdi/emision/model.dk"
+    U = "aaaa0001-0001-4000-8000-000000000001"
+    ref c = from.json('[["{documento} {serie}-{folio}","F","155","Factura"],["{documento} {serie}-{folio}","F","155",""],["{documento} {serie}-{folio}|{serie}{folio}","F","155",""],["{serie1}-{folio1}","F","155","Factura"],["{serie1}-{folio1}|{serie}{folio}","F","155","Factura"],["{documento}_{serie}{folio}_{x}","F","155","Nota de crédito"],["{serie}{folio}","F","155","Factura"],["{documento} {uuid8}","","","Recibo de pago"]]')
+    for i=0; i<list.count(c)
+    {
+        ref r = list.obj(c,i)
+        do print(list.str(r,0) + " [doc=" + list.str(r,3) + "] -> " + to.json(emision.nombreArchivo.patron(list.str(r,0),U,"XIA010101AA1",list.str(r,1),list.str(r,2),"",list.str(r,3))))
+    }
+    do print("I=" + emision.nombreArchivo.documento("I") + " E=" + emision.nombreArchivo.documento("E") + " P=" + emision.nombreArchivo.documento("P") + " X=" + to.json(emision.nombreArchivo.documento("X")))
+}
